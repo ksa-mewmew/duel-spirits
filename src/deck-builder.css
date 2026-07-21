@@ -1,0 +1,194 @@
+.deck-builder-screen {
+  padding-block: 28px 60px;
+}
+
+.builder-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.deck-toolbar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 1fr) repeat(3, auto);
+  align-items: end;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.deck-toolbar label,
+.deck-filters label {
+  display: grid;
+  gap: 6px;
+}
+
+.deck-builder-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) 280px;
+  gap: 18px;
+  align-items: start;
+}
+
+.deck-filters,
+.current-deck-panel {
+  position: sticky;
+  top: 72px;
+}
+
+.deck-filters {
+  display: grid;
+  gap: 14px;
+}
+
+.card-pool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(138px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.card-pool-item {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.card-pool-item .game-card {
+  width: 100%;
+}
+
+.card-copy-count {
+  font-size: 0.8rem;
+  color: var(--ui-muted);
+}
+
+.deck-list {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.deck-list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid var(--ui-line);
+  border-radius: 10px;
+}
+
+.deck-list-row span:first-child {
+  display: grid;
+}
+
+.deck-list-row small {
+  color: var(--ui-muted);
+}
+
+.deck-list-row button {
+  min-height: 32px;
+  padding: 4px 10px;
+}
+
+.deck-stats {
+  display: grid;
+  gap: 8px;
+}
+
+.deck-stats h3 {
+  margin: 12px 0 0;
+  font-size: 1rem;
+}
+
+.distribution-row {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.82rem;
+}
+
+.distribution-track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #0c0d10;
+}
+
+.distribution-track > span {
+  display: block;
+  height: 100%;
+  background: var(--ui-accent);
+}
+
+@media (max-width: 1050px) {
+  .deck-builder-layout {
+    grid-template-columns: 190px minmax(0, 1fr);
+  }
+
+  .current-deck-panel {
+    position: static;
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .builder-header,
+  .deck-toolbar {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .deck-builder-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .deck-filters {
+    position: static;
+  }
+}
+
+.format-summary {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.format-summary > strong {
+  font-size: 1.05rem;
+}
+
+.format-set-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  border: 1px solid var(--border, #3d4659);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+}
+
+.format-set-picker label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.draft-pool-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.draft-pool-summary span {
+  overflow-wrap: anywhere;
+  opacity: 0.75;
+}

@@ -1,0 +1,182 @@
+import type {
+  CardInstance,
+  GameState,
+  ManaCardInstance,
+  PendingChoice,
+  PlayerId,
+  UnitInstance,
+} from './types'
+
+/**
+ * 한 브라우저에 공개해도 되는 플레이어 상태입니다.
+ *
+ * hand에는 보는 사람 자신의 손만 들어갑니다.
+ * 상대의 손은 handCount만 공개하고 hand는 빈 배열로 둡니다.
+ * 덱과 라이프는 소유자 자신에게도 카드 내용과 순서를 공개하지 않습니다.
+ */
+export interface PlayerView {
+  playerId: PlayerId
+  isViewer: boolean
+  deckCount: number
+  handCount: number
+  hand: CardInstance[]
+  lifeCount: number
+  mana: ManaCardInstance[]
+  field: UnitInstance[]
+  discard: CardInstance[]
+  manaPlacedThisTurn: boolean
+  extraLifeLossOnDirectAttack: boolean
+  attacksThisTurn: number
+}
+
+export type PendingChoiceView =
+  | {
+      type: 'TEMPLE_PROSPECT_LIFE'
+      playerId: PlayerId
+    }
+  | {
+      type: 'TEMPLE_PROSPECT_HAND'
+      playerId: PlayerId
+    }
+  | {
+      type: 'WAVE_READER_TOP'
+      playerId: PlayerId
+      revealedCard: CardInstance | null
+    }
+  | {
+      type: 'SURGING_WAVE_TOP'
+      playerId: PlayerId
+      revealedCard: CardInstance | null
+      canSummon: boolean
+    }
+  | {
+      type: 'BURNING_PROCESSION'
+      playerId: PlayerId
+      revealedCards: CardInstance[]
+      maxSummons: number
+    }
+  | {
+      type: 'HOLY_MIRROR_LIFE'
+      playerId: PlayerId
+    }
+
+/** 특정 플레이어 한 명을 위해 만든 게임 화면 상태입니다. */
+export interface GameView {
+  matchConfig: GameState['matchConfig']
+  actionSequence: number
+  status: GameState['status']
+  currentPlayer: PlayerId
+  turnNumber: number
+  winner: PlayerId | null
+  viewer: PlayerId
+  players: Record<PlayerId, PlayerView>
+  pendingChoice: PendingChoiceView | null
+}
+
+function cloneCard(card: CardInstance): CardInstance {
+  return { ...card }
+}
+
+function cloneManaCard(card: ManaCardInstance): ManaCardInstance {
+  return { ...card }
+}
+
+function cloneUnit(unit: UnitInstance): UnitInstance {
+  return { ...unit }
+}
+
+function createPlayerView(
+  game: GameState,
+  playerId: PlayerId,
+  viewer: PlayerId,
+): PlayerView {
+  const player = game.players[playerId]
+  const isViewer = playerId === viewer
+
+  return {
+    playerId,
+    isViewer,
+    deckCount: player.deck.length,
+    handCount: player.hand.length,
+    hand: isViewer ? player.hand.map(cloneCard) : [],
+    lifeCount: player.life.length,
+    mana: player.mana.map(cloneManaCard),
+    field: player.field.map(cloneUnit),
+    discard: player.discard.map(cloneCard),
+    manaPlacedThisTurn: player.manaPlacedThisTurn,
+    extraLifeLossOnDirectAttack: player.extraLifeLossOnDirectAttack,
+    attacksThisTurn: player.attacksThisTurn,
+  }
+}
+
+function createPendingChoiceView(
+  pending: PendingChoice | undefined,
+  viewer: PlayerId,
+): PendingChoiceView | null {
+  if (!pending) return null
+  const isChooser = pending.playerId === viewer
+
+  switch (pending.type) {
+    case 'TEMPLE_PROSPECT_LIFE':
+    case 'TEMPLE_PROSPECT_HAND':
+    case 'HOLY_MIRROR_LIFE':
+      return {
+        type: pending.type,
+        playerId: pending.playerId,
+      }
+
+    case 'WAVE_READER_TOP':
+      return {
+        type: pending.type,
+        playerId: pending.playerId,
+        revealedCard: isChooser ? cloneCard(pending.revealedCard) : null,
+      }
+
+    case 'SURGING_WAVE_TOP':
+      return {
+        type: pending.type,
+        playerId: pending.playerId,
+        revealedCard: isChooser ? cloneCard(pending.revealedCard) : null,
+        canSummon: isChooser && pending.canSummon,
+      }
+
+    case 'BURNING_PROCESSION':
+      return {
+        type: pending.type,
+        playerId: pending.playerId,
+        revealedCards: isChooser
+          ? pending.revealedCards.map(cloneCard)
+          : [],
+        maxSummons: isChooser ? pending.maxSummons : 0,
+      }
+  }
+}
+
+export function createGameView(
+  game: GameState,
+  viewer: PlayerId,
+): GameView {
+  return {
+    matchConfig: structuredClone(game.matchConfig),
+    actionSequence: game.actionSequence,
+    status: game.status,
+    currentPlayer: game.currentPlayer,
+    turnNumber: game.turnNumber,
+    winner: game.winner,
+    viewer,
+    players: {
+      P1: createPlayerView(game, 'P1', viewer),
+      P2: createPlayerView(game, 'P2', viewer),
+    },
+    pendingChoice: createPendingChoiceView(game.pendingChoices?.[0], viewer),
+  }
+}
+
+export function countPlayerCardsInView(player: PlayerView): number {
+  return player.deckCount
+    + player.handCount
+    + player.lifeCount
+    + player.mana.length
+    + player.field.length
+    + player.discard.length
+}
