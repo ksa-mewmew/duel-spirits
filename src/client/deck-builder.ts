@@ -399,7 +399,6 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
             <p><strong>구성</strong>${escapeHtml(composition)}</p>
             <p><strong>운용</strong>${escapeHtml(sampleDeck.playGuide)}</p>
             <p><strong>마나 우선순위</strong>${escapeHtml(sampleDeck.manaPriority)}</p>
-            <p><strong>확인할 점</strong>${escapeHtml(sampleDeck.testPoints)}</p>
           </div>
         </details>
         <button type="button" data-load-sample-deck="${sampleDeck.id}">새 덱으로 불러오기</button>
