@@ -192,3 +192,152 @@
   overflow-wrap: anywhere;
   opacity: 0.75;
 }
+
+.card-pool-add {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.card-pool-add:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.card-pool-add:not(:disabled):hover .game-card,
+.card-pool-add:not(:disabled):focus-visible .game-card {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+  transform: translateY(-2px);
+}
+
+.card-pool-item__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card-preview-button {
+  min-height: 30px;
+  padding: 4px 8px;
+  white-space: nowrap;
+  font-size: 0.72rem;
+}
+
+.builder-card-preview-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(5, 6, 8, 0.82);
+  backdrop-filter: blur(6px);
+}
+
+.builder-card-preview-dialog {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(260px, 440px);
+  gap: 24px;
+  width: min(820px, 100%);
+  max-height: min(88svh, 760px);
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid var(--ui-line);
+  border-radius: 18px;
+  background: var(--ui-panel, #171a20);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.66);
+}
+
+.builder-card-preview-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  width: 34px;
+  min-height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1.2rem;
+}
+
+.builder-card-preview-visual {
+  display: grid;
+  place-items: start center;
+}
+
+.builder-card-preview-card {
+  width: min(100%, 300px);
+}
+
+.builder-card-preview-copy {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 36px 10px 0;
+}
+
+.builder-card-preview-copy h2,
+.builder-card-preview-copy p {
+  margin: 0;
+}
+
+.builder-card-preview-copy h2 {
+  font-size: clamp(1.45rem, 3vw, 2.15rem);
+}
+
+.builder-card-preview-meta,
+.builder-card-preview-hint {
+  color: var(--ui-muted);
+}
+
+.builder-card-preview-meta {
+  font-size: 0.82rem;
+}
+
+.builder-card-preview-stats {
+  color: #e2cfa1;
+  font-weight: 700;
+}
+
+.builder-card-preview-rules {
+  padding: 16px;
+  border: 1px solid var(--ui-line);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.22);
+  font-size: 1.08rem;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.builder-card-preview-hint {
+  font-size: 0.75rem;
+}
+
+@media (max-width: 680px) {
+  .builder-card-preview-backdrop {
+    padding: 10px;
+  }
+
+  .builder-card-preview-dialog {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    max-height: 92svh;
+    padding: 16px;
+  }
+
+  .builder-card-preview-card {
+    width: min(210px, 65vw);
+  }
+
+  .builder-card-preview-copy {
+    padding: 0;
+  }
+}

@@ -229,6 +229,48 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     render()
   }
 
+  function openCardPreview(cardId: CardId): void {
+    document.querySelector<HTMLElement>('[data-builder-card-preview]')?.remove()
+
+    const card = CARDS[cardId]
+    const groups = card.groups
+      .map((groupId) => CARD_GROUPS[groupId].name)
+      .join(' · ')
+    const preview = document.createElement('div')
+    preview.className = 'builder-card-preview-backdrop'
+    preview.dataset.builderCardPreview = ''
+    preview.innerHTML = `<section class="builder-card-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="builder-card-preview-title">
+      <button type="button" class="builder-card-preview-close" data-close-builder-card-preview aria-label="카드 상세 닫기">×</button>
+      <div class="builder-card-preview-visual">
+        ${renderCard(cardId, { interactive: false, classNames: ['builder-card-preview-card'] })}
+      </div>
+      <div class="builder-card-preview-copy">
+        <p class="builder-card-preview-meta">${escapeHtml(groups)} · ${card.type === 'unit' ? '몬스터' : '주문'} · 비용 ${card.cost}</p>
+        <h2 id="builder-card-preview-title">${escapeHtml(card.name)}</h2>
+        ${card.type === 'unit' ? `<p class="builder-card-preview-stats">공격력 ${card.attack} · 체력 ${card.health}</p>` : ''}
+        <p class="builder-card-preview-rules">${escapeHtml(card.rulesText || '효과 없음')}</p>
+        <p class="builder-card-preview-hint">바깥 영역이나 Esc를 눌러 닫습니다.</p>
+      </div>
+    </section>`
+
+    const close = (): void => {
+      preview.remove()
+      document.removeEventListener('keydown', onKeyDown)
+    }
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') close()
+    }
+
+    preview.addEventListener('click', (event) => {
+      if (event.target === preview) close()
+    })
+    preview.querySelector<HTMLButtonElement>('[data-close-builder-card-preview]')
+      ?.addEventListener('click', close)
+    document.addEventListener('keydown', onKeyDown)
+    document.body.append(preview)
+    preview.querySelector<HTMLButtonElement>('[data-close-builder-card-preview]')?.focus()
+  }
+
   function renderDistribution(): string {
     const groupCounts = getGroupDistribution(state.cardIds)
     const costCounts = getCostDistribution(state.cardIds)
@@ -269,10 +311,15 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
         || count >= copyLimit
         || state.cardIds.length >= format.deckSize
 
-      return `<button type="button" class="card-pool-item" data-add-card="${cardId}" ${disabled ? 'disabled' : ''}>
-        ${renderCard(cardId, { compact: true })}
-        <span class="card-copy-count">덱 ${count}/${Number.isFinite(copyLimit) ? copyLimit : format.maxCopiesPerCard}${poolCount === undefined ? '' : ` · 풀 ${poolCount}`}</span>
-      </button>`
+      return `<article class="card-pool-item">
+        <button type="button" class="card-pool-add" data-add-card="${cardId}" ${disabled ? 'disabled' : ''} aria-label="${escapeHtml(CARDS[cardId].name)} 덱에 추가">
+          ${renderCard(cardId, { compact: true, interactive: false })}
+        </button>
+        <div class="card-pool-item__footer">
+          <span class="card-copy-count">덱 ${count}/${Number.isFinite(copyLimit) ? copyLimit : format.maxCopiesPerCard}${poolCount === undefined ? '' : ` · 풀 ${poolCount}`}</span>
+          <button type="button" class="card-preview-button" data-preview-card="${cardId}" aria-label="${escapeHtml(CARDS[cardId].name)} 크게 보기">크게 보기</button>
+        </div>
+      </article>`
     }).join('')
 
     const deckRows = [...counts.entries()].sort(([left], [right]) => {
@@ -335,6 +382,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
         render()
       })
     }
+    for (const button of document.querySelectorAll<HTMLButtonElement>('[data-preview-card]')) button.addEventListener('click', () => { const id = button.dataset.previewCard as CardId | undefined; if (id) openCardPreview(id) })
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-add-card]')) button.addEventListener('click', () => { const id = button.dataset.addCard as CardId | undefined; if (id) addCard(id) })
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-remove-card]')) button.addEventListener('click', () => { const id = button.dataset.removeCard as CardId | undefined; if (id) removeCard(id) })
   }
