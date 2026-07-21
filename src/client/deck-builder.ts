@@ -250,7 +250,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     const cardSet = CARD_SETS[card.setId]
     const mode = state.pinnedPreviewCardId === cardId ? '고정됨' : '미리보기'
     return `<div class="builder-hover-preview__header"><div><span>${mode}</span><strong>카드 상세</strong></div>${state.pinnedPreviewCardId ? '<button type="button" class="builder-hover-preview__close" id="builder-preview-close" aria-label="미리보기 고정 해제">×</button>' : ''}</div>
-      <div class="builder-hover-preview__visual">${renderCard(cardId, { interactive: false, classNames: ['builder-hover-preview-card'] })}</div>
+      <div class="builder-hover-preview__visual">${renderCard(cardId, { interactive: false, classNames: ['builder-hover-preview-card', 'game-card--center-name'] })}</div>
       <div class="builder-hover-preview__copy">
         <div class="builder-hover-preview__meta"><span>${escapeHtml(attributes)}</span><span>${card.type === 'unit' ? '몬스터' : '주문'} · 비용 ${card.cost}</span><span>${escapeHtml(cardSet.code)}</span></div>
         <h3>${escapeHtml(card.name)}</h3>
