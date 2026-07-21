@@ -17,10 +17,6 @@ export interface RenderCardOptions {
   summonedThisTurn?: boolean
   remainingHealth?: number
   displayAttack?: number
-  statusBadges?: Array<{
-    label: string
-    tone?: 'active' | 'inactive' | 'warning'
-  }>
   actionsHtml?: string
   dataAttributes?: Record<string, string>
   interactive?: boolean
@@ -125,20 +121,13 @@ export function renderCard(
 
         <div class="game-card__code">${escapeHtml(card.name)}</div>
 
-        ${options.statusBadges?.length
-          ? `<div class="game-card__badges">${options.statusBadges.map((badge) => `<span class="game-card__badge game-card__badge--${badge.tone ?? 'active'}">${escapeHtml(badge.label)}</span>`).join('')}</div>`
-          : ''}
-
         <footer class="game-card__footer">
-          <p class="game-card__text">
-            ${escapeHtml(card.rulesText)}
-          </p>
+          ${card.type === 'unit' ? `
           <div class="game-card__stats" aria-label="공격력과 체력">
-            ${card.type === 'unit' ? `
             <span class="game-card__attack">${options.displayAttack ?? card.attack}</span>
             <span class="game-card__health">${options.remainingHealth ?? card.health}</span>
-            ` : '<span class="game-card__spell-type">주문</span>'}
           </div>
+          ` : '<span class="game-card__spell-type">주문</span>'}
         </footer>
       `}
 
@@ -159,7 +148,6 @@ export function renderManaToken(
   return renderCard(cardId, {
     instanceId: options.instanceId,
     compact: true,
-    nameOnly: true,
     exhausted: options.exhausted,
     selected: options.selected,
     targetable: options.targetable,

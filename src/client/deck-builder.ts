@@ -47,9 +47,13 @@ interface BuilderState {
   formatId: GameFormatId
   selectedSetIds: SetId[]
   draftPool: SavedDeck['draftPool']
+  searchQuery: string
   attributeFilter: CardAttributeId | 'all'
+  typeFilter: 'all' | 'unit' | 'spell'
   costFilter: number | 'all'
   message: string
+  hoverPreviewCardId: CardId | null
+  pinnedPreviewCardId: CardId | null
 }
 
 function cloneDeck(deck: SavedDeck): SavedDeck {
@@ -79,9 +83,13 @@ function getInitialState(): BuilderState {
     formatId: deck.formatId,
     selectedSetIds: [...deck.selectedSetIds],
     draftPool: deck.draftPool ? structuredClone(deck.draftPool) : null,
+    searchQuery: '',
     attributeFilter: 'all',
+    typeFilter: 'all',
     costFilter: 'all',
     message: '',
+    hoverPreviewCardId: null,
+    pinnedPreviewCardId: null,
   }
 }
 
@@ -230,6 +238,75 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     render()
   }
 
+
+  let previewFallbackCardId: CardId | null = null
+
+  function renderCardPreviewContent(cardId: CardId): string {
+    const card = CARDS[cardId]
+    const attributes = card.attributes.map((attributeId) => CARD_ATTRIBUTES[attributeId].name).join(' · ')
+    const cardSet = CARD_SETS[card.setId]
+    const mode = state.pinnedPreviewCardId === cardId ? '고정됨' : '미리보기'
+    return `<div class="builder-hover-preview__header"><div><span>${mode}</span><strong>카드 상세</strong></div>${state.pinnedPreviewCardId ? '<button type="button" class="builder-hover-preview__close" id="builder-preview-close" aria-label="미리보기 고정 해제">×</button>' : ''}</div>
+      <div class="builder-hover-preview__visual">${renderCard(cardId, { interactive: false, classNames: ['builder-hover-preview-card'] })}</div>
+      <div class="builder-hover-preview__copy">
+        <div class="builder-hover-preview__meta"><span>${escapeHtml(attributes)}</span><span>${card.type === 'unit' ? '몬스터' : '주문'} · 비용 ${card.cost}</span><span>${escapeHtml(cardSet.code)}</span></div>
+        <h3>${escapeHtml(card.name)}</h3>
+        ${card.type === 'unit' ? `<p class="builder-hover-preview__stats">공격력 ${card.attack} · 체력 ${card.health}</p>` : ''}
+        <p class="builder-hover-preview__rules">${escapeHtml(card.rulesText || '능력 없음')}</p>
+        <p class="builder-hover-preview__hint">마우스를 올리면 바뀌고, 카드를 클릭하면 고정됩니다. 더블 클릭하거나 ＋를 누르면 덱에 추가됩니다.</p>
+      </div>`
+  }
+
+  function renderCardPreview(cardId: CardId | null): string {
+    return `<section class="panel builder-hover-preview ${cardId ? '' : 'is-empty'}" id="builder-card-preview" aria-live="polite">${cardId ? renderCardPreviewContent(cardId) : '<div class="builder-hover-preview__empty"><strong>카드 상세</strong><p>카드 풀의 카드에 마우스를 올려 확인하세요.</p></div>'}</section>`
+  }
+
+  function bindPreviewClose(): void {
+    document.querySelector<HTMLButtonElement>('#builder-preview-close')?.addEventListener('click', clearPinnedPreview)
+  }
+
+  function updatePreviewPanel(cardId: CardId | null): void {
+    const panel = document.querySelector<HTMLElement>('#builder-card-preview')
+    if (!panel) return
+    panel.classList.toggle('is-empty', cardId === null)
+    panel.innerHTML = cardId
+      ? renderCardPreviewContent(cardId)
+      : '<div class="builder-hover-preview__empty"><strong>카드 상세</strong><p>카드 풀의 카드에 마우스를 올려 확인하세요.</p></div>'
+    bindPreviewClose()
+  }
+
+  function currentPreviewCardId(): CardId | null {
+    return state.pinnedPreviewCardId ?? state.hoverPreviewCardId ?? previewFallbackCardId
+  }
+
+  function setHoverPreview(cardId: CardId | null): void {
+    state.hoverPreviewCardId = cardId
+    updatePreviewPanel(currentPreviewCardId())
+  }
+
+  function syncPinnedPreviewState(): void {
+    for (const item of document.querySelectorAll<HTMLElement>('.card-pool-item[data-preview-card-id]')) {
+      item.classList.toggle('is-preview-pinned', item.dataset.previewCardId === state.pinnedPreviewCardId)
+    }
+    for (const button of document.querySelectorAll<HTMLButtonElement>('[data-select-card]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.selectCard === state.pinnedPreviewCardId))
+    }
+  }
+
+  function togglePinnedPreview(cardId: CardId): void {
+    state.pinnedPreviewCardId = state.pinnedPreviewCardId === cardId ? null : cardId
+    state.hoverPreviewCardId = cardId
+    syncPinnedPreviewState()
+    updatePreviewPanel(currentPreviewCardId())
+  }
+
+  function clearPinnedPreview(): void {
+    if (!state.pinnedPreviewCardId) return
+    state.pinnedPreviewCardId = null
+    syncPinnedPreviewState()
+    updatePreviewPanel(currentPreviewCardId())
+  }
+
   function renderDistribution(): string {
     const attributeCounts = getAttributeDistribution(state.cardIds)
     const costCounts = getCostDistribution(state.cardIds)
@@ -258,11 +335,19 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     const format = getFormat(selection.formatId)
     const counts = getCardCounts(state.cardIds)
     const poolIds = getFormatCardPool(selection)
+    const normalizedQuery = state.searchQuery.trim().toLocaleLowerCase('ko-KR')
     const filteredCards = sortCardIdsForBuilder(poolIds).filter((cardId) => {
       const card = CARDS[cardId]
-      return (state.attributeFilter === 'all' || card.attributes.includes(state.attributeFilter))
+      const matchesQuery = normalizedQuery.length === 0
+        || card.name.toLocaleLowerCase('ko-KR').includes(normalizedQuery)
+        || card.rulesText.toLocaleLowerCase('ko-KR').includes(normalizedQuery)
+      return matchesQuery
+        && (state.attributeFilter === 'all' || card.attributes.includes(state.attributeFilter))
+        && (state.typeFilter === 'all' || card.type === state.typeFilter)
         && (state.costFilter === 'all' || card.cost === state.costFilter)
     })
+
+    previewFallbackCardId = filteredCards[0] ?? poolIds[0] ?? null
 
     const poolMarkup = filteredCards.map((cardId) => {
       const count = counts.get(cardId) ?? 0
@@ -271,21 +356,44 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
         getCardCopyLimit(cardId, selection),
         poolCount ?? Number.POSITIVE_INFINITY,
       )
-      const disabled = copyLimit === 0
-        || count >= copyLimit
-        || state.cardIds.length >= format.deckSize
+      const canAdd = copyLimit > 0
+        && count < copyLimit
+        && state.cardIds.length < format.deckSize
+      const copyLabel = Number.isFinite(copyLimit) ? copyLimit : format.maxCopiesPerCard
 
-      return `<button type="button" class="card-pool-item" data-add-card="${cardId}" ${disabled ? 'disabled' : ''}>
-        ${renderCard(cardId, { compact: true })}
-        <span class="card-copy-count">덱 ${count}/${Number.isFinite(copyLimit) ? copyLimit : format.maxCopiesPerCard}${poolCount === undefined ? '' : ` · 풀 ${poolCount}`}</span>
-      </button>`
+      return `<article class="card-pool-item ${state.pinnedPreviewCardId === cardId ? 'is-preview-pinned' : ''}" data-preview-card-id="${cardId}">
+        <button type="button" class="card-pool-card" data-select-card="${cardId}" aria-pressed="${state.pinnedPreviewCardId === cardId}" aria-label="${escapeHtml(CARDS[cardId].name)} 상세 보기">
+          ${renderCard(cardId, { interactive: false, classNames: ['builder-pool-card'] })}
+        </button>
+        <div class="card-pool-item__footer">
+          <button type="button" class="card-quantity-button" data-remove-card="${cardId}" ${count > 0 ? '' : 'disabled'} aria-label="${escapeHtml(CARDS[cardId].name)} 한 장 빼기">−</button>
+          <span class="card-copy-count"><strong>${count}</strong> / ${copyLabel}${poolCount === undefined ? '' : ` · 풀 ${poolCount}`}</span>
+          <button type="button" class="card-quantity-button" data-add-card="${cardId}" ${canAdd ? '' : 'disabled'} aria-label="${escapeHtml(CARDS[cardId].name)} 한 장 넣기">＋</button>
+        </div>
+      </article>`
     }).join('')
 
     const deckRows = [...counts.entries()].sort(([left], [right]) => {
       const a = CARDS[left]
       const b = CARDS[right]
       return a.cost - b.cost || a.name.localeCompare(b.name)
-    }).map(([cardId, count]) => `<li class="deck-list-row"><span><strong>${escapeHtml(CARDS[cardId].name)}</strong><small>${escapeHtml(CARD_SETS[CARDS[cardId].setId].code)} · 비용 ${CARDS[cardId].cost}</small></span><span>×${count}</span><button type="button" data-remove-card="${cardId}">−</button></li>`).join('')
+    }).map(([cardId, count]) => {
+      const card = CARDS[cardId]
+      const attributeLabel = card.attributes.map((attributeId) => CARD_ATTRIBUTES[attributeId].shortName).join('·')
+      const copyLimit = getCardCopyLimit(cardId, selection)
+      const canAdd = count < copyLimit && state.cardIds.length < format.deckSize
+      return `<li class="deck-list-row" data-preview-card-id="${cardId}">
+        <button type="button" class="deck-list-row__card" data-select-card="${cardId}">
+          <span class="deck-list-row__cost">${card.cost}</span>
+          <span><strong>${escapeHtml(card.name)}</strong><small>${escapeHtml(attributeLabel)} · ${card.type === 'unit' ? '몬스터' : '주문'}</small></span>
+        </button>
+        <div class="deck-list-row__quantity">
+          <button type="button" data-remove-card="${cardId}" aria-label="${escapeHtml(card.name)} 한 장 빼기">−</button>
+          <strong>×${count}</strong>
+          <button type="button" data-add-card="${cardId}" ${canAdd ? '' : 'disabled'} aria-label="${escapeHtml(card.name)} 한 장 넣기">＋</button>
+        </div>
+      </li>`
+    }).join('')
 
     const deckOptions = state.decks.map((deck) => `<option value="${escapeHtml(deck.id)}" ${deck.id === state.editingDeckId ? 'selected' : ''}>${escapeHtml(deck.name)} · ${escapeHtml(getFormat(deck.formatId).shortName)}</option>`).join('')
     const validation = validateDeck(state.cardIds, selection)
@@ -302,21 +410,41 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
       ? `<div class="draft-pool-summary"><strong>드래프트 풀 ${state.draftPool?.cardIds.length ?? 0}장</strong><span>시드 ${escapeHtml(state.draftPool?.seed ?? '없음')}</span><button id="generate-draft-button" type="button">풀 다시 생성</button></div>`
       : ''
 
+    const previewCardId = currentPreviewCardId()
+
     appElement.innerHTML = `<main class="app-shell deck-builder-screen">
-      <header class="builder-header"><div><p class="eyebrow">DUEL SPIRITS · DECK WORKSHOP</p><h1>덱 빌더</h1></div><nav class="builder-nav"><a class="button-link" href="./">방 화면</a></nav></header>
+      <header class="builder-header">
+        <div><p class="eyebrow">DUEL SPIRITS · DECK WORKSHOP</p><h1>덱 빌더</h1></div>
+        <div class="builder-header__summary"><span>현재 덱</span><strong>${state.cardIds.length} / ${format.deckSize}</strong><a class="button-link" href="./">방 화면</a></div>
+      </header>
       <section class="panel deck-toolbar">
         <label>저장 덱<select id="deck-select">${deckOptions}</select></label>
         <label>덱 이름<input id="deck-name" value="${escapeHtml(state.name)}" maxlength="40"></label>
         <label>포맷<select id="format-select">${DECK_BUILDER_FORMATS.map((item) => `<option value="${item.id}" ${item.id === state.formatId ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('')}</select></label>
-        <button id="new-deck-button" type="button">새 덱</button>
-        <button id="save-deck-button" type="button" ${validation.valid ? '' : 'disabled'}>저장·사용</button>
-        <button id="delete-deck-button" type="button">삭제</button>
+        <div class="deck-toolbar__actions"><button id="new-deck-button" type="button">새 덱</button><button id="save-deck-button" type="button" ${validation.valid ? '' : 'disabled'}>저장·사용</button><button id="delete-deck-button" type="button">삭제</button></div>
       </section>
       <section class="panel format-summary"><strong>${escapeHtml(format.name)}</strong><span>${escapeHtml(format.description)}</span>${setControls}${restrictionSummary}${draftControls}</section>
       <section class="deck-builder-layout">
-        <aside class="panel deck-filters"><h2>필터</h2><label>속성<select id="attribute-filter"><option value="all">전체</option>${Object.values(CARD_ATTRIBUTES).map((attribute) => `<option value="${attribute.id}" ${state.attributeFilter === attribute.id ? 'selected' : ''}>${escapeHtml(attribute.name)}</option>`).join('')}</select></label><label>비용<select id="cost-filter"><option value="all">전체</option>${[0, 1, 2, 3, 4, 5].map((cost) => `<option value="${cost}" ${state.costFilter === cost ? 'selected' : ''}>${cost}</option>`).join('')}</select></label>${renderDistribution()}</aside>
-        <section class="panel card-pool-panel"><header class="section-heading"><h2>카드 풀</h2><span>${filteredCards.length}종 · 전 카드 해금</span></header><div class="card-pool-grid">${poolMarkup || '<p>이 포맷에서 표시할 카드가 없습니다.</p>'}</div></section>
-        <aside class="panel current-deck-panel"><header class="section-heading"><h2>현재 덱</h2><strong>${state.cardIds.length}/${format.deckSize}</strong></header><ol class="deck-list">${deckRows || '<li class="empty-row">카드를 추가해 주세요.</li>'}</ol><p class="builder-message" role="status">${escapeHtml(state.message || validation.errors[0] || '덱을 구성하고 저장하세요.')}</p></aside>
+        <aside class="panel deck-filters">
+          <div class="section-heading"><h2>찾기</h2><span>${filteredCards.length}종</span></div>
+          <label>검색<input id="card-search" type="search" value="${escapeHtml(state.searchQuery)}" placeholder="이름 또는 능력"></label>
+          <label>속성<select id="attribute-filter"><option value="all">전체</option>${Object.values(CARD_ATTRIBUTES).map((attribute) => `<option value="${attribute.id}" ${state.attributeFilter === attribute.id ? 'selected' : ''}>${escapeHtml(attribute.name)}</option>`).join('')}</select></label>
+          <label>종류<select id="type-filter"><option value="all">전체</option><option value="unit" ${state.typeFilter === 'unit' ? 'selected' : ''}>몬스터</option><option value="spell" ${state.typeFilter === 'spell' ? 'selected' : ''}>주문</option></select></label>
+          <label>비용<select id="cost-filter"><option value="all">전체</option>${[0, 1, 2, 3, 4, 5].map((cost) => `<option value="${cost}" ${state.costFilter === cost ? 'selected' : ''}>${cost}</option>`).join('')}</select></label>
+          ${renderDistribution()}
+        </aside>
+        <section class="panel card-pool-panel">
+          <header class="section-heading"><div><h2>카드 풀</h2><p>클릭: 상세 고정 · 더블 클릭: 덱에 추가</p></div><span>전 카드 해금</span></header>
+          <div class="card-pool-grid">${poolMarkup || '<p class="empty-row">조건에 맞는 카드가 없습니다.</p>'}</div>
+        </section>
+        <aside class="builder-side-rail">
+          ${renderCardPreview(previewCardId)}
+          <section class="panel current-deck-panel">
+            <header class="section-heading"><div><h2>현재 덱</h2><p>${escapeHtml(getFormat(state.formatId).shortName)}</p></div><strong>${state.cardIds.length}/${format.deckSize}</strong></header>
+            <ol class="deck-list">${deckRows || '<li class="empty-row">카드를 추가해 주세요.</li>'}</ol>
+            <p class="builder-message" role="status">${escapeHtml(state.message || validation.errors[0] || '덱을 구성하고 저장하세요.')}</p>
+          </section>
+        </aside>
       </section>
     </main>`
 
@@ -327,8 +455,42 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     document.querySelector<HTMLButtonElement>('#save-deck-button')?.addEventListener('click', saveCurrentDeck)
     document.querySelector<HTMLButtonElement>('#delete-deck-button')?.addEventListener('click', deleteCurrentDeck)
     document.querySelector<HTMLButtonElement>('#generate-draft-button')?.addEventListener('click', generateDraft)
+
+    document.querySelector<HTMLInputElement>('#card-search')?.addEventListener('input', (event) => {
+      const input = event.currentTarget as HTMLInputElement
+      const cursor = input.selectionStart ?? input.value.length
+      state.searchQuery = input.value
+      render()
+      const nextInput = document.querySelector<HTMLInputElement>('#card-search')
+      nextInput?.focus()
+      nextInput?.setSelectionRange(cursor, cursor)
+    })
     document.querySelector<HTMLSelectElement>('#attribute-filter')?.addEventListener('change', (event) => { const value = (event.currentTarget as HTMLSelectElement).value; state.attributeFilter = value === 'all' ? 'all' : value as CardAttributeId; render() })
+    document.querySelector<HTMLSelectElement>('#type-filter')?.addEventListener('change', (event) => { const value = (event.currentTarget as HTMLSelectElement).value; state.typeFilter = value === 'unit' || value === 'spell' ? value : 'all'; render() })
     document.querySelector<HTMLSelectElement>('#cost-filter')?.addEventListener('change', (event) => { const value = (event.currentTarget as HTMLSelectElement).value; state.costFilter = value === 'all' ? 'all' : Number(value); render() })
+
+    bindPreviewClose()
+
+    for (const element of document.querySelectorAll<HTMLElement>('[data-preview-card-id]')) {
+      const cardId = element.dataset.previewCardId as CardId | undefined
+      if (!cardId) continue
+      element.addEventListener('pointerenter', () => setHoverPreview(cardId))
+      element.addEventListener('pointerleave', () => setHoverPreview(null))
+      element.addEventListener('focusin', () => setHoverPreview(cardId))
+      element.addEventListener('focusout', (event) => {
+        if (!element.contains(event.relatedTarget as Node | null)) setHoverPreview(null)
+      })
+    }
+
+    for (const button of document.querySelectorAll<HTMLButtonElement>('[data-select-card]')) {
+      const cardId = button.dataset.selectCard as CardId | undefined
+      if (!cardId) continue
+      button.addEventListener('click', () => togglePinnedPreview(cardId))
+      button.addEventListener('dblclick', (event) => {
+        event.preventDefault()
+        addCard(cardId)
+      })
+    }
 
     for (const input of document.querySelectorAll<HTMLInputElement>('[data-set-id]')) {
       input.addEventListener('change', () => {
@@ -344,6 +506,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-add-card]')) button.addEventListener('click', () => { const id = button.dataset.addCard as CardId | undefined; if (id) addCard(id) })
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-remove-card]')) button.addEventListener('click', () => { const id = button.dataset.removeCard as CardId | undefined; if (id) removeCard(id) })
   }
+
 
   render()
 }

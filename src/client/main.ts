@@ -21,7 +21,9 @@ if (roomId && roomKey) {
   void import('./game')
 } else {
   const renderSurface = (): void => {
-    if (window.location.hash === '#decks') {
+    const isDeckBuilder = window.location.hash === '#decks'
+    document.body.classList.toggle('deck-builder-active', isDeckBuilder)
+    if (isDeckBuilder) {
       renderDeckBuilder(appElement)
     } else {
       renderLobby(appElement)

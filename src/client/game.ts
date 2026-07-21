@@ -589,7 +589,6 @@ function renderHand(player: PlayerView, isSelf: boolean): string {
     return renderCard(card.cardId, {
       instanceId: card.instanceId,
       selected,
-      nameOnly: true,
       classNames: ['hand-card'],
       actionsHtml: actions.join(''),
     })
@@ -639,9 +638,9 @@ function renderField(player: PlayerView, isSelf: boolean): string {
     if (!unit) {
       if (slotSelectionActive) {
         const selected = playDraft?.fieldSlot === slotIndex
-        return `<button type="button" class="field-slot field-slot--selectable is-empty ${selected ? 'is-selected' : ''}" data-action="select-summon-slot" data-field-slot="${slotIndex}"><span class="field-slot__number">${slotIndex + 1}</span><strong>${selected ? '선택됨' : '여기에 소환'}</strong></button>`
+        return `<button type="button" class="field-slot field-slot--selectable is-empty ${selected ? 'is-selected' : ''}" data-action="select-summon-slot" data-field-slot="${slotIndex}"><strong>${selected ? '선택됨' : '여기에 소환'}</strong></button>`
       }
-      return `<div class="field-slot is-empty" data-field-slot="${slotIndex}"><span class="field-slot__number">${slotIndex + 1}</span></div>`
+      return `<div class="field-slot is-empty" data-field-slot="${slotIndex}"></div>`
     }
 
     const definition = CARDS[unit.cardId]
@@ -696,7 +695,12 @@ function renderField(player: PlayerView, isSelf: boolean): string {
       actions = actionButton('공격 대상', 'attack-unit', 'defender-id', unit.instanceId)
     }
 
-    return `<div class="field-slot-frame" data-field-slot="${slotIndex}"><span class="field-slot__number">${slotIndex + 1}</span>${renderCard(unit.cardId, {
+    const statusBadges = getUnitStatusBadges(player, unit)
+    const statusMarkup = statusBadges.length > 0
+      ? `<div class="field-card-status" aria-label="현재 상태">${statusBadges.map((badge) => `<span class="field-card-status__badge field-card-status__badge--${badge.tone ?? 'active'}">${escapeHtml(badge.label)}</span>`).join('')}</div>`
+      : ''
+
+    return `<div class="field-slot-frame" data-field-slot="${slotIndex}">${renderCard(unit.cardId, {
       instanceId: unit.instanceId,
       selected: selectedForAttack || selectedForSpell,
       targetable: canSpellTarget || canAttackTarget,
@@ -704,11 +708,10 @@ function renderField(player: PlayerView, isSelf: boolean): string {
       summonedThisTurn: unit.summonedThisTurn,
       remainingHealth: definition.health - unit.damage,
       displayAttack: attackValueView(player, unit),
-      statusBadges: getUnitStatusBadges(player, unit),
       classNames: ['field-card'],
       actionsHtml: actions,
       dataAttributes: { 'field-slot': String(slotIndex) },
-    })}</div>`
+    })}${statusMarkup}</div>`
   }).join('')
 }
 
@@ -878,10 +881,18 @@ function renderAttackLifePanel(opponentPlayer: PlayerView): string {
   return `<div class="selection-panel"><h3>직접 공격</h3><p>파괴할 라이프: ${selectedAttackLifeIndices.length}/${required}</p><div class="choice-actions">${actionButton('직접 공격 확정', 'confirm-attack-player', undefined, undefined, selectedAttackLifeIndices.length !== required)}${actionButton('공격 선택 취소', 'cancel-attacker')}</div></div>`
 }
 
+function renderCardInspectorPlaceholder(): string {
+  return `<div class="card-inspector__placeholder">
+    <span class="card-inspector__placeholder-mark" aria-hidden="true">◇</span>
+    <strong>카드 상세</strong>
+    <p>카드에 마우스를 올리면 능력과 세부 정보를 확인할 수 있습니다. 클릭하면 상세가 고정됩니다.</p>
+  </div>`
+}
+
 function renderCardInspector(): string {
   const cardId = pinnedPreviewCardId
-  return `<aside id="card-inspector" class="card-inspector ${cardId ? 'is-visible is-pinned' : ''}" aria-live="polite" aria-hidden="${cardId ? 'false' : 'true'}">
-    ${cardId ? renderCardInspectorContent(cardId) : ''}
+  return `<aside id="card-inspector" class="card-inspector is-visible ${cardId ? 'is-pinned' : 'is-empty'}" aria-live="polite" aria-hidden="false">
+    ${cardId ? renderCardInspectorContent(cardId) : renderCardInspectorPlaceholder()}
   </aside>`
 }
 
@@ -1202,14 +1213,16 @@ function setCardInspector(cardId: CardId | null, pinned: boolean): void {
   if (!inspector) return
 
   if (!cardId) {
-    inspector.classList.remove('is-visible', 'is-pinned')
-    inspector.setAttribute('aria-hidden', 'true')
-    inspector.innerHTML = ''
+    inspector.classList.add('is-visible', 'is-empty')
+    inspector.classList.remove('is-pinned')
+    inspector.setAttribute('aria-hidden', 'false')
+    inspector.innerHTML = renderCardInspectorPlaceholder()
     return
   }
 
   inspector.innerHTML = renderCardInspectorContent(cardId)
   inspector.classList.add('is-visible')
+  inspector.classList.remove('is-empty')
   inspector.classList.toggle('is-pinned', pinnedPreviewCardId === cardId)
   inspector.setAttribute('aria-hidden', 'false')
   inspector.querySelector<HTMLElement>('[data-action="close-card-preview"]')?.addEventListener('click', () => {
