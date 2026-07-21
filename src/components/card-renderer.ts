@@ -79,6 +79,7 @@ export function renderCard(
     `game-card--visual-${card.visualKey}`,
     options.compact ? 'game-card--compact' : '',
     options.nameOnly ? 'game-card--name-only' : '',
+    card.name.length >= 11 ? 'game-card--name-xlong' : card.name.length >= 8 ? 'game-card--name-long' : '',
     options.exhausted ? 'is-exhausted' : '',
     options.selected ? 'is-selected' : '',
     options.targetable ? 'is-targetable' : '',

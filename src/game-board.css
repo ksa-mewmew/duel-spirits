@@ -2249,3 +2249,141 @@ body.game-active {
   word-break: keep-all;
   -webkit-line-clamp: 5;
 }
+
+/* 2026-07 card readability pass: fixed life rows, shared card backs, and clean name wrapping. */
+.life-zone--rail {
+  grid-template-rows: minmax(0, 1fr);
+  padding: 5px 7px;
+}
+
+.life-zone--rail .zone-heading {
+  display: none;
+}
+
+.life-stack {
+  display: grid;
+  grid-template-rows: repeat(var(--life-slot-count, 4), minmax(0, 1fr));
+  align-items: stretch;
+  justify-items: stretch;
+  gap: 4px;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+}
+
+.life-stack > * + * {
+  margin-top: 0;
+}
+
+.life-card-frame {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.life-card-frame .life-card,
+.life-card-frame .life-slot,
+.life-card-frame .life-choice-button {
+  width: 100% !important;
+  height: 100%;
+  min-height: 0;
+  transform: none;
+  border-radius: 8px;
+}
+
+.life-card-frame .life-choice-button .life-card {
+  width: 100% !important;
+  height: 100%;
+}
+
+.life-card-frame .life-card.is-selected,
+.life-card-frame .life-choice-button .life-card.is-selected {
+  transform: translateX(5px);
+}
+
+/* Deck and life use one shared back-face language. */
+.game-card--back,
+.card-pile__back {
+  background:
+    radial-gradient(circle at center, #9a8b68 0 5%, transparent 6%),
+    repeating-conic-gradient(from 45deg, #242832 0 12deg, #111318 12deg 24deg);
+}
+
+.game-card__back-mark,
+.card-pile__back .card-back-mark {
+  position: absolute;
+  inset: 20%;
+  width: auto;
+  aspect-ratio: auto;
+  border: 1px solid #a99b78;
+  border-radius: 50%;
+}
+
+.card-pile__back {
+  position: relative;
+}
+
+/* Monster attack and health anchor independently at the two lower corners. */
+.game-card__footer {
+  inset: 0;
+  pointer-events: none;
+}
+
+.game-card__stats {
+  display: contents;
+}
+
+.game-card__attack,
+.game-card__health {
+  position: absolute;
+  bottom: 6px;
+}
+
+.game-card__attack {
+  left: 6px;
+}
+
+.game-card__health {
+  right: 6px;
+}
+
+.game-card__spell-type {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+}
+
+/* Names use natural Korean word boundaries; long names shrink instead of breaking every syllable. */
+.game-card--center-name .game-card__code {
+  inset: 28px 8px 28px;
+  padding: 3px;
+  font-size: clamp(.62rem, .78vw, .78rem);
+  line-height: 1.22;
+  text-wrap: balance;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  -webkit-line-clamp: 3;
+}
+
+.hand-card.game-card--center-name .game-card__code {
+  font-size: clamp(.66rem, .82vw, .8rem);
+}
+
+.field-card.game-card--center-name .game-card__code {
+  font-size: clamp(.58rem, .68vw, .7rem);
+}
+
+.game-card--center-name.game-card--name-long .game-card__code {
+  font-size: clamp(.54rem, .64vw, .66rem);
+}
+
+.game-card--center-name.game-card--name-xlong .game-card__code {
+  font-size: clamp(.48rem, .58vw, .6rem);
+  line-height: 1.16;
+}
+
+.hand-card.game-card--center-name:has(.game-card__actions):hover .game-card__code,
+.hand-card.game-card--center-name:has(.game-card__actions):focus-within .game-card__code,
+.hand-card.game-card--center-name.is-selected .game-card__code {
+  inset: 28px 8px 38px;
+}

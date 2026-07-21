@@ -732,7 +732,7 @@ function renderCardPile(playerId: PlayerId, kind: 'deck' | 'discard'): string {
 
   if (kind === 'deck') {
     return `<div class="card-pile card-pile--deck" aria-label="${playerId}의 덱 ${player.deckCount}장">
-      <div class="card-pile__back" aria-hidden="true"><span></span></div>
+      <div class="card-pile__back" aria-hidden="true"><span class="card-back-mark"></span></div>
       <span class="card-pile__label">덱</span>
       <strong class="card-pile__count">${player.deckCount}</strong>
     </div>`
@@ -779,8 +779,7 @@ function renderPlayerBoard(playerId: PlayerId, position: 'self' | 'opponent'): s
 
   const board = `<div class="combat-row combat-row--${position}">
     <section class="life-zone life-zone--rail ${directTargeting ? 'is-targetable' : ''}" aria-label="${playerId} 라이프">
-      <div class="zone-heading"><span>라이프</span><strong>${player.lifeCount}</strong></div>
-      <div class="life-stack">${renderLife(playerId, position)}</div>
+      <div class="life-stack" style="--life-slot-count: ${Math.max(LIFE_SIZE, player.lifeSlotIndices?.length ? Math.max(...player.lifeSlotIndices) + 1 : player.lifeCount)}">${renderLife(playerId, position)}</div>
     </section>
 
     <section class="field-column" aria-label="${playerId} 전장">
