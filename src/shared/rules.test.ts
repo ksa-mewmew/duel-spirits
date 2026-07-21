@@ -475,6 +475,46 @@ describe('선공과 전장 슬롯', () => {
   })
 })
 
+describe('고정 라이프 슬롯', () => {
+  test('가운데 라이프를 공격하면 그 슬롯만 비고 나머지 슬롯은 유지된다', () => {
+    const game = createGame({
+      random: () => 0.5,
+      idSource: createIdSource(),
+      startingPlayer: 'P1',
+    })
+    game.players.P1.field = [{
+      instanceId: 'slot-attacker', cardId: 'living_flame', damage: 0,
+      slotIndex: 0,
+      battlefieldEntrySeq: 1,
+      exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
+      temporaryAttackModifier: 0, temporaryHealthModifier: 0,
+    }]
+    game.players.P2.field = []
+    game.players.P2.life = [0, 1, 2, 3].map((lifeSlotIndex) => ({
+      instanceId: `life-slot-${lifeSlotIndex}`,
+      cardId: 'ash_hound' as const,
+      lifeSlotIndex,
+    }))
+
+    const attacked = applyAction(game, 'P1', {
+      type: 'ATTACK_PLAYER',
+      attackerId: 'slot-attacker',
+      lifeSlotIndices: [1],
+    })
+
+    expect(attacked.players.P2.life.map((card) => card.lifeSlotIndex)).toEqual([0, 2, 3])
+    expect(attacked.players.P2.life.map((card) => card.instanceId)).toEqual([
+      'life-slot-0',
+      'life-slot-2',
+      'life-slot-3',
+    ])
+    expect(attacked.players.P2.hand.at(-1)).toMatchObject({
+      instanceId: 'life-slot-1',
+      lifeSlotIndex: 1,
+    })
+  })
+})
+
 describe('라이프 0 패배와 턴 종료 시점', () => {
   test('라이프 1에서 라이프 2장 손실 공격을 받아도 패배하지 않고 남은 라이프의 각성을 처리한다', () => {
     const game = createGame({

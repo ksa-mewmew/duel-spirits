@@ -75,7 +75,7 @@ let deckStates: PublicDeckStates = {
   P2: { submitted: false, ready: false, name: null },
 }
 let selectedAttackerId: string | null = null
-let selectedAttackLifeIndices: number[] = []
+let selectedAttackLifeSlotIndices: number[] = []
 let playDraft: PlayDraft | null = null
 let summonFromManaDraftId: string | null = null
 let pendingChoiceIds: string[] = []
@@ -214,7 +214,7 @@ const socket = connectToRoom(
           game = serverMessage.game
           assignedPlayerId ??= game.viewer
           selectedAttackerId = null
-          selectedAttackLifeIndices = []
+          selectedAttackLifeSlotIndices = []
           playDraft = null
           summonFromManaDraftId = null
           pendingChoiceIds = []
@@ -259,7 +259,7 @@ const socket = connectToRoom(
         case 'GAME_CLEARED':
           game = null
           selectedAttackerId = null
-          selectedAttackLifeIndices = []
+          selectedAttackLifeSlotIndices = []
           playDraft = null
           summonFromManaDraftId = null
           pendingChoiceIds = []
@@ -476,7 +476,7 @@ function renderLife(playerId: PlayerId, owner: 'self' | 'opponent'): string {
       selected = playDraft.lifeIndex === lifeIndex
     } else if (canAttackLife) {
       action = 'select-attack-life'
-      selected = selectedAttackLifeIndices.includes(lifeIndex)
+      selected = selectedAttackLifeSlotIndices.includes(slotIndex)
     }
 
     const cardBack = renderCardBack([
@@ -486,7 +486,7 @@ function renderLife(playerId: PlayerId, owner: 'self' | 'opponent'): string {
       selected ? 'is-selected' : '',
     ].filter(Boolean))
     const content = action
-      ? `<button type="button" class="life-choice-button" data-action="${action}" data-life-index="${lifeIndex}">${cardBack}</button>`
+      ? `<button type="button" class="life-choice-button" data-action="${action}" data-life-index="${lifeIndex}" data-life-slot="${slotIndex}">${cardBack}</button>`
       : cardBack
     const frameClasses = [
       'life-card-frame',
@@ -893,7 +893,7 @@ function renderAttackLifePanel(opponentPlayer: PlayerView): string {
   if (!selectedAttackerId || playDraft || game?.pendingChoice) return ''
   if (!canSelectedAttackerDirectAttack(opponentPlayer)) return ''
   const required = requiredAttackLifeCount(opponentPlayer)
-  return `<div class="selection-panel"><h3>직접 공격</h3><p>파괴할 라이프: ${selectedAttackLifeIndices.length}/${required}</p><div class="choice-actions">${actionButton('직접 공격 확정', 'confirm-attack-player', undefined, undefined, selectedAttackLifeIndices.length !== required)}${actionButton('공격 선택 취소', 'cancel-attacker')}</div></div>`
+  return `<div class="selection-panel"><h3>직접 공격</h3><p>파괴할 라이프: ${selectedAttackLifeSlotIndices.length}/${required}</p><div class="choice-actions">${actionButton('직접 공격 확정', 'confirm-attack-player', undefined, undefined, selectedAttackLifeSlotIndices.length !== required)}${actionButton('공격 선택 취소', 'cancel-attacker')}</div></div>`
 }
 
 function renderCardInspectorPlaceholder(): string {
@@ -923,7 +923,7 @@ function renderCardInspectorContent(cardId: CardId): string {
     : []
   return `<div class="card-inspector__inner">
     <button type="button" class="card-inspector__close" data-action="close-card-preview" aria-label="카드 상세 닫기">×</button>
-    <div class="card-inspector__visual">${renderCard(cardId, { interactive: false, classNames: ['card-preview-card'] })}</div>
+    <div class="card-inspector__visual">${renderCard(cardId, { interactive: false, detailLayout: true, classNames: ['card-preview-card'] })}</div>
     <div class="card-inspector__copy">
       <div class="card-inspector__meta"><span>속성: ${escapeHtml(attributes)}</span><span>카드군: ${escapeHtml(families)}</span><span>${card.type === 'unit' ? '몬스터' : '주문'} · 비용 ${card.cost}</span></div>
       <h2>${escapeHtml(card.name)}</h2>
@@ -1388,7 +1388,7 @@ function bindEvents(): void {
       playDraft = { cardInstanceId: id, manaIds: [] }
       summonFromManaDraftId = null
       selectedAttackerId = null
-      selectedAttackLifeIndices = []
+      selectedAttackLifeSlotIndices = []
       message = '사용할 마나와 필요한 대상을 직접 선택해 주세요.'
       render()
     })
@@ -1502,7 +1502,7 @@ function bindEvents(): void {
       const id = button.dataset.unitId
       if (!id) return
       selectedAttackerId = selectedAttackerId === id ? null : id
-      selectedAttackLifeIndices = []
+      selectedAttackLifeSlotIndices = []
       render()
     })
   }
@@ -1517,12 +1517,12 @@ function bindEvents(): void {
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="select-attack-life"]')) {
     button.addEventListener('click', () => {
       if (!game) return
-      const index = Number(button.dataset.lifeIndex)
-      if (!Number.isInteger(index)) return
+      const slotIndex = Number(button.dataset.lifeSlot)
+      if (!Number.isInteger(slotIndex)) return
       const enemyId: PlayerId = game.viewer === 'P1' ? 'P2' : 'P1'
-      selectedAttackLifeIndices = toggleString(
-        selectedAttackLifeIndices.map(String),
-        String(index),
+      selectedAttackLifeSlotIndices = toggleString(
+        selectedAttackLifeSlotIndices.map(String),
+        String(slotIndex),
         requiredAttackLifeCount(game.players[enemyId]),
       ).map(Number)
       render()
@@ -1533,13 +1533,13 @@ function bindEvents(): void {
       sendAction({
         type: 'ATTACK_PLAYER',
         attackerId: selectedAttackerId,
-        lifeIndices: [...selectedAttackLifeIndices],
+        lifeSlotIndices: [...selectedAttackLifeSlotIndices],
       })
     }
   })
   document.querySelector<HTMLButtonElement>('[data-action="cancel-attacker"]')?.addEventListener('click', () => {
     selectedAttackerId = null
-    selectedAttackLifeIndices = []
+    selectedAttackLifeSlotIndices = []
     render()
   })
 

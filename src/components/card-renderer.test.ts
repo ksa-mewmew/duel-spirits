@@ -15,6 +15,7 @@ describe('renderCard', () => {
     expect(markup).toContain('game-card__health')
     expect(markup).not.toContain(card.rulesText)
     expect(markup).not.toContain('game-card__text')
+    expect(markup).toContain('game-card--center-name')
   })
 
   it('shows a spell type marker without putting rules text on the card', () => {
@@ -25,5 +26,12 @@ describe('renderCard', () => {
     expect(markup).toContain('game-card__spell-type')
     expect(markup).toContain('주문')
     expect(markup).not.toContain(card.rulesText)
+  })
+
+  it('keeps only the in-game detail layout out of the centered-name default', () => {
+    const markup = renderCard('seeding_fairy', { detailLayout: true })
+
+    expect(markup).toContain('game-card--detail-layout')
+    expect(markup).not.toContain('game-card--center-name')
   })
 })

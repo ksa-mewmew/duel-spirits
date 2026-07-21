@@ -20,6 +20,8 @@ export interface RenderCardOptions {
   actionsHtml?: string
   dataAttributes?: Record<string, string>
   interactive?: boolean
+  /** 인게임 카드 상세보기처럼 이름을 하단에 두는 예외 레이아웃입니다. */
+  detailLayout?: boolean
 }
 
 export interface RenderManaTokenOptions {
@@ -79,6 +81,8 @@ export function renderCard(
     `game-card--visual-${card.visualKey}`,
     options.compact ? 'game-card--compact' : '',
     options.nameOnly ? 'game-card--name-only' : '',
+    !options.nameOnly && !options.detailLayout ? 'game-card--center-name' : '',
+    options.detailLayout ? 'game-card--detail-layout' : '',
     card.name.length >= 11 ? 'game-card--name-xlong' : card.name.length >= 8 ? 'game-card--name-long' : '',
     options.exhausted ? 'is-exhausted' : '',
     options.selected ? 'is-selected' : '',

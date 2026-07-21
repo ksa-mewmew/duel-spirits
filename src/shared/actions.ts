@@ -38,7 +38,10 @@ export interface AttackUnitAction {
 export interface AttackPlayerAction {
   type: 'ATTACK_PLAYER'
   attackerId: string
-  lifeIndices: number[]
+  /** 화면에서 선택한 고정 라이프 슬롯 번호입니다. */
+  lifeSlotIndices?: number[]
+  /** 이전 클라이언트와 저장된 행동 기록을 위한 배열 위치 기반 값입니다. */
+  lifeIndices?: number[]
 }
 
 export interface EndTurnAction { type: 'END_TURN' }

@@ -1038,7 +1038,7 @@ function attackPlayer(
   game: GameState,
   actor: PlayerId,
   attackerId: string,
-  lifeIndices: number[],
+  lifeSlotIndices: number[],
   random: RandomSource,
 ): GameState {
   ready(game, actor)
@@ -1064,15 +1064,19 @@ function attackPlayer(
   const requestedLoss = 1 + extraLoss
   const selectableLoss = Math.min(requestedLoss, enemy.life.length)
 
+  const selectedLifeCards = lifeSlotIndices.map((slotIndex) => enemy.life.find(
+    (card, index) => (card.lifeSlotIndex ?? index) === slotIndex,
+  ))
   if (
-    lifeIndices.length !== selectableLoss
-    || new Set(lifeIndices).size !== lifeIndices.length
-    || lifeIndices.some((index) => !Number.isInteger(index) || index < 0 || index >= enemy.life.length)
+    lifeSlotIndices.length !== selectableLoss
+    || new Set(lifeSlotIndices).size !== lifeSlotIndices.length
+    || lifeSlotIndices.some((slotIndex) => !Number.isInteger(slotIndex) || slotIndex < 0)
+    || selectedLifeCards.some((card) => card === undefined)
   ) {
     throw new GameRuleError(`파괴할 상대 라이프 ${selectableLoss}장을 선택해야 합니다.`)
   }
 
-  const selectedInstanceIds = lifeIndices.map((index) => enemy.life[index]!.instanceId)
+  const selectedInstanceIds = selectedLifeCards.map((card) => card!.instanceId)
   consumeAttack(player, attacker, game, actor)
 
   if (enemy.life.length === 0) {
@@ -1350,15 +1354,20 @@ export function applyAction(
     case 'ATTACK_UNIT':
       result = attackUnit(game, actor, action.attackerId, action.defenderId, random)
       break
-    case 'ATTACK_PLAYER':
+    case 'ATTACK_PLAYER': {
+      const enemyLife = game.players[opponent(actor)].life
+      const lifeSlotIndices = action.lifeSlotIndices ?? (action.lifeIndices ?? []).map(
+        (lifeIndex) => enemyLife[lifeIndex]?.lifeSlotIndex ?? lifeIndex,
+      )
       result = attackPlayer(
         game,
         actor,
         action.attackerId,
-        action.lifeIndices,
+        lifeSlotIndices,
         random,
       )
       break
+    }
     case 'END_TURN':
       result = endTurn(game, actor, random)
       break
