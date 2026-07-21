@@ -74,6 +74,17 @@ describe('플레이어별 비공개 게임 뷰', () => {
     }
   })
 
+
+  test('라이프 한 장이 사라져도 나머지 카드의 표시 슬롯은 유지한다', () => {
+    const game = createGame(() => 0.5)
+
+    expect(game.players.P1.life.map((card) => card.lifeSlotIndex)).toEqual([0, 1, 2, 3])
+    game.players.P1.life.splice(2, 1)
+
+    const view = createGameView(game, 'P1')
+    expect(view.players.P1.lifeSlotIndices).toEqual([0, 1, 3])
+  })
+
   test('공개 영역과 카드 장수는 양쪽에 동일하게 보인다', () => {
     const game = createGame(() => 0.5)
 

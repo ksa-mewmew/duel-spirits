@@ -10,6 +10,8 @@ export interface CardInstance {
   ownerId?: PlayerId
   controllerId?: PlayerId
   costReduction?: number
+  /** 라이프에 있을 때 사용하는 고정 표시 슬롯입니다. */
+  lifeSlotIndex?: number
 }
 
 export interface ManaCardInstance extends CardInstance {

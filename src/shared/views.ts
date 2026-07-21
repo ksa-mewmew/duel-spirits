@@ -21,6 +21,8 @@ export interface PlayerView {
   handCount: number
   hand: CardInstance[]
   lifeCount: number
+  /** life 배열의 각 카드가 차지하는 고정 라이프 슬롯 번호입니다. */
+  lifeSlotIndices: number[]
   mana: ManaCardInstance[]
   field: UnitInstance[]
   discard: CardInstance[]
@@ -105,6 +107,7 @@ function createPlayerView(
     handCount: player.hand.length,
     hand: isViewer ? player.hand.map(cloneCard) : [],
     lifeCount: player.life.length,
+    lifeSlotIndices: player.life.map((card, index) => card.lifeSlotIndex ?? index),
     mana: player.mana.map(cloneManaCard),
     field: player.field.map(cloneUnit),
     discard: player.discard.map(cloneCard),

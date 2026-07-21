@@ -185,8 +185,8 @@ describe('플레이어 선택 처리', () => {
       { instanceId: 'light-mana', cardId: 'pegasus_rider', exhausted: false },
     ]
     game.players.P1.life = [
-      { instanceId: 'life-0', cardId: 'ash_hound' },
-      { instanceId: 'life-1', cardId: 'wave_reader' },
+      { instanceId: 'life-0', cardId: 'ash_hound', lifeSlotIndex: 0 },
+      { instanceId: 'life-1', cardId: 'wave_reader', lifeSlotIndex: 2 },
     ]
 
     const firstChoice = applyAction(game, 'P1', {
@@ -208,7 +208,9 @@ describe('플레이어 선택 처리', () => {
       type: 'RESOLVE_CHOICE',
       choiceIds: ['life-1'],
     })
-    expect(resolved.players.P1.life.some((card) => card.instanceId === 'life-1')).toBe(true)
+    expect(resolved.players.P1.life.find((card) => card.instanceId === 'life-1')).toMatchObject({
+      lifeSlotIndex: 2,
+    })
     expect(resolved.pendingChoices).toHaveLength(0)
   })
 

@@ -448,10 +448,21 @@ function renderLife(playerId: PlayerId, owner: 'self' | 'opponent'): string {
     && playDraft === null
     && canSelectedAttackerDirectAttack(player)
 
-  const visibleSlots = Math.max(LIFE_SIZE, player.lifeCount)
-  return Array.from({ length: visibleSlots }, (_, index) => {
-    if (index >= player.lifeCount) {
-      return `<div class="life-card-frame"><div class="life-slot is-empty" aria-label="빈 라이프 자리"><span aria-hidden="true">＋</span></div></div>`
+  const lifeSlotIndices = player.lifeSlotIndices
+    ?? Array.from({ length: player.lifeCount }, (_, index) => index)
+  const lifeIndexBySlot = new Map<number, number>()
+  lifeSlotIndices.forEach((slotIndex, lifeIndex) => {
+    lifeIndexBySlot.set(slotIndex, lifeIndex)
+  })
+  const highestOccupiedSlot = lifeSlotIndices.length > 0
+    ? Math.max(...lifeSlotIndices) + 1
+    : 0
+  const visibleSlots = Math.max(LIFE_SIZE, highestOccupiedSlot)
+
+  return Array.from({ length: visibleSlots }, (_, slotIndex) => {
+    const lifeIndex = lifeIndexBySlot.get(slotIndex)
+    if (lifeIndex === undefined) {
+      return `<div class="life-card-frame is-empty" aria-hidden="true"><div class="life-slot is-empty"></div></div>`
     }
 
     let action: string | null = null
@@ -462,10 +473,10 @@ function renderLife(playerId: PlayerId, owner: 'self' | 'opponent'): string {
       action = 'resolve-life-choice'
     } else if (playDraft && owner === 'opponent' && needsLifeTarget(selectedPlayCard()?.cardId ?? 'living_flame')) {
       action = 'select-spell-life'
-      selected = playDraft.lifeIndex === index
+      selected = playDraft.lifeIndex === lifeIndex
     } else if (canAttackLife) {
       action = 'select-attack-life'
-      selected = selectedAttackLifeIndices.includes(index)
+      selected = selectedAttackLifeIndices.includes(lifeIndex)
     }
 
     const cardBack = renderCardBack([
@@ -475,9 +486,9 @@ function renderLife(playerId: PlayerId, owner: 'self' | 'opponent'): string {
       selected ? 'is-selected' : '',
     ].filter(Boolean))
     const content = action
-      ? `<button type="button" class="life-choice-button" data-action="${action}" data-life-index="${index}">${cardBack}</button>`
+      ? `<button type="button" class="life-choice-button" data-action="${action}" data-life-index="${lifeIndex}">${cardBack}</button>`
       : cardBack
-    return `<div class="life-card-frame" data-life-position="${index + 1}" aria-label="${index + 1}번째 라이프">${content}<span class="life-position-label">${index + 1}</span></div>`
+    return `<div class="life-card-frame" data-life-slot="${slotIndex}" aria-label="라이프 카드">${content}</div>`
   }).join('')
 }
 
@@ -589,7 +600,7 @@ function renderHand(player: PlayerView, isSelf: boolean): string {
     return renderCard(card.cardId, {
       instanceId: card.instanceId,
       selected,
-      classNames: ['hand-card'],
+      classNames: ['hand-card', 'game-card--center-name'],
       actionsHtml: actions.join(''),
     })
   }).join('') || '<div class="zone-empty">손이 비었습니다.</div>'
@@ -708,7 +719,7 @@ function renderField(player: PlayerView, isSelf: boolean): string {
       summonedThisTurn: unit.summonedThisTurn,
       remainingHealth: definition.health - unit.damage,
       displayAttack: attackValueView(player, unit),
-      classNames: ['field-card'],
+      classNames: ['field-card', 'game-card--center-name'],
       actionsHtml: actions,
       dataAttributes: { 'field-slot': String(slotIndex) },
     })}${statusMarkup}</div>`

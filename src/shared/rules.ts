@@ -86,7 +86,10 @@ function createPlayer(
   const lifeEnd = format.startingLife
   const handEnd = lifeEnd + format.startingHand
   return {
-    life: cards.slice(0, lifeEnd),
+    life: cards.slice(0, lifeEnd).map((card, lifeSlotIndex) => ({
+      ...card,
+      lifeSlotIndex,
+    })),
     hand: cards.slice(lifeEnd, handEnd),
     deck: cards.slice(handEnd),
     mana: [],
@@ -249,10 +252,45 @@ function healthValue(unit: UnitInstance): number {
   return unitDefinition(unit).health + unit.temporaryHealthModifier
 }
 
-function resetHandCost(card: CardInstance): CardInstance {
+function resetHandCost(
+  card: CardInstance,
+  preserveLifeSlot = false,
+): CardInstance {
   const clean = { ...card }
   delete clean.costReduction
+  if (!preserveLifeSlot) delete clean.lifeSlotIndex
   return clean
+}
+
+function placeInLife(
+  game: GameState,
+  owner: PlayerId,
+  card: CardInstance,
+): void {
+  const player = game.players[owner]
+  const slotCount = getFormat(game.matchConfig.formatId).startingLife
+  const preferredSlot = card.lifeSlotIndex
+  const occupiedSlots = new Set(
+    player.life
+      .map((lifeCard) => lifeCard.lifeSlotIndex)
+      .filter((slotIndex): slotIndex is number => Number.isInteger(slotIndex)),
+  )
+  const lifeSlotIndex = Number.isInteger(preferredSlot)
+    && preferredSlot! >= 0
+    && preferredSlot! < slotCount
+    && !occupiedSlots.has(preferredSlot!)
+    ? preferredSlot!
+    : Array.from({ length: slotCount }, (_, index) => index)
+      .find((slotIndex) => !occupiedSlots.has(slotIndex))
+
+  if (lifeSlotIndex === undefined) {
+    throw new GameRuleError('라이프에 빈 슬롯이 없습니다.')
+  }
+
+  player.life.push({
+    ...resetHandCost(card),
+    lifeSlotIndex,
+  })
 }
 
 function applyDarkDiscardDiscount(player: PlayerState, card: CardInstance): void {
@@ -570,8 +608,9 @@ function loseSelectedLife(
       throw new GameRuleError('선택한 라이프 카드를 찾지 못했습니다.')
     }
     const [card] = player.life.splice(index, 1)
-    player.hand.push(card!)
-    if (!suppressAwakening) awaken(game, defender, card!, random)
+    const handCard = resetHandCost(card!, true)
+    player.hand.push(handCard)
+    if (!suppressAwakening) awaken(game, defender, handCard, random)
   }
 }
 
@@ -825,7 +864,7 @@ function resolveSpell(
       if (player.life.length > 2) {
         throw new GameRuleError('라이프가 2장 이하일 때만 사용할 수 있습니다.')
       }
-      player.life.push(resetHandCost(card))
+      placeInLife(game, actor, card)
       return
 
     case 'holy_mirror_wall': {
@@ -1073,7 +1112,7 @@ function resolveChoice(
         throw new GameRuleError('선택한 라이프가 없습니다.')
       }
       const [lifeCard] = player.life.splice(lifeIndex, 1)
-      player.hand.push(lifeCard!)
+      player.hand.push(resetHandCost(lifeCard!, true))
       game.pendingChoices.shift()
       game.pendingChoices.unshift({
         type: 'TEMPLE_PROSPECT_HAND',
@@ -1093,7 +1132,7 @@ function resolveChoice(
         )
         if (handIndex < 0) throw new GameRuleError('선택한 손 카드를 찾지 못했습니다.')
         const [handCard] = player.hand.splice(handIndex, 1)
-        player.life.push(resetHandCost(handCard!))
+        placeInLife(game, actor, handCard!)
       }
       game.pendingChoices.shift()
       return game
