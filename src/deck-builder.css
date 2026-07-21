@@ -670,3 +670,51 @@ body.deck-builder-active #app {
     font-size: .6rem;
   }
 }
+
+
+/* Deck-builder cards use the same centered no-art title treatment as hand cards. */
+.builder-pool-card.game-card--center-name .game-card__code {
+  inset: 28px 8px 28px;
+  display: grid;
+  place-items: center;
+  max-width: none;
+  padding: 3px;
+  font-size: clamp(.66rem, .82vw, .8rem);
+  line-height: 1.22;
+  text-align: center;
+  text-wrap: balance;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  text-shadow: 0 2px 8px #000, 0 0 18px rgba(0, 0, 0, .72);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.builder-pool-card.game-card--center-name.game-card--name-long .game-card__code {
+  font-size: clamp(.56rem, .68vw, .68rem);
+}
+
+.builder-pool-card.game-card--center-name.game-card--name-xlong .game-card__code {
+  font-size: clamp(.5rem, .6vw, .61rem);
+  line-height: 1.16;
+}
+
+.builder-header__summary button.button-link {
+  font: inherit;
+}
+
+
+.deck-builder-screen .rulebook-index button {
+  padding: 5px 9px;
+  border: 1px solid var(--ui-line);
+  border-radius: 999px;
+  color: var(--ui-text);
+  background: var(--ui-panel-soft);
+  font-size: .72rem;
+}
+
+.deck-builder-screen .rulebook-index button:hover,
+.deck-builder-screen .rulebook-index button:focus-visible {
+  border-color: color-mix(in srgb, var(--ui-accent) 65%, var(--ui-line));
+  background: color-mix(in srgb, var(--ui-accent) 12%, var(--ui-panel-soft));
+}

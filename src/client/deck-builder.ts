@@ -1,6 +1,7 @@
 import { CARD_ATTRIBUTES, CARDS } from '../shared/cards'
 import { DECK_BUILDER_FORMATS, getFormat } from '../content/formats'
 import { CARD_SETS } from '../content/sets'
+import { createRulebookDocument } from '../content/rulebook'
 import {
   DECK_SCHEMA_VERSION,
   createDefaultFormatSelection,
@@ -54,6 +55,7 @@ interface BuilderState {
   message: string
   hoverPreviewCardId: CardId | null
   pinnedPreviewCardId: CardId | null
+  rulebookOpen: boolean
 }
 
 function cloneDeck(deck: SavedDeck): SavedDeck {
@@ -90,6 +92,7 @@ function getInitialState(): BuilderState {
     message: '',
     hoverPreviewCardId: null,
     pinnedPreviewCardId: null,
+    rulebookOpen: false,
   }
 }
 
@@ -307,6 +310,58 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     updatePreviewPanel(currentPreviewCardId())
   }
 
+  function renderRulebookBlock(block: ReturnType<typeof createRulebookDocument>['sections'][number]['blocks'][number]): string {
+    switch (block.type) {
+      case 'paragraph':
+        return `<p>${escapeHtml(block.text)}</p>`
+      case 'list': {
+        const tag = block.ordered ? 'ol' : 'ul'
+        return `<${tag}>${block.items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</${tag}>`
+      }
+      case 'callout':
+        return `<p><strong>${escapeHtml(block.title)}</strong><br>${escapeHtml(block.text)}</p>`
+      case 'terms':
+        return `<dl class="keyword-list">${block.items.map((item) => `<div><dt>${escapeHtml(item.term)}</dt><dd>${escapeHtml(item.description)}</dd></div>`).join('')}</dl>`
+    }
+  }
+
+  function renderRulebookModal(): string {
+    if (!state.rulebookOpen) return ''
+    const format = getFormat(state.formatId)
+    const document = createRulebookDocument(format)
+    const index = document.sections
+      .map((section) => `<button type="button" data-rulebook-target="${escapeHtml(section.id)}">${escapeHtml(section.navLabel)}</button>`)
+      .join('')
+    const sections = document.sections
+      .map((section) => `<section id="${escapeHtml(section.id)}"><h3>${escapeHtml(section.title)}</h3>${section.blocks.map(renderRulebookBlock).join('')}</section>`)
+      .join('')
+
+    return `<div class="modal-backdrop rulebook-backdrop" data-modal="builder-rulebook">
+      <section class="rulebook-dialog" role="dialog" aria-modal="true" aria-labelledby="builder-rulebook-title">
+        <header class="rulebook-dialog__header">
+          <div><p class="eyebrow">DUEL SPIRITS</p><h2 id="builder-rulebook-title">${escapeHtml(document.title)}</h2></div>
+          <button type="button" data-action="close-builder-rulebook" aria-label="룰북 닫기">닫기</button>
+        </header>
+        <nav class="rulebook-index" aria-label="룰북 목차">${index}</nav>
+        <div class="rulebook-content">${sections}</div>
+        <footer class="rulebook-dialog__footer"><span>규칙 ${escapeHtml(document.rulesVersion)} · ${escapeHtml(document.formatName)} · 카드 문구가 일반 규칙보다 우선합니다.</span><button type="button" data-action="close-builder-rulebook">덱 빌더로 돌아가기</button></footer>
+      </section>
+    </div>`
+  }
+
+  function openRulebook(): void {
+    state.rulebookOpen = true
+    render()
+    document.querySelector<HTMLButtonElement>('[data-action="close-builder-rulebook"]')?.focus()
+  }
+
+  function closeRulebook(): void {
+    if (!state.rulebookOpen) return
+    state.rulebookOpen = false
+    render()
+    document.querySelector<HTMLButtonElement>('#builder-rulebook-button')?.focus()
+  }
+
   function renderDistribution(): string {
     const attributeCounts = getAttributeDistribution(state.cardIds)
     const costCounts = getCostDistribution(state.cardIds)
@@ -363,7 +418,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
 
       return `<article class="card-pool-item ${state.pinnedPreviewCardId === cardId ? 'is-preview-pinned' : ''}" data-preview-card-id="${cardId}">
         <button type="button" class="card-pool-card" data-select-card="${cardId}" aria-pressed="${state.pinnedPreviewCardId === cardId}" aria-label="${escapeHtml(CARDS[cardId].name)} 상세 보기">
-          ${renderCard(cardId, { interactive: false, classNames: ['builder-pool-card'] })}
+          ${renderCard(cardId, { interactive: false, classNames: ['builder-pool-card', 'game-card--center-name'] })}
         </button>
         <div class="card-pool-item__footer">
           <button type="button" class="card-quantity-button" data-remove-card="${cardId}" ${count > 0 ? '' : 'disabled'} aria-label="${escapeHtml(CARDS[cardId].name)} 한 장 빼기">−</button>
@@ -415,7 +470,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     appElement.innerHTML = `<main class="app-shell deck-builder-screen">
       <header class="builder-header">
         <div><p class="eyebrow">DUEL SPIRITS · DECK WORKSHOP</p><h1>덱 빌더</h1></div>
-        <div class="builder-header__summary"><span>현재 덱</span><strong>${state.cardIds.length} / ${format.deckSize}</strong><a class="button-link" href="./">방 화면</a></div>
+        <div class="builder-header__summary"><span>현재 덱</span><strong>${state.cardIds.length} / ${format.deckSize}</strong><button id="builder-rulebook-button" class="button-link" type="button">룰북</button><a class="button-link" href="./">방 화면</a></div>
       </header>
       <section class="panel deck-toolbar">
         <label>저장 덱<select id="deck-select">${deckOptions}</select></label>
@@ -446,7 +501,26 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
           </section>
         </aside>
       </section>
+      ${renderRulebookModal()}
     </main>`
+
+    document.querySelector<HTMLButtonElement>('#builder-rulebook-button')?.addEventListener('click', openRulebook)
+    for (const control of document.querySelectorAll<HTMLButtonElement>('[data-action="close-builder-rulebook"]')) {
+      control.addEventListener('click', closeRulebook)
+    }
+    document.querySelector<HTMLElement>('[data-modal="builder-rulebook"]')?.addEventListener('click', (event) => {
+      if (event.target === event.currentTarget) closeRulebook()
+    })
+    document.querySelector<HTMLElement>('.rulebook-dialog')?.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeRulebook()
+    })
+    for (const control of document.querySelectorAll<HTMLButtonElement>('[data-rulebook-target]')) {
+      control.addEventListener('click', () => {
+        const targetId = control.dataset.rulebookTarget
+        if (!targetId) return
+        document.getElementById(targetId)?.scrollIntoView({ block: 'start' })
+      })
+    }
 
     document.querySelector<HTMLSelectElement>('#deck-select')?.addEventListener('change', (event) => selectDeck((event.currentTarget as HTMLSelectElement).value))
     document.querySelector<HTMLInputElement>('#deck-name')?.addEventListener('input', (event) => { state.name = (event.currentTarget as HTMLInputElement).value })
