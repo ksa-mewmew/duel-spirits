@@ -200,7 +200,7 @@ function hasKeyword(
   game: GameState,
   owner: PlayerId,
   unit: UnitInstance,
-  keyword: 'rush' | 'windfury' | 'flying' | 'stealth',
+  keyword: 'rush' | 'charge' | 'windfury' | 'flying' | 'stealth',
 ): boolean {
   const definition = unitDefinition(unit)
   if (definition.keywords?.includes(keyword)) return true
@@ -309,6 +309,26 @@ function draw(player: PlayerState, random: RandomSource): void {
   if (card) player.hand.push(card)
 }
 
+function placeCardInMana(
+  game: GameState,
+  owner: PlayerId,
+  card: CardInstance,
+  exhausted: boolean,
+  random: RandomSource,
+): ManaCardInstance {
+  const manaCard: ManaCardInstance = {
+    ...resetHandCost(card),
+    exhausted,
+  }
+  game.players[owner].mana.push(manaCard)
+
+  // 나무에 사는 요정은 어느 효과로 마나에 놓이든 동일하게 발동한다.
+  if (manaCard.cardId === 'tree_fairy') {
+    draw(game.players[owner], random)
+  }
+  return manaCard
+}
+
 function spend(
   player: PlayerState,
   amount: number,
@@ -381,11 +401,8 @@ function placeMana(
   if (index < 0) throw new GameRuleError('손에서 카드를 찾지 못했습니다.')
 
   const [card] = player.hand.splice(index, 1)
-  const clean = resetHandCost(card!)
-  player.mana.push({ ...clean, exhausted: false })
+  placeCardInMana(game, actor, card!, false, random)
   player.manaPlacedThisTurn = true
-
-  if (clean.cardId === 'tree_fairy') draw(player, random)
   return game
 }
 
@@ -420,8 +437,7 @@ function awaken(
     case 'tree_fairy': {
       const handCard = removeFromHand(player, card.instanceId)
       if (handCard) {
-        player.mana.push({ ...resetHandCost(handCard), exhausted: true })
-        draw(player, random)
+        placeCardInMana(game, owner, handCard, true, random)
       }
       break
     }
@@ -486,6 +502,7 @@ function resolveArrival(
   actor: PlayerId,
   unit: UnitInstance,
   paidMana: ManaCardInstance[],
+  random: RandomSource,
 ): void {
   const player = game.players[actor]
   const paidGroups = new Set(
@@ -538,7 +555,7 @@ function resolveArrival(
 
     case 'seeding_fairy': {
       const top = player.deck.shift()
-      if (top) player.mana.push({ ...top, exhausted: true })
+      if (top) placeCardInMana(game, actor, top, true, random)
       break
     }
 
@@ -651,7 +668,7 @@ function resolveSpell(
       if (paidGroups.has('water')) draw(player, random)
       if (paidGroups.has('earth')) {
         const top = player.deck.shift()
-        if (top) player.mana.push({ ...top, exhausted: true })
+        if (top) placeCardInMana(game, actor, top, true, random)
       }
       break
 
@@ -660,12 +677,11 @@ function resolveSpell(
       const index = enemy.field.findIndex((unit) => unit.instanceId === targetId)
       if (index < 0) throw new GameRuleError('선택한 대상 몬스터가 없습니다.')
       const [unit] = enemy.field.splice(index, 1)
-      enemy.mana.push({
+      placeCardInMana(game, enemyId, {
         instanceId: unit!.instanceId,
         cardId: unit!.cardId,
-        exhausted: true,
-      })
-      player.mana.push({ ...resetHandCost(card), exhausted: true })
+      }, true, random)
+      placeCardInMana(game, actor, card, true, random)
       return
     }
 
@@ -788,7 +804,7 @@ function playCard(
 
   if (definition.type === 'unit') {
     const unit = summonCard(game, actor, card)
-    resolveArrival(game, actor, unit, paidMana)
+    resolveArrival(game, actor, unit, paidMana, random)
   } else {
     resolveSpell(game, actor, resetHandCost(card), paidMana, random, selection)
   }
@@ -822,12 +838,21 @@ function assertCanAttack(
   game: GameState,
   actor: PlayerId,
   unit: UnitInstance,
+  targetKind: 'unit' | 'player',
 ): void {
   if (unit.exhausted) {
     throw new GameRuleError('소진된 몬스터는 공격할 수 없습니다.')
   }
-  if (unit.summonedThisTurn && !hasKeyword(game, actor, unit, 'rush')) {
-    throw new GameRuleError('이번 턴에 소환된 몬스터는 공격할 수 없습니다.')
+  if (unit.summonedThisTurn) {
+    const hasRush = hasKeyword(game, actor, unit, 'rush')
+    const hasCharge = hasKeyword(game, actor, unit, 'charge')
+    if (!hasRush && !(hasCharge && targetKind === 'unit')) {
+      throw new GameRuleError(
+        hasCharge
+          ? '돌진 몬스터는 소환된 턴에 상대 몬스터만 공격할 수 있습니다.'
+          : '이번 턴에 소환된 몬스터는 공격할 수 없습니다.',
+      )
+    }
   }
   const maxAttacks = hasKeyword(game, actor, unit, 'windfury') ? 2 : 1
   if (unit.attacksThisTurn >= maxAttacks) {
@@ -872,7 +897,7 @@ function attackUnit(
     throw new GameRuleError('공격 대상을 찾지 못했습니다.')
   }
 
-  assertCanAttack(game, actor, attacker)
+  assertCanAttack(game, actor, attacker, 'unit')
   if (hasKeyword(game, enemyId, defender, 'stealth')) {
     throw new GameRuleError('잠행 몬스터는 공격 대상으로 선택할 수 없습니다.')
   }
@@ -899,7 +924,7 @@ function attackPlayer(
   const attacker = player.field.find((unit) => unit.instanceId === attackerId)
   if (!attacker) throw new GameRuleError('공격 몬스터를 찾지 못했습니다.')
 
-  assertCanAttack(game, actor, attacker)
+  assertCanAttack(game, actor, attacker, 'player')
   const hasAttackableUnit = enemy.field.some(
     (unit) => !hasKeyword(game, enemyId, unit, 'stealth'),
   )

@@ -8,7 +8,7 @@ import {
   parseSelectedSetIds,
   parseTurnLimitSeconds,
 } from '../shared/room-settings'
-import { renderCard, renderCardBack, renderManaToken } from '../components/card-renderer'
+import { renderCard, renderCardBack } from '../components/card-renderer'
 
 import type { CardId } from '../shared/cards'
 import type { CardPlaySelection, GameAction } from '../shared/actions'
@@ -85,6 +85,7 @@ let selectedDeckId = getActiveDeck().id
 let openDiscardPlayerId: PlayerId | null = null
 let pinnedPreviewCardId: CardId | null = null
 let roomMenuOpen = false
+let rulebookOpen = false
 
 function escapeHtml(value: string): string {
   return value
@@ -217,8 +218,12 @@ const socket = connectToRoom(
           message = game.status === 'finished'
             ? `${game.winner} 승리`
             : game.pendingChoice
-              ? `${game.pendingChoice.playerId}이(가) 카드 효과를 선택하고 있습니다.`
-              : '게임 상태가 갱신되었습니다.'
+              ? game.pendingChoice.playerId === game.viewer
+                ? '각성 또는 카드 효과를 선택해야 합니다.'
+                : `${game.pendingChoice.playerId}이(가) 카드 효과를 선택하고 있습니다.`
+              : game.currentPlayer === game.viewer
+                ? '내 턴입니다.'
+                : '상대 턴입니다.'
           break
 
         case 'ACTION_ERROR':
@@ -243,6 +248,7 @@ const socket = connectToRoom(
           openDiscardPlayerId = null
           pinnedPreviewCardId = null
           roomMenuOpen = false
+          rulebookOpen = false
           socket.close()
           break
 
@@ -255,6 +261,7 @@ const socket = connectToRoom(
           openDiscardPlayerId = null
           pinnedPreviewCardId = null
           roomMenuOpen = false
+          rulebookOpen = false
           message = '현재 게임이 정리되었습니다.'
           break
 
@@ -325,6 +332,12 @@ function hasRushView(unit: UnitInstance): boolean {
     && (definition.keywords?.includes('rush') || unit.temporaryRush === true)
 }
 
+function hasChargeView(unit: UnitInstance): boolean {
+  const definition = CARDS[unit.cardId]
+  return definition.type === 'unit'
+    && definition.keywords?.includes('charge') === true
+}
+
 function hasWindfuryView(player: PlayerView, unit: UnitInstance): boolean {
   const definition = CARDS[unit.cardId]
   if (definition.type !== 'unit') return false
@@ -352,9 +365,17 @@ function attackValueView(player: PlayerView, unit: UnitInstance): number {
     + (unit.cardId === 'last_ember' && player.field.length === 1 ? 2 : 0)
 }
 
-function canUnitAttackView(player: PlayerView, unit: UnitInstance): boolean {
+function canUnitAttackView(
+  player: PlayerView,
+  unit: UnitInstance,
+  targetKind: 'unit' | 'player',
+): boolean {
   if (unit.exhausted) return false
-  if (unit.summonedThisTurn && !hasRushView(unit)) return false
+  if (
+    unit.summonedThisTurn
+    && !hasRushView(unit)
+    && !(targetKind === 'unit' && hasChargeView(unit))
+  ) return false
   const maxAttacks = hasWindfuryView(player, unit) ? 2 : 1
   if (unit.attacksThisTurn >= maxAttacks) return false
   if (
@@ -377,7 +398,7 @@ function canSelectedAttackerDirectAttack(opponentPlayer: PlayerView): boolean {
   if (!game || !selectedAttackerId) return false
   const self = game.players[game.viewer]
   const attacker = self.field.find((unit) => unit.instanceId === selectedAttackerId)
-  if (!attacker || !canUnitAttackView(self, attacker)) return false
+  if (!attacker || !canUnitAttackView(self, attacker, 'player')) return false
   const attackableEnemy = opponentPlayer.field.some(
     (unit) => !hasStealthView(opponentPlayer, unit),
   )
@@ -476,11 +497,17 @@ function renderMana(player: PlayerView, isSelf: boolean): string {
       actions.push(actionButton('소환', 'summon-from-mana', 'mana-id', mana.instanceId))
     }
 
-    return renderManaToken(mana.cardId, {
+    return renderCard(mana.cardId, {
       instanceId: mana.instanceId,
+      compact: true,
       exhausted: mana.exhausted,
       selected: selectedAsCost || selectedAsEffect,
       targetable: isSelf && playDraft !== null && !mana.exhausted,
+      classNames: ['mana-card'],
+      statusBadges: [{
+        label: mana.exhausted ? '소진' : '준비',
+        tone: mana.exhausted ? 'inactive' : 'active',
+      }],
       actionsHtml: actions.join(''),
     })
   }).join('') || '<div class="zone-empty">마나 없음</div>'
@@ -547,12 +574,38 @@ function renderHand(player: PlayerView, isSelf: boolean): string {
   }).join('') || '<div class="zone-empty">손이 비었습니다.</div>'
 }
 
+function getUnitStatusBadges(
+  player: PlayerView,
+  unit: UnitInstance,
+): Array<{ label: string; tone?: 'active' | 'inactive' | 'warning' }> {
+  const definition = CARDS[unit.cardId]
+  if (definition.type !== 'unit') return []
+
+  const badges: Array<{ label: string; tone?: 'active' | 'inactive' | 'warning' }> = []
+  const isolated = player.field.length === 1
+
+  if (unit.cardId === 'last_ember' || unit.cardId === 'nameless_shadow') {
+    badges.push({
+      label: isolated ? '고립' : '고립 해제',
+      tone: isolated ? 'active' : 'inactive',
+    })
+  }
+  if (hasRushView(unit)) badges.push({ label: '기습' })
+  if (hasChargeView(unit)) badges.push({ label: '돌진', tone: 'warning' })
+  if (hasWindfuryView(player, unit)) badges.push({ label: '질풍' })
+  if (hasFlyingView(unit)) badges.push({ label: '비행' })
+  if (hasStealthView(player, unit)) badges.push({ label: '잠행' })
+  return badges
+}
+
 function renderField(player: PlayerView, isSelf: boolean): string {
   if (!game) return ''
   const currentGame = game
   const isMyTurn = currentGame.viewer === currentGame.currentPlayer
   const draftCard = selectedPlayCard()
   const targetMode = draftCard ? unitTargetMode(draftCard.cardId) : null
+  const opponentId: PlayerId = currentGame.viewer === 'P1' ? 'P2' : 'P1'
+  const opponentPlayer = currentGame.players[opponentId]
 
   const cards = player.field.map((unit) => {
     const definition = CARDS[unit.cardId]
@@ -566,17 +619,27 @@ function renderField(player: PlayerView, isSelf: boolean): string {
       && roomPhase === 'playing'
       && currentGame.status === 'playing'
       && !awaitingServer
-      && canUnitAttackView(player, unit)
+      && (
+        canUnitAttackView(player, unit, 'player')
+        || (
+          canUnitAttackView(player, unit, 'unit')
+          && opponentPlayer.field.some((target) => !hasStealthView(opponentPlayer, target))
+        )
+      )
     const canSpellTarget = !isSelf
       && isMyTurn
       && targetMode !== null
       && currentGame.pendingChoice === null
       && !awaitingServer
       && (targetMode === 'any' || unit.exhausted)
+    const selectedAttacker = currentGame.players[currentGame.viewer].field.find(
+      (candidate) => candidate.instanceId === selectedAttackerId,
+    )
     const canAttackTarget = !isSelf
       && isMyTurn
       && normalAttackMode
-      && selectedAttackerId !== null
+      && selectedAttacker !== undefined
+      && canUnitAttackView(currentGame.players[currentGame.viewer], selectedAttacker, 'unit')
       && !hasStealthView(player, unit)
       && roomPhase === 'playing'
       && !awaitingServer
@@ -607,6 +670,8 @@ function renderField(player: PlayerView, isSelf: boolean): string {
       exhausted: unit.exhausted,
       summonedThisTurn: unit.summonedThisTurn,
       remainingHealth: definition.health - unit.damage,
+      displayAttack: attackValueView(player, unit),
+      statusBadges: getUnitStatusBadges(player, unit),
       classNames: ['field-card'],
       actionsHtml: actions,
     })
@@ -656,8 +721,10 @@ function renderPlayerBoard(playerId: PlayerId, position: 'self' | 'opponent'): s
     && canSelectedAttackerDirectAttack(player)
   const readyMana = player.mana.filter((card) => !card.exhausted).length
 
-  const strip = `<header class="player-strip player-strip--${position}">
+  const isActivePlayer = game.currentPlayer === playerId
+  const strip = `<header class="player-strip player-strip--${position} ${isActivePlayer ? 'is-active-turn' : ''}">
     <strong>${playerId} ${isSelf ? '· 나' : '· 상대'}</strong>
+    ${isActivePlayer ? `<span class="turn-owner-badge">${isSelf ? '내 턴' : '진행 중'}</span>` : ''}
     <span>손 ${player.handCount}</span>
     <span>라이프 ${player.lifeCount}</span>
     <span>마나 ${readyMana}/${player.mana.length}</span>
@@ -689,10 +756,10 @@ function renderPlayerBoard(playerId: PlayerId, position: 'self' | 'opponent'): s
   </div>`
 
   if (position === 'opponent') {
-    return `<section class="player-board player-board--opponent">${strip}${board}</section>`
+    return `<section class="player-board player-board--opponent ${isActivePlayer ? 'is-active-player' : ''}">${strip}${board}</section>`
   }
 
-  return `<section class="player-board player-board--self">
+  return `<section class="player-board player-board--self ${isActivePlayer ? 'is-active-player' : ''}">
     ${board}
     ${strip}
     <section class="hand-area" aria-label="내 손패">
@@ -763,15 +830,15 @@ function renderPendingChoicePanel(): string {
 
   switch (pending.type) {
     case 'TEMPLE_PROSPECT_LIFE':
-      return '<div class="selection-panel"><h3>신전의 유망주</h3><p>손으로 가져올 자신의 라이프를 선택하세요.</p></div>'
+      return '<div class="selection-panel selection-panel--urgent"><h3>신전의 유망주</h3><p>손으로 가져올 자신의 라이프를 선택하세요.</p></div>'
     case 'TEMPLE_PROSPECT_HAND':
-      return `<div class="selection-panel"><h3>신전의 유망주</h3><p>손 카드 한 장을 라이프로 놓거나 건너뛸 수 있습니다.</p>${actionButton('건너뛰기', 'skip-hand-choice')}</div>`
+      return `<div class="selection-panel selection-panel--urgent"><h3>신전의 유망주</h3><p>손 카드 한 장을 라이프로 놓거나 건너뛸 수 있습니다.</p>${actionButton('건너뛰기', 'skip-hand-choice')}</div>`
     case 'HOLY_MIRROR_LIFE':
-      return '<div class="selection-panel"><h3>성스러운 거울의 벽</h3><p>묘지로 보낼 상대 라이프를 선택하세요.</p></div>'
+      return '<div class="selection-panel selection-panel--urgent"><h3>성스러운 거울의 벽</h3><p>묘지로 보낼 상대 라이프를 선택하세요.</p></div>'
     case 'WAVE_READER_TOP':
-      return `<div class="selection-panel"><h3>물결을 읽는 자</h3>${pending.revealedCard ? renderCard(pending.revealedCard.cardId, { compact: true, classNames: ['choice-card'] }) : ''}<div class="choice-actions">${actionButton('덱 위에 둔다', 'resolve-simple-choice', 'choice-id', 'keep')}${actionButton('묘지로 보낸다', 'resolve-simple-choice', 'choice-id', 'discard')}</div></div>`
+      return `<div class="selection-panel selection-panel--urgent"><h3>물결을 읽는 자</h3>${pending.revealedCard ? renderCard(pending.revealedCard.cardId, { compact: true, classNames: ['choice-card'] }) : ''}<div class="choice-actions">${actionButton('덱 위에 둔다', 'resolve-simple-choice', 'choice-id', 'keep')}${actionButton('묘지로 보낸다', 'resolve-simple-choice', 'choice-id', 'discard')}</div></div>`
     case 'SURGING_WAVE_TOP':
-      return `<div class="selection-panel"><h3>몰아치는 파도</h3>${pending.revealedCard ? renderCard(pending.revealedCard.cardId, { compact: true, classNames: ['choice-card'] }) : ''}<div class="choice-actions">${actionButton('덱 위에 둔다', 'resolve-simple-choice', 'choice-id', 'leave')}${actionButton('소환한다', 'resolve-simple-choice', 'choice-id', 'summon', !pending.canSummon)}</div></div>`
+      return `<div class="selection-panel selection-panel--urgent"><h3>몰아치는 파도</h3>${pending.revealedCard ? renderCard(pending.revealedCard.cardId, { compact: true, classNames: ['choice-card'] }) : ''}<div class="choice-actions">${actionButton('덱 위에 둔다', 'resolve-simple-choice', 'choice-id', 'leave')}${actionButton('소환한다', 'resolve-simple-choice', 'choice-id', 'summon', !pending.canSummon)}</div></div>`
     case 'BURNING_PROCESSION': {
       const selectable = pending.revealedCards.filter((card) => {
         const definition = CARDS[card.cardId]
@@ -779,7 +846,7 @@ function renderPendingChoicePanel(): string {
           && definition.cost <= 1
           && definition.groups.includes('fire')
       })
-      return `<div class="selection-panel"><h3>불타는 행렬</h3><p>소환할 몬스터를 최대 ${pending.maxSummons}장 선택하세요. 선택하지 않은 카드는 묘지로 갑니다.</p><div class="choice-card-grid">${pending.revealedCards.map((card) => renderMiniChoiceCard(card, 'toggle-burning-choice', pendingChoiceIds.includes(card.instanceId), !selectable.some((candidate) => candidate.instanceId === card.instanceId))).join('')}</div><div class="choice-actions">${actionButton(`확정 (${pendingChoiceIds.length})`, 'confirm-burning-choice')}</div></div>`
+      return `<div class="selection-panel selection-panel--urgent"><h3>불타는 행렬</h3><p>소환할 몬스터를 최대 ${pending.maxSummons}장 선택하세요. 선택하지 않은 카드는 묘지로 갑니다.</p><div class="choice-card-grid">${pending.revealedCards.map((card) => renderMiniChoiceCard(card, 'toggle-burning-choice', pendingChoiceIds.includes(card.instanceId), !selectable.some((candidate) => candidate.instanceId === card.instanceId))).join('')}</div><div class="choice-actions">${actionButton(`확정 (${pendingChoiceIds.length})`, 'confirm-burning-choice')}</div></div>`
     }
   }
 }
@@ -801,6 +868,12 @@ function renderCardInspector(): string {
 function renderCardInspectorContent(cardId: CardId): string {
   const card = CARDS[cardId]
   const groups = card.groups.map((groupId) => CARD_GROUPS[groupId].name).join(' · ')
+  const keywordNames: Record<string, string> = {
+    rush: '기습', charge: '돌진', windfury: '질풍', flying: '비행', stealth: '잠행',
+  }
+  const keywords = card.type === 'unit'
+    ? (card.keywords ?? []).map((keyword) => keywordNames[keyword]).filter(Boolean)
+    : []
   return `<div class="card-inspector__inner">
     <button type="button" class="card-inspector__close" data-action="close-card-preview" aria-label="카드 상세 닫기">×</button>
     <div class="card-inspector__visual">${renderCard(cardId, { interactive: false, classNames: ['card-preview-card'] })}</div>
@@ -808,6 +881,7 @@ function renderCardInspectorContent(cardId: CardId): string {
       <div class="card-inspector__meta"><span>${escapeHtml(groups)}</span><span>${card.type === 'unit' ? '몬스터' : '주문'} · 비용 ${card.cost}</span></div>
       <h2>${escapeHtml(card.name)}</h2>
       ${card.type === 'unit' ? `<p class="card-inspector__stats">공격력 ${card.attack} · 체력 ${card.health}</p>` : ''}
+      ${keywords.length ? `<p class="card-inspector__keywords">${keywords.map((keyword) => `<span>${escapeHtml(keyword)}</span>`).join('')}</p>` : ''}
       <p class="card-inspector__rules">${escapeHtml(card.rulesText || '효과 없음')}</p>
       <p class="card-inspector__hint">클릭으로 고정 · Esc로 닫기</p>
     </div>
@@ -912,6 +986,66 @@ function renderRoomMenu(): string {
   </div>`
 }
 
+function renderTurnRibbon(): string {
+  if (!game) return ''
+  const needsMyChoice = game.pendingChoice?.playerId === game.viewer
+  const isMyTurn = game.currentPlayer === game.viewer
+  const stateClass = needsMyChoice
+    ? 'turn-ribbon--response'
+    : isMyTurn
+      ? 'turn-ribbon--mine'
+      : 'turn-ribbon--opponent'
+  const title = needsMyChoice
+    ? '내 선택 필요'
+    : isMyTurn
+      ? '내 턴'
+      : '상대 턴'
+  const detail = needsMyChoice
+    ? game.currentPlayer === game.viewer
+      ? '카드 효과를 선택해야 턴을 계속할 수 있습니다.'
+      : '상대 턴 중 각성이 발동했습니다. 선택을 완료해 주세요.'
+    : message
+
+  return `<section class="turn-ribbon ${stateClass}" aria-live="assertive">
+    <strong>${title}</strong>
+    <span id="turn-timer" class="turn-timer"></span>
+    <span class="turn-message">${escapeHtml(detail)}</span>
+    <span class="turn-number">TURN ${game.turnNumber}</span>
+  </section>`
+}
+
+function renderRulebookModal(): string {
+  if (!rulebookOpen) return ''
+  return `<div class="modal-backdrop rulebook-backdrop" data-modal="rulebook">
+    <section class="rulebook-dialog" role="dialog" aria-modal="true" aria-labelledby="rulebook-title">
+      <header class="rulebook-dialog__header">
+        <div><p class="eyebrow">DUEL SPIRITS</p><h2 id="rulebook-title">룰북</h2></div>
+        <button type="button" data-action="close-rulebook" aria-label="룰북 닫기">닫기</button>
+      </header>
+      <nav class="rulebook-index" aria-label="룰북 목차">
+        <a href="#rules-goal">승리와 준비</a><a href="#rules-turn">턴 진행</a><a href="#rules-combat">공격</a><a href="#rules-keywords">키워드</a>
+      </nav>
+      <div class="rulebook-content">
+        <section id="rules-goal"><h3>승리와 게임 준비</h3><p>각 플레이어는 덱 12장으로 시작하며, 라이프 4장·손 4장·덱 4장으로 나눕니다. 라이프의 정체는 소유자에게도 공개되지 않습니다.</p><p>상대 라이프가 없는 상태에서 직접 공격에 성공하면 승리합니다.</p></section>
+        <section id="rules-turn"><h3>턴 진행</h3><ol><li>턴을 시작하면 마나와 몬스터가 준비되고 카드 1장을 뽑습니다.</li><li>턴마다 손 카드 1장을 준비된 마나로 놓을 수 있습니다.</li><li>준비된 마나를 선택해 비용을 지불하고 카드 사용·소환을 합니다.</li><li>준비된 몬스터로 공격한 뒤 턴을 종료합니다.</li></ol><p>마나는 카드군을 유지하며, 공명은 그 카드를 위해 실제로 소진한 마나만 확인합니다.</p></section>
+        <section id="rules-combat"><h3>공격과 라이프</h3><p>일반 몬스터는 소환된 턴에 공격할 수 없습니다. 공격 가능한 상대 몬스터가 있다면 먼저 몬스터를 공격해야 합니다. 상대 몬스터가 모두 잠행이라면 직접 공격할 수 있습니다.</p><p>직접 공격은 공격력과 무관하게 상대 라이프 1장을 손으로 이동시킵니다. 그 카드에 각성이 있으면 즉시 발동하며, 상대 턴 중에도 각성 선택을 수행할 수 있습니다.</p></section>
+        <section id="rules-keywords"><h3>키워드</h3><dl class="keyword-list">
+          <div><dt>출현</dt><dd>손에서 원래 비용을 지불해 정상 소환했을 때 발동합니다.</dd></div>
+          <div><dt>각성</dt><dd>라이프에서 자신의 손으로 이동한 직후 발동합니다.</dd></div>
+          <div><dt>공명</dt><dd>비용 지불에 사용한 마나의 카드군을 확인합니다.</dd></div>
+          <div><dt>고립</dt><dd>자신의 전장에 다른 아군 몬스터가 없을 동안 지속 적용됩니다.</dd></div>
+          <div><dt>질풍</dt><dd>자신의 턴마다 최대 두 번 공격할 수 있습니다.</dd></div>
+          <div><dt>기습</dt><dd>소환된 턴에도 몬스터와 플레이어를 공격할 수 있습니다.</dd></div>
+          <div><dt>돌진</dt><dd>소환된 턴에는 상대 몬스터만 공격할 수 있습니다.</dd></div>
+          <div><dt>비행</dt><dd>상대 전장의 몬스터를 무시하고 직접 공격할 수 있습니다.</dd></div>
+          <div><dt>잠행</dt><dd>상대 몬스터의 공격 대상으로 선택될 수 없습니다.</dd></div>
+        </dl></section>
+      </div>
+      <footer class="rulebook-dialog__footer"><span>카드의 개별 문구가 일반 규칙보다 우선합니다.</span><button type="button" data-action="close-rulebook">게임으로 돌아가기</button></footer>
+    </section>
+  </div>`
+}
+
 function renderWaitingRoom(): string {
   const decks = loadDecks()
   const options = decks.map((deck) => {
@@ -946,14 +1080,9 @@ function render(): void {
   } else if (!game) content = renderWaitingRoom()
   else if (opponentId) {
     content = `<section class="game-layout">
-      <main class="battle-board">
+      <main class="battle-board ${game.currentPlayer === game.viewer ? 'is-my-turn' : 'is-opponent-turn'} ${game.pendingChoice?.playerId === game.viewer ? 'is-my-response' : ''}">
         ${renderPlayerBoard(opponentId, 'opponent')}
-        <section class="turn-ribbon">
-          <strong>${game.currentPlayer}의 턴</strong>
-          <span id="turn-timer" class="turn-timer"></span>
-          <span class="turn-message">${escapeHtml(message)}</span>
-          <span class="turn-number">TURN ${game.turnNumber}</span>
-        </section>
+        ${renderTurnRibbon()}
         ${renderPlayerBoard(game.viewer, 'self')}
         ${renderDecisionDock(opponentId)}
       </main>
@@ -966,14 +1095,15 @@ function render(): void {
     ? `<header class="room-topbar room-topbar--game">
         <div class="brand-cluster"><strong>Duel Spirits</strong><span class="connection-state">${escapeHtml(networkStatus)}</span></div>
         <div class="match-state"><span>${escapeHtml(getFormat(game.matchConfig.formatId).shortName)}</span><span>${game.viewer} 시점</span><span>방 ${escapeHtml(roomId)}</span></div>
+        <button id="rulebook-button" class="topbar-text-button" type="button">룰북</button>
         <div class="room-menu-anchor">
           <button id="room-menu-button" class="icon-button" type="button" aria-expanded="${roomMenuOpen}" aria-label="방 메뉴">⋮</button>
           ${renderRoomMenu()}
         </div>
       </header>`
-    : `<header class="room-topbar"><strong>Duel Spirits</strong><span>${escapeHtml(networkStatus)}</span></header>`
+    : `<header class="room-topbar"><strong>Duel Spirits</strong><span>${escapeHtml(networkStatus)}</span><button id="rulebook-button" class="topbar-text-button" type="button">룰북</button></header>`
 
-  appElement.innerHTML = `<div class="room-screen ${game ? 'room-screen--game' : ''}">${gameTopbar}${content}</div>`
+  appElement.innerHTML = `<div class="room-screen ${game ? 'room-screen--game' : ''}">${gameTopbar}${content}</div>${renderRulebookModal()}`
   bindEvents()
   updateClock()
 }
@@ -1054,6 +1184,11 @@ function setCardInspector(cardId: CardId | null, pinned: boolean): void {
 }
 
 function closeTransientLayers(): boolean {
+  if (rulebookOpen) {
+    rulebookOpen = false
+    render()
+    return true
+  }
   if (openDiscardPlayerId) {
     openDiscardPlayerId = null
     render()
@@ -1073,6 +1208,24 @@ function closeTransientLayers(): boolean {
 }
 
 function bindEvents(): void {
+  document.querySelector<HTMLButtonElement>('#rulebook-button')?.addEventListener('click', () => {
+    rulebookOpen = true
+    roomMenuOpen = false
+    render()
+  })
+  for (const control of document.querySelectorAll<HTMLElement>('[data-action="close-rulebook"]')) {
+    control.addEventListener('click', () => {
+      rulebookOpen = false
+      render()
+    })
+  }
+  document.querySelector<HTMLElement>('[data-modal="rulebook"]')?.addEventListener('click', (event) => {
+    if (event.target === event.currentTarget) {
+      rulebookOpen = false
+      render()
+    }
+  })
+
   document.querySelector<HTMLButtonElement>('#room-menu-button')?.addEventListener('click', () => {
     roomMenuOpen = !roomMenuOpen
     render()

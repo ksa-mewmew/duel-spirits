@@ -219,3 +219,156 @@ describe('플레이어 선택 처리', () => {
     expect(resolved.players.P1.discard[0]?.instanceId).toBe('target-life')
   })
 })
+
+describe('카드 상호작용 보강', () => {
+  test('씨 뿌리는 요정으로 나무에 사는 요정이 마나에 놓여도 1장 뽑는다', () => {
+    const game = createGame({ random: () => 0.5, idSource: createIdSource() })
+    game.players.P1.hand = [{ instanceId: 'seeder', cardId: 'seeding_fairy' }]
+    game.players.P1.mana = [
+      { instanceId: 'earth-mana', cardId: 'seeding_fairy', exhausted: false },
+    ]
+    game.players.P1.deck = [
+      { instanceId: 'tree-on-top', cardId: 'tree_fairy' },
+      { instanceId: 'drawn-card', cardId: 'ash_hound' },
+    ]
+
+    const next = applyAction(game, 'P1', {
+      type: 'PLAY_CARD',
+      cardInstanceId: 'seeder',
+      manaIds: ['earth-mana'],
+    })
+
+    expect(next.players.P1.mana.find((card) => card.instanceId === 'tree-on-top')).toMatchObject({
+      cardId: 'tree_fairy',
+      exhausted: true,
+    })
+    expect(next.players.P1.hand.some((card) => card.instanceId === 'drawn-card')).toBe(true)
+  })
+
+  test('고립은 전장 상태가 바뀌면 즉시 활성화·비활성화된다', () => {
+    const game = createGame({ random: () => 0.5, idSource: createIdSource() })
+    game.players.P1.field = [{
+      instanceId: 'ember', cardId: 'last_ember', damage: 0,
+      exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
+      temporaryAttackModifier: 0, temporaryHealthModifier: 0,
+    }]
+    game.players.P2.field = [{
+      instanceId: 'first-defender', cardId: 'tree_fairy', damage: 0,
+      exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
+      temporaryAttackModifier: 0, temporaryHealthModifier: 10,
+    }]
+
+    const isolatedAttack = applyAction(game, 'P1', {
+      type: 'ATTACK_UNIT',
+      attackerId: 'ember',
+      defenderId: 'first-defender',
+    })
+
+    expect(isolatedAttack.players.P1.field[0]).toMatchObject({
+      instanceId: 'ember',
+      attacksThisTurn: 1,
+      exhausted: false,
+    })
+    expect(isolatedAttack.players.P2.field[0]?.damage).toBe(3)
+
+    isolatedAttack.players.P1.field.push({
+      instanceId: 'ally', cardId: 'living_flame', damage: 0,
+      exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
+      temporaryAttackModifier: 0, temporaryHealthModifier: 0,
+    })
+    isolatedAttack.players.P2.field = []
+    isolatedAttack.players.P2.field.push({
+      instanceId: 'second-defender', cardId: 'rock_armor_knight', damage: 0,
+      exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
+      temporaryAttackModifier: 0, temporaryHealthModifier: 0,
+    })
+
+    expect(() => applyAction(isolatedAttack, 'P1', {
+      type: 'ATTACK_UNIT',
+      attackerId: 'ember',
+      defenderId: 'second-defender',
+    })).toThrow('공격 횟수를 모두 사용했습니다.')
+  })
+
+  test('잿빛 들개는 소환된 턴에 몬스터만 돌진 공격할 수 있다', () => {
+    const game = createGame({ random: () => 0.5, idSource: createIdSource() })
+    game.players.P1.hand = [{ instanceId: 'hound', cardId: 'ash_hound' }]
+    game.players.P1.mana = [
+      { instanceId: 'mana-1', cardId: 'living_flame', exhausted: false },
+      { instanceId: 'mana-2', cardId: 'living_smoke', exhausted: false },
+    ]
+    game.players.P2.field = [{
+      instanceId: 'defender', cardId: 'rock_armor_knight', damage: 0,
+      exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
+      temporaryAttackModifier: 0, temporaryHealthModifier: 0,
+    }]
+
+    const summoned = applyAction(game, 'P1', {
+      type: 'PLAY_CARD',
+      cardInstanceId: 'hound',
+      manaIds: ['mana-1', 'mana-2'],
+    })
+    const attacked = applyAction(summoned, 'P1', {
+      type: 'ATTACK_UNIT',
+      attackerId: 'hound',
+      defenderId: 'defender',
+    })
+    expect(attacked.players.P2.field[0]?.damage).toBe(3)
+
+    const directGame = createGame({ random: () => 0.5, idSource: createIdSource() })
+    directGame.players.P1.hand = [{ instanceId: 'direct-hound', cardId: 'ash_hound' }]
+    directGame.players.P1.mana = [
+      { instanceId: 'direct-mana-1', cardId: 'living_flame', exhausted: false },
+      { instanceId: 'direct-mana-2', cardId: 'living_smoke', exhausted: false },
+    ]
+    directGame.players.P2.field = []
+    const directSummoned = applyAction(directGame, 'P1', {
+      type: 'PLAY_CARD',
+      cardInstanceId: 'direct-hound',
+      manaIds: ['direct-mana-1', 'direct-mana-2'],
+    })
+
+    expect(() => applyAction(directSummoned, 'P1', {
+      type: 'ATTACK_PLAYER',
+      attackerId: 'direct-hound',
+      lifeIndices: [0],
+    })).toThrow('돌진 몬스터는 소환된 턴에 상대 몬스터만 공격할 수 있습니다.')
+  })
+
+  test('상대 턴에 각성한 카드의 선택을 라이프 소유자가 처리한다', () => {
+    const game = createGame({ random: () => 0.5, idSource: createIdSource() })
+    game.players.P1.field = [{
+      instanceId: 'attacker', cardId: 'living_flame', damage: 0,
+      exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
+      temporaryAttackModifier: 0, temporaryHealthModifier: 0,
+    }]
+    game.players.P1.life = [{ instanceId: 'p1-life', cardId: 'ash_hound' }]
+    game.players.P2.field = []
+    game.players.P2.life = [
+      { instanceId: 'mirror-life', cardId: 'holy_mirror_wall' },
+      { instanceId: 'other-life', cardId: 'wave_reader' },
+    ]
+
+    const awakened = applyAction(game, 'P1', {
+      type: 'ATTACK_PLAYER',
+      attackerId: 'attacker',
+      lifeIndices: [0],
+    })
+
+    expect(awakened.currentPlayer).toBe('P1')
+    expect(awakened.pendingChoices[0]).toEqual({
+      type: 'HOLY_MIRROR_LIFE',
+      playerId: 'P2',
+    })
+    expect(awakened.players.P2.discard.some((card) => card.instanceId === 'mirror-life')).toBe(true)
+
+    const resolved = applyAction(awakened, 'P2', {
+      type: 'RESOLVE_CHOICE',
+      choiceIds: ['life:0'],
+    })
+    expect(resolved.currentPlayer).toBe('P1')
+    expect(resolved.pendingChoices).toHaveLength(0)
+    expect(resolved.players.P1.life).toHaveLength(0)
+    expect(resolved.players.P1.discard[0]?.instanceId).toBe('p1-life')
+  })
+})

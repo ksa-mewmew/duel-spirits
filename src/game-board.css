@@ -1217,3 +1217,343 @@ button.card-pile {
     padding: 11px;
   }
 }
+
+/* Playtest readability and state clarity */
+:root {
+  --card-h-hand: clamp(154px, 19vh, 198px);
+  --card-w-mana: clamp(58px, 7.1vh, 72px);
+}
+
+.topbar-text-button {
+  min-height: 32px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: .74rem;
+}
+
+.player-board {
+  padding: 3px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease;
+}
+
+.player-board.is-active-player {
+  border-color: color-mix(in srgb, var(--ui-accent) 54%, transparent);
+  background: color-mix(in srgb, var(--ui-accent) 4%, transparent);
+}
+
+.battle-board.is-my-turn .player-board--self.is-active-player {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-ready) 38%, transparent);
+}
+
+.turn-owner-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 1px 7px;
+  border: 1px solid color-mix(in srgb, var(--ui-accent) 65%, var(--ui-line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ui-accent) 15%, transparent);
+  color: #f5e7bb !important;
+  font-size: .61rem;
+  font-weight: 800;
+}
+
+.turn-ribbon {
+  border: 1px solid #343842;
+  transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease;
+}
+
+.turn-ribbon--mine {
+  border-color: color-mix(in srgb, var(--state-ready) 70%, #343842);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--state-ready) 17%, #171a20), #171a20 46%);
+  box-shadow: inset 4px 0 0 var(--state-ready);
+}
+
+.turn-ribbon--mine strong {
+  color: #baf1da;
+}
+
+.turn-ribbon--opponent {
+  opacity: .82;
+}
+
+.turn-ribbon--response {
+  border-color: color-mix(in srgb, var(--state-selected) 82%, #343842);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--state-selected) 24%, #171a20), #171a20 54%);
+  box-shadow: inset 5px 0 0 var(--state-selected), 0 0 22px rgba(240, 200, 94, .14);
+  animation: response-ribbon-pulse 1.5s ease-in-out infinite;
+}
+
+.turn-ribbon--response strong,
+.turn-ribbon--response .turn-timer {
+  color: #ffe49a;
+}
+
+@keyframes response-ribbon-pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.1); }
+}
+
+/* Preserve the 5:7 card ratio in scrollable hand and mana zones. */
+.player-board--self {
+  grid-template-rows: minmax(0, 1fr) 30px minmax(170px, 21vh);
+}
+
+.hand-zone {
+  align-items: center;
+}
+
+.hand-card {
+  width: auto;
+  height: var(--card-h-hand);
+  max-height: 100%;
+  aspect-ratio: 5 / 7;
+}
+
+.mana-list {
+  grid-template-columns: repeat(auto-fill, minmax(var(--card-w-mana), 1fr));
+  justify-items: center;
+  align-content: start;
+  gap: 7px;
+}
+
+.mana-card {
+  width: min(var(--card-w-mana), 100%);
+  min-width: 0;
+  aspect-ratio: 5 / 7;
+}
+
+.mana-card .game-card__text {
+  display: none;
+}
+
+.mana-card .game-card__code {
+  bottom: 30px;
+  font-size: .57rem;
+}
+
+.mana-card .game-card__header {
+  inset: 4px 4px auto;
+}
+
+.mana-card .game-card__cost,
+.mana-card .game-card__group,
+.mana-card .game-card__attack,
+.mana-card .game-card__health {
+  min-width: 18px;
+  height: 18px;
+  font-size: .57rem;
+}
+
+.mana-card .game-card__actions button {
+  min-height: 21px;
+  padding: 1px 4px;
+  font-size: .51rem;
+}
+
+.game-card__badges {
+  position: absolute;
+  z-index: 5;
+  top: 31px;
+  left: 5px;
+  right: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  pointer-events: none;
+}
+
+.game-card__badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 16px;
+  padding: 1px 4px;
+  border: 1px solid color-mix(in srgb, var(--state-ready) 60%, #646a74);
+  border-radius: 999px;
+  background: rgba(8, 10, 13, .86);
+  color: #c6f1df;
+  font-size: .47rem;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.game-card__badge--inactive {
+  border-color: #676c75;
+  color: #a6a9af;
+  text-decoration: line-through;
+}
+
+.game-card__badge--warning {
+  border-color: color-mix(in srgb, var(--state-selected) 75%, #676c75);
+  color: #ffe39a;
+}
+
+.mana-card .game-card__badges {
+  top: 26px;
+  left: 3px;
+  right: 3px;
+}
+
+.mana-card .game-card__badge {
+  min-height: 14px;
+  padding-inline: 3px;
+  font-size: .42rem;
+}
+
+.selection-panel--urgent {
+  border-color: color-mix(in srgb, var(--state-selected) 80%, #494f5a);
+  box-shadow: 0 16px 45px rgba(0,0,0,.45), inset 4px 0 0 var(--state-selected);
+}
+
+.card-inspector__keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.card-inspector__keywords span {
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--ui-accent) 58%, var(--ui-line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ui-accent) 10%, transparent);
+  color: #eadcae;
+  font-size: .66rem;
+}
+
+.rulebook-backdrop {
+  z-index: 190;
+}
+
+.rulebook-dialog {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 12px;
+  width: min(940px, 100%);
+  max-height: min(90svh, 820px);
+  padding: 17px;
+  border: 1px solid #505662;
+  border-radius: 16px;
+  background: #16191f;
+  box-shadow: 0 25px 80px rgba(0,0,0,.66);
+}
+
+.rulebook-dialog__header,
+.rulebook-dialog__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.rulebook-dialog__header h2,
+.rulebook-dialog__header p,
+.rulebook-content h3,
+.rulebook-content p {
+  margin: 0;
+}
+
+.rulebook-index {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.rulebook-index a {
+  padding: 5px 9px;
+  border: 1px solid var(--ui-line);
+  border-radius: 999px;
+  color: var(--ui-text);
+  background: var(--ui-panel-soft);
+  font-size: .72rem;
+  text-decoration: none;
+}
+
+.rulebook-content {
+  display: grid;
+  gap: 18px;
+  min-height: 0;
+  padding: 4px 7px 12px 2px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+.rulebook-content section {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #30343d;
+}
+
+.rulebook-content p,
+.rulebook-content li,
+.keyword-list dd {
+  color: #d9d7d1;
+  font-size: .8rem;
+  line-height: 1.55;
+}
+
+.rulebook-content ol {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.keyword-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.keyword-list > div {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 9px;
+  padding: 8px 10px;
+  border: 1px solid #343943;
+  border-radius: 9px;
+  background: #121419;
+}
+
+.keyword-list dt {
+  color: #ecd99c;
+  font-size: .76rem;
+  font-weight: 850;
+}
+
+.keyword-list dd {
+  margin: 0;
+}
+
+.rulebook-dialog__footer {
+  color: var(--ui-muted);
+  font-size: .7rem;
+}
+
+@media (max-height: 760px) and (min-width: 821px) {
+  :root {
+    --card-h-hand: 142px;
+    --card-w-mana: 56px;
+  }
+
+  .player-board--self {
+    grid-template-rows: minmax(0, 1fr) 28px minmax(154px, 20vh);
+  }
+}
+
+@media (max-width: 820px) {
+  :root {
+    --card-h-hand: 158px;
+    --card-w-mana: 62px;
+  }
+
+  .keyword-list {
+    grid-template-columns: 1fr;
+  }
+
+  .rulebook-dialog {
+    max-height: 92svh;
+    padding: 12px;
+  }
+}
