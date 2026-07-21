@@ -2,6 +2,7 @@ import { CARD_ATTRIBUTES, CARDS } from '../shared/cards'
 import { DECK_BUILDER_FORMATS, getFormat } from '../content/formats'
 import { CARD_SETS } from '../content/sets'
 import { createRulebookDocument } from '../content/rulebook'
+import { SAMPLE_DECK_LIST, SAMPLE_DECKS } from '../content/sample-decks'
 import {
   DECK_SCHEMA_VERSION,
   createDefaultFormatSelection,
@@ -21,6 +22,7 @@ import { renderCard } from '../components/card-renderer'
 
 import type { CardAttributeId, CardId } from '../shared/cards'
 import type { GameFormatId, SetId } from '../content/schema'
+import type { SampleDeckId } from '../content/sample-decks'
 import type { SavedDeck } from '../shared/decks'
 
 import {
@@ -159,6 +161,26 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     state.draftPool = createDraftPool()
     state.cardIds = []
     state.message = '새 드래프트 풀을 생성했습니다. 이 풀 안에서만 덱을 구성할 수 있습니다.'
+    render()
+  }
+
+  function loadSampleDeck(sampleDeckId: SampleDeckId): void {
+    const sampleDeck = SAMPLE_DECKS[sampleDeckId]
+    const selection = createDefaultFormatSelection(sampleDeck.formatId)
+
+    state.editingDeckId = crypto.randomUUID()
+    state.name = sampleDeck.name
+    state.cardIds = [...sampleDeck.cardIds]
+    state.formatId = selection.formatId
+    state.selectedSetIds = [...selection.selectedSetIds]
+    state.draftPool = null
+    state.searchQuery = ''
+    state.attributeFilter = sampleDeck.attribute
+    state.typeFilter = 'all'
+    state.costFilter = 'all'
+    state.hoverPreviewCardId = sampleDeck.cardIds[0] ?? null
+    state.pinnedPreviewCardId = null
+    state.message = `${sampleDeck.name}을 새 덱으로 불러왔습니다. 저장·사용을 누르면 내 덱으로 저장됩니다.`
     render()
   }
 
@@ -362,6 +384,34 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     document.querySelector<HTMLButtonElement>('#builder-rulebook-button')?.focus()
   }
 
+  function renderSampleDeckPanel(): string {
+    const decks = SAMPLE_DECK_LIST.map((sampleDeck) => {
+      const composition = [...getCardCounts(sampleDeck.cardIds).entries()]
+        .map(([cardId, count]) => `${CARDS[cardId].name} ×${count}`)
+        .join(' · ')
+
+      return `<article class="sample-deck-card sample-deck-card--${sampleDeck.attribute}">
+        <header class="sample-deck-card__header"><span>${escapeHtml(CARD_ATTRIBUTES[sampleDeck.attribute].name)}</span><h3>${escapeHtml(sampleDeck.archetype)}</h3></header>
+        <p class="sample-deck-card__goal">${escapeHtml(sampleDeck.goal)}</p>
+        <details>
+          <summary>구성과 운용 보기</summary>
+          <div class="sample-deck-card__details">
+            <p><strong>구성</strong>${escapeHtml(composition)}</p>
+            <p><strong>운용</strong>${escapeHtml(sampleDeck.playGuide)}</p>
+            <p><strong>마나 우선순위</strong>${escapeHtml(sampleDeck.manaPriority)}</p>
+            <p><strong>확인할 점</strong>${escapeHtml(sampleDeck.testPoints)}</p>
+          </div>
+        </details>
+        <button type="button" data-load-sample-deck="${sampleDeck.id}">새 덱으로 불러오기</button>
+      </article>`
+    }).join('')
+
+    return `<section class="panel sample-deck-panel">
+      <header class="section-heading"><div><h2>카드군 1 견본 덱</h2><p>성능 축을 비교하기 위한 12장 시험 덱입니다. 불러온 뒤 자유롭게 수정할 수 있습니다.</p></div><span>5개</span></header>
+      <div class="sample-deck-grid">${decks}</div>
+    </section>`
+  }
+
   function renderDistribution(): string {
     const attributeCounts = getAttributeDistribution(state.cardIds)
     const costCounts = getCostDistribution(state.cardIds)
@@ -479,6 +529,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
         <div class="deck-toolbar__actions"><button id="new-deck-button" type="button">새 덱</button><button id="save-deck-button" type="button" ${validation.valid ? '' : 'disabled'}>저장·사용</button><button id="delete-deck-button" type="button">삭제</button></div>
       </section>
       <section class="panel format-summary"><strong>${escapeHtml(format.name)}</strong><span>${escapeHtml(format.description)}</span>${setControls}${restrictionSummary}${draftControls}</section>
+      ${renderSampleDeckPanel()}
       <section class="deck-builder-layout">
         <aside class="panel deck-filters">
           <div class="section-heading"><h2>찾기</h2><span>${filteredCards.length}종</span></div>
@@ -520,6 +571,11 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
         if (!targetId) return
         document.getElementById(targetId)?.scrollIntoView({ block: 'start' })
       })
+    }
+
+    for (const button of document.querySelectorAll<HTMLButtonElement>('[data-load-sample-deck]')) {
+      const sampleDeckId = button.dataset.loadSampleDeck as SampleDeckId | undefined
+      if (sampleDeckId) button.addEventListener('click', () => loadSampleDeck(sampleDeckId))
     }
 
     document.querySelector<HTMLSelectElement>('#deck-select')?.addEventListener('change', (event) => selectDeck((event.currentTarget as HTMLSelectElement).value))
