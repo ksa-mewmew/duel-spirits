@@ -2420,17 +2420,18 @@ body.game-active {
 }
 
 /* A life card is the same portrait card back as the deck, rotated as a whole.
-   Each invisible frame retains its slot, so removing one life never shifts another. */
+   Fixed frames keep their slots, while a slight overlap restores the compact
+   stacked look and leaves more room for the battlefield. */
 .life-stack {
   --life-card-short: clamp(42px, 5.8vh, 58px);
   justify-content: center;
-  gap: 6px;
+  gap: 0;
   padding: 4px 0;
   overflow: visible;
 }
 
 .life-stack > * + * {
-  margin-top: 0;
+  margin-top: calc(var(--life-card-short) * -.28);
 }
 
 .life-card-frame {
@@ -2477,6 +2478,11 @@ body.game-active {
 
 .life-card-frame.is-targetable .life-card-rotator {
   cursor: pointer;
+}
+
+.life-card-frame.is-selected,
+.life-card-frame.is-targetable {
+  z-index: 10;
 }
 
 /* Hand actions are a separate overlay layer. Their appearance never pushes the
