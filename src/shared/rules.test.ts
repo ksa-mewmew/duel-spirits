@@ -121,11 +121,13 @@ describe('플레이어 선택 처리', () => {
     game.players.P2.field = [
       {
         instanceId: 'first-target', cardId: 'ash_hound', damage: 0,
+        slotIndex: 0,
         exhausted: true, summonedThisTurn: false, attacksThisTurn: 0,
         temporaryAttackModifier: 0, temporaryHealthModifier: 0,
       },
       {
         instanceId: 'chosen-target', cardId: 'cathedral_guard', damage: 0,
+        slotIndex: 1,
         exhausted: true, summonedThisTurn: false, attacksThisTurn: 0,
         temporaryAttackModifier: 0, temporaryHealthModifier: 0,
       },
@@ -154,6 +156,7 @@ describe('플레이어 선택 처리', () => {
       type: 'PLAY_CARD',
       cardInstanceId: 'reader',
       manaIds: ['water-mana'],
+      selection: { fieldSlot: 0 },
     })
 
     expect(choosing.pendingChoices[0]?.type).toBe('WAVE_READER_TOP')
@@ -187,6 +190,7 @@ describe('플레이어 선택 처리', () => {
       type: 'PLAY_CARD',
       cardInstanceId: 'prospect',
       manaIds: ['light-mana'],
+      selection: { fieldSlot: 0 },
     })
     expect(firstChoice.pendingChoices[0]?.type).toBe('TEMPLE_PROSPECT_LIFE')
 
@@ -236,6 +240,7 @@ describe('카드 상호작용 보강', () => {
       type: 'PLAY_CARD',
       cardInstanceId: 'seeder',
       manaIds: ['earth-mana'],
+      selection: { fieldSlot: 0 },
     })
 
     expect(next.players.P1.mana.find((card) => card.instanceId === 'tree-on-top')).toMatchObject({
@@ -249,11 +254,13 @@ describe('카드 상호작용 보강', () => {
     const game = createGame({ random: () => 0.5, idSource: createIdSource() })
     game.players.P1.field = [{
       instanceId: 'ember', cardId: 'last_ember', damage: 0,
+      slotIndex: 0,
       exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
       temporaryAttackModifier: 0, temporaryHealthModifier: 0,
     }]
     game.players.P2.field = [{
       instanceId: 'first-defender', cardId: 'tree_fairy', damage: 0,
+      slotIndex: 0,
       exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
       temporaryAttackModifier: 0, temporaryHealthModifier: 10,
     }]
@@ -267,27 +274,32 @@ describe('카드 상호작용 보강', () => {
     expect(isolatedAttack.players.P1.field[0]).toMatchObject({
       instanceId: 'ember',
       attacksThisTurn: 1,
-      exhausted: false,
+      exhausted: true,
     })
-    expect(isolatedAttack.players.P2.field[0]?.damage).toBe(3)
+    expect(isolatedAttack.players.P2.field[0]?.damage).toBe(4)
 
-    isolatedAttack.players.P1.field.push({
-      instanceId: 'ally', cardId: 'living_flame', damage: 0,
+    const notIsolated = createGame({ random: () => 0.5, idSource: createIdSource(), startingPlayer: 'P1' })
+    notIsolated.players.P1.field = [
+      {
+        instanceId: 'ember-2', cardId: 'last_ember', damage: 0, slotIndex: 0,
+        exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
+        temporaryAttackModifier: 0, temporaryHealthModifier: 0,
+      },
+      {
+        instanceId: 'ally', cardId: 'living_flame', damage: 0, slotIndex: 1,
+        exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
+        temporaryAttackModifier: 0, temporaryHealthModifier: 0,
+      },
+    ]
+    notIsolated.players.P2.field = [{
+      instanceId: 'second-defender', cardId: 'rock_armor_knight', damage: 0, slotIndex: 2,
       exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
-      temporaryAttackModifier: 0, temporaryHealthModifier: 0,
+      temporaryAttackModifier: 0, temporaryHealthModifier: 10,
+    }]
+    const normalAttack = applyAction(notIsolated, 'P1', {
+      type: 'ATTACK_UNIT', attackerId: 'ember-2', defenderId: 'second-defender',
     })
-    isolatedAttack.players.P2.field = []
-    isolatedAttack.players.P2.field.push({
-      instanceId: 'second-defender', cardId: 'rock_armor_knight', damage: 0,
-      exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
-      temporaryAttackModifier: 0, temporaryHealthModifier: 0,
-    })
-
-    expect(() => applyAction(isolatedAttack, 'P1', {
-      type: 'ATTACK_UNIT',
-      attackerId: 'ember',
-      defenderId: 'second-defender',
-    })).toThrow('공격 횟수를 모두 사용했습니다.')
+    expect(normalAttack.players.P2.field[0]?.damage).toBe(2)
   })
 
   test('잿빛 들개는 소환된 턴에 몬스터만 돌진 공격할 수 있다', () => {
@@ -299,6 +311,7 @@ describe('카드 상호작용 보강', () => {
     ]
     game.players.P2.field = [{
       instanceId: 'defender', cardId: 'rock_armor_knight', damage: 0,
+      slotIndex: 0,
       exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
       temporaryAttackModifier: 0, temporaryHealthModifier: 0,
     }]
@@ -307,6 +320,7 @@ describe('카드 상호작용 보강', () => {
       type: 'PLAY_CARD',
       cardInstanceId: 'hound',
       manaIds: ['mana-1', 'mana-2'],
+      selection: { fieldSlot: 0 },
     })
     const attacked = applyAction(summoned, 'P1', {
       type: 'ATTACK_UNIT',
@@ -326,6 +340,7 @@ describe('카드 상호작용 보강', () => {
       type: 'PLAY_CARD',
       cardInstanceId: 'direct-hound',
       manaIds: ['direct-mana-1', 'direct-mana-2'],
+      selection: { fieldSlot: 0 },
     })
 
     expect(() => applyAction(directSummoned, 'P1', {
@@ -339,6 +354,7 @@ describe('카드 상호작용 보강', () => {
     const game = createGame({ random: () => 0.5, idSource: createIdSource() })
     game.players.P1.field = [{
       instanceId: 'attacker', cardId: 'living_flame', damage: 0,
+      slotIndex: 0,
       exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
       temporaryAttackModifier: 0, temporaryHealthModifier: 0,
     }]
@@ -370,5 +386,53 @@ describe('카드 상호작용 보강', () => {
     expect(resolved.pendingChoices).toHaveLength(0)
     expect(resolved.players.P1.life).toHaveLength(0)
     expect(resolved.players.P1.discard[0]?.instanceId).toBe('p1-life')
+  })
+})
+
+
+describe('선공과 전장 슬롯', () => {
+  test('선공은 난수에 따라 P1 또는 P2로 정해진다', () => {
+    expect(createGame({ random: () => 0.1, idSource: createIdSource() }).currentPlayer).toBe('P1')
+    expect(createGame({ random: () => 0.9, idSource: createIdSource() }).currentPlayer).toBe('P2')
+  })
+
+  test('소환 위치를 선택하고 다른 카드가 떠나도 슬롯 정보가 유지된다', () => {
+    const game = createGame({ random: () => 0.5, idSource: createIdSource(), startingPlayer: 'P1' })
+    game.players.P1.hand = [{ instanceId: 'flame', cardId: 'living_flame' }]
+    game.players.P1.mana = [{ instanceId: 'mana', cardId: 'living_flame', exhausted: false }]
+    game.players.P1.field = [{
+      instanceId: 'left', cardId: 'volcano_mouse', slotIndex: 0, damage: 0,
+      exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
+      temporaryAttackModifier: 0, temporaryHealthModifier: 0,
+    }]
+
+    const summoned = applyAction(game, 'P1', {
+      type: 'PLAY_CARD', cardInstanceId: 'flame', manaIds: ['mana'], selection: { fieldSlot: 3 },
+    })
+    expect(summoned.players.P1.field.map((unit) => [unit.instanceId, unit.slotIndex]))
+      .toEqual([['left', 0], ['flame', 3]])
+  })
+
+  test('마지막 불씨의 유언은 전장에서 묘지로 갈 때 카드 1장을 뽑는다', () => {
+    const game = createGame({ random: () => 0.5, idSource: createIdSource(), startingPlayer: 'P1' })
+    game.players.P1.field = [{
+      instanceId: 'ember-death', cardId: 'last_ember', slotIndex: 2, damage: 0,
+      exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
+      temporaryAttackModifier: 0, temporaryHealthModifier: 0,
+    }]
+    game.players.P1.deck = [{ instanceId: 'draw-after-death', cardId: 'wave_reader' }]
+    game.players.P2.field = [{
+      instanceId: 'killer', cardId: 'blue_black_hound', slotIndex: 1, damage: 0,
+      exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
+      temporaryAttackModifier: 0, temporaryHealthModifier: 0,
+    }]
+    game.currentPlayer = 'P2'
+
+    const next = applyAction(game, 'P2', {
+      type: 'ATTACK_UNIT', attackerId: 'killer', defenderId: 'ember-death',
+    })
+    expect(next.players.P1.field).toHaveLength(0)
+    expect(next.players.P1.discard.some((card) => card.instanceId === 'ember-death')).toBe(true)
+    expect(next.players.P1.hand.some((card) => card.instanceId === 'draw-after-death')).toBe(true)
   })
 })

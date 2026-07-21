@@ -4,7 +4,7 @@ import { DEFAULT_DECK } from './cards'
 import {
   DECK_SIZE,
   getAverageCost,
-  getGroupDistribution,
+  getAttributeDistribution,
   validateDeck,
 } from './decks'
 
@@ -40,8 +40,8 @@ describe('덱 검증', () => {
 })
 
 describe('덱 통계', () => {
-  test('카드군 분포와 평균 비용을 계산한다', () => {
-    const distribution = getGroupDistribution(DEFAULT_DECK)
+  test('속성 분포와 평균 비용을 계산한다', () => {
+    const distribution = getAttributeDistribution(DEFAULT_DECK)
 
     expect(distribution.fire).toBe(7)
     expect(distribution.water).toBe(0)

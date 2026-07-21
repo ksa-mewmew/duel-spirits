@@ -3,6 +3,7 @@ export interface CardPlaySelection {
   lifeIndex?: number
   effectManaId?: string
   discardId?: string
+  fieldSlot?: number
 }
 
 export interface PlaceManaAction {
@@ -25,6 +26,7 @@ export interface ResolveChoiceAction {
 export interface SummonFromManaAction {
   type: 'SUMMON_FROM_MANA'
   cardInstanceId: string
+  fieldSlot: number
 }
 
 export interface AttackUnitAction {

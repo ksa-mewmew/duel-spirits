@@ -147,6 +147,7 @@ function isCardPlaySelection(value: unknown): boolean {
     && (value.lifeIndex === undefined || Number.isInteger(value.lifeIndex))
     && (value.effectManaId === undefined || typeof value.effectManaId === 'string')
     && (value.discardId === undefined || typeof value.discardId === 'string')
+    && (value.fieldSlot === undefined || Number.isInteger(value.fieldSlot))
 }
 
 function isGameAction(value: unknown): value is GameAction {
@@ -154,8 +155,10 @@ function isGameAction(value: unknown): value is GameAction {
 
   switch (value.type) {
     case 'PLACE_MANA':
+      return hasString(value, 'cardInstanceId')
     case 'SUMMON_FROM_MANA':
       return hasString(value, 'cardInstanceId')
+        && Number.isInteger(value.fieldSlot)
     case 'PLAY_CARD':
       return hasString(value, 'cardInstanceId')
         && isStringArray(value.manaIds)
@@ -231,8 +234,22 @@ function normalizePersistedGame(
     actionSequence?: number
   }
 
+  const players = Object.fromEntries(
+    (['P1', 'P2'] as const).map((playerId) => {
+      const player = value.players[playerId]
+      return [playerId, {
+        ...player,
+        field: player.field.map((unit, index) => ({
+          ...unit,
+          slotIndex: Number.isInteger(unit.slotIndex) ? unit.slotIndex : index,
+        })),
+      }]
+    }),
+  ) as GameState['players']
+
   return {
     ...value,
+    players,
     matchConfig: legacy.matchConfig ?? createMatchConfig({
       formatId: settings.formatId,
       selectedSetIds: settings.selectedSetIds,

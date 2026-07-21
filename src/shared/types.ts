@@ -17,6 +17,8 @@ export interface ManaCardInstance extends CardInstance {
 }
 
 export interface UnitInstance extends CardInstance {
+  /** 전장의 고정 슬롯 번호입니다. 다른 카드가 떠나도 유지됩니다. */
+  slotIndex: number
   damage: number
   exhausted: boolean
   summonedThisTurn: boolean
@@ -69,6 +71,11 @@ export type PendingChoice =
   | {
       type: 'HOLY_MIRROR_LIFE'
       playerId: PlayerId
+    }
+  | {
+      type: 'AWAKEN_SUMMON_SLOT'
+      playerId: PlayerId
+      cardInstanceId: string
     }
 
 export interface GameState {

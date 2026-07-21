@@ -1,4 +1,4 @@
-import { CARD_GROUPS, CARDS } from '../shared/cards'
+import { CARD_ATTRIBUTES, CARDS } from '../shared/cards'
 import { DECK_BUILDER_FORMATS, getFormat } from '../content/formats'
 import { CARD_SETS } from '../content/sets'
 import {
@@ -10,14 +10,14 @@ import {
   getCardCounts,
   getCostDistribution,
   getFormatCardPool,
-  getGroupDistribution,
+  getAttributeDistribution,
   normalizeDeckFormatSelection,
   sortCardIdsForBuilder,
   validateDeck,
 } from '../shared/decks'
 import { renderCard } from '../components/card-renderer'
 
-import type { CardGroupId, CardId } from '../shared/cards'
+import type { CardAttributeId, CardId } from '../shared/cards'
 import type { GameFormatId, SetId } from '../content/schema'
 import type { SavedDeck } from '../shared/decks'
 
@@ -46,7 +46,7 @@ interface BuilderState {
   formatId: GameFormatId
   selectedSetIds: SetId[]
   draftPool: SavedDeck['draftPool']
-  groupFilter: CardGroupId | 'all'
+  attributeFilter: CardAttributeId | 'all'
   costFilter: number | 'all'
   message: string
 }
@@ -78,7 +78,7 @@ function getInitialState(): BuilderState {
     formatId: deck.formatId,
     selectedSetIds: [...deck.selectedSetIds],
     draftPool: deck.draftPool ? structuredClone(deck.draftPool) : null,
-    groupFilter: 'all',
+    attributeFilter: 'all',
     costFilter: 'all',
     message: '',
   }
@@ -233,8 +233,8 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     document.querySelector<HTMLElement>('[data-builder-card-preview]')?.remove()
 
     const card = CARDS[cardId]
-    const groups = card.groups
-      .map((groupId) => CARD_GROUPS[groupId].name)
+    const attributes = card.attributes
+      .map((attributeId) => CARD_ATTRIBUTES[attributeId].name)
       .join(' · ')
     const preview = document.createElement('div')
     preview.className = 'builder-card-preview-backdrop'
@@ -245,10 +245,10 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
         ${renderCard(cardId, { interactive: false, classNames: ['builder-card-preview-card'] })}
       </div>
       <div class="builder-card-preview-copy">
-        <p class="builder-card-preview-meta">${escapeHtml(groups)} · ${card.type === 'unit' ? '몬스터' : '주문'} · 비용 ${card.cost}</p>
+        <p class="builder-card-preview-meta">속성: ${escapeHtml(attributes)} · 카드군: ${escapeHtml(card.families.join(' · ') || '없음')} · ${card.type === 'unit' ? '몬스터' : '주문'} · 비용 ${card.cost}</p>
         <h2 id="builder-card-preview-title">${escapeHtml(card.name)}</h2>
         ${card.type === 'unit' ? `<p class="builder-card-preview-stats">공격력 ${card.attack} · 체력 ${card.health}</p>` : ''}
-        <p class="builder-card-preview-rules">${escapeHtml(card.rulesText || '효과 없음')}</p>
+        <p class="builder-card-preview-rules">${escapeHtml(card.rulesText)}</p>
         <p class="builder-card-preview-hint">바깥 영역이나 Esc를 눌러 닫습니다.</p>
       </div>
     </section>`
@@ -272,12 +272,12 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
   }
 
   function renderDistribution(): string {
-    const groupCounts = getGroupDistribution(state.cardIds)
+    const attributeCounts = getAttributeDistribution(state.cardIds)
     const costCounts = getCostDistribution(state.cardIds)
-    const maxCount = Math.max(1, ...Object.values(groupCounts), ...Object.values(costCounts))
+    const maxCount = Math.max(1, ...Object.values(attributeCounts), ...Object.values(costCounts))
 
-    const groupRows = Object.entries(CARD_GROUPS).map(([groupId, group]) => {
-      const count = groupCounts[groupId as CardGroupId]
+    const attributeRows = Object.entries(CARD_ATTRIBUTES).map(([attributeId, group]) => {
+      const count = attributeCounts[attributeId as CardAttributeId]
       return `<div class="distribution-row"><span>${escapeHtml(group.name)}</span><span class="distribution-track"><span style="width:${count / maxCount * 100}%"></span></span><strong>${count}</strong></div>`
     }).join('')
 
@@ -286,7 +286,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
       return `<div class="distribution-row"><span>비용 ${cost}</span><span class="distribution-track"><span style="width:${count / maxCount * 100}%"></span></span><strong>${count}</strong></div>`
     }).join('')
 
-    return `<section class="deck-stats"><h3>카드군 분포</h3>${groupRows}<h3>비용 분포</h3>${costRows}<p>평균 비용: <strong>${getAverageCost(state.cardIds).toFixed(2)}</strong></p></section>`
+    return `<section class="deck-stats"><h3>속성 분포</h3>${attributeRows}<h3>비용 분포</h3>${costRows}<p>평균 비용: <strong>${getAverageCost(state.cardIds).toFixed(2)}</strong></p></section>`
   }
 
   function render(): void {
@@ -296,7 +296,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     const poolIds = getFormatCardPool(selection)
     const filteredCards = sortCardIdsForBuilder(poolIds).filter((cardId) => {
       const card = CARDS[cardId]
-      return (state.groupFilter === 'all' || card.groups.includes(state.groupFilter))
+      return (state.attributeFilter === 'all' || card.attributes.includes(state.attributeFilter))
         && (state.costFilter === 'all' || card.cost === state.costFilter)
     })
 
@@ -355,7 +355,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
       </section>
       <section class="panel format-summary"><strong>${escapeHtml(format.name)}</strong><span>${escapeHtml(format.description)}</span>${setControls}${restrictionSummary}${draftControls}</section>
       <section class="deck-builder-layout">
-        <aside class="panel deck-filters"><h2>필터</h2><label>카드군<select id="group-filter"><option value="all">전체</option>${Object.values(CARD_GROUPS).map((group) => `<option value="${group.id}" ${state.groupFilter === group.id ? 'selected' : ''}>${escapeHtml(group.name)}</option>`).join('')}</select></label><label>비용<select id="cost-filter"><option value="all">전체</option>${[0, 1, 2, 3, 4, 5].map((cost) => `<option value="${cost}" ${state.costFilter === cost ? 'selected' : ''}>${cost}</option>`).join('')}</select></label>${renderDistribution()}</aside>
+        <aside class="panel deck-filters"><h2>필터</h2><label>속성<select id="attribute-filter"><option value="all">전체</option>${Object.values(CARD_ATTRIBUTES).map((group) => `<option value="${group.id}" ${state.attributeFilter === group.id ? 'selected' : ''}>${escapeHtml(group.name)}</option>`).join('')}</select></label><label>비용<select id="cost-filter"><option value="all">전체</option>${[0, 1, 2, 3, 4, 5].map((cost) => `<option value="${cost}" ${state.costFilter === cost ? 'selected' : ''}>${cost}</option>`).join('')}</select></label>${renderDistribution()}</aside>
         <section class="panel card-pool-panel"><header class="section-heading"><h2>카드 풀</h2><span>${filteredCards.length}종 · 전 카드 해금</span></header><div class="card-pool-grid">${poolMarkup || '<p>이 포맷에서 표시할 카드가 없습니다.</p>'}</div></section>
         <aside class="panel current-deck-panel"><header class="section-heading"><h2>현재 덱</h2><strong>${state.cardIds.length}/${format.deckSize}</strong></header><ol class="deck-list">${deckRows || '<li class="empty-row">카드를 추가해 주세요.</li>'}</ol><p class="builder-message" role="status">${escapeHtml(state.message || validation.errors[0] || '덱을 구성하고 저장하세요.')}</p></aside>
       </section>
@@ -368,7 +368,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     document.querySelector<HTMLButtonElement>('#save-deck-button')?.addEventListener('click', saveCurrentDeck)
     document.querySelector<HTMLButtonElement>('#delete-deck-button')?.addEventListener('click', deleteCurrentDeck)
     document.querySelector<HTMLButtonElement>('#generate-draft-button')?.addEventListener('click', generateDraft)
-    document.querySelector<HTMLSelectElement>('#group-filter')?.addEventListener('change', (event) => { const value = (event.currentTarget as HTMLSelectElement).value; state.groupFilter = value === 'all' ? 'all' : value as CardGroupId; render() })
+    document.querySelector<HTMLSelectElement>('#attribute-filter')?.addEventListener('change', (event) => { const value = (event.currentTarget as HTMLSelectElement).value; state.attributeFilter = value === 'all' ? 'all' : value as CardAttributeId; render() })
     document.querySelector<HTMLSelectElement>('#cost-filter')?.addEventListener('change', (event) => { const value = (event.currentTarget as HTMLSelectElement).value; state.costFilter = value === 'all' ? 'all' : Number(value); render() })
 
     for (const input of document.querySelectorAll<HTMLInputElement>('[data-set-id]')) {

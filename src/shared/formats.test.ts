@@ -30,8 +30,8 @@ describe('콘텐츠와 포맷', () => {
 
   test('모든 카드에 세트와 수집 번호가 있다', () => {
     for (const card of Object.values(CARDS)) {
-      expect(card.setId).toMatch(/^(foundations|confluence)-001$/)
-      expect(card.collectorNumber).toMatch(/^DS[FC]-\d{3}$/)
+      expect(card.setId).toBe('foundations-001')
+      expect(card.collectorNumber).toMatch(/^DSF-\d{3}$/)
       expect(card.contentVersion).toBeTruthy()
     }
   })
@@ -121,6 +121,7 @@ describe('재현 가능한 경기 메타데이터', () => {
   test('성공한 행동마다 행동 순번이 증가한다', () => {
     const game = createGame({
       matchConfig: createMatchConfig({ randomSeed: 'sequence-seed', createdAt: 1 }),
+      startingPlayer: 'P1',
     })
     const next = applyAction(game, 'P1', { type: 'END_TURN' })
     expect(game.actionSequence).toBe(0)

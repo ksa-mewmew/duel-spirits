@@ -3,7 +3,7 @@ import { validateDeck } from './decks'
 import { getFormat } from '../content/formats'
 import { createMatchConfig } from './match-config'
 import { createSeededRandom } from './random'
-import type { CardDefinition, CardGroupId, CardId, UnitCard } from './cards'
+import type { CardDefinition, CardAttributeId, CardId, UnitCard } from './cards'
 import type { CardPlaySelection, GameAction } from './actions'
 import type {
   CardInstance,
@@ -105,6 +105,7 @@ export function createGame(
   const matchConfig = options.matchConfig ?? createMatchConfig()
   const random = options.random ?? createSeededRandom(matchConfig.randomSeed).next
   const idSource = options.idSource ?? defaultIdSource
+  const startingPlayer = options.startingPlayer ?? (random() <= 0.5 ? 'P1' : 'P2')
   const decks = options.decks ?? {
     P1: [...DEFAULT_DECK],
     P2: [...DEFAULT_DECK],
@@ -118,7 +119,7 @@ export function createGame(
     matchConfig,
     actionSequence: 0,
     status: 'playing',
-    currentPlayer: options.startingPlayer ?? 'P1',
+    currentPlayer: startingPlayer,
     turnNumber: 1,
     players: {
       P1: createPlayer('P1', decks.P1, random, idSource, matchConfig, deckSelections.P1),
@@ -188,8 +189,8 @@ export const countReadyMana = (player: PlayerState) =>
 
 const unitDefinition = (unit: UnitInstance) => CARDS[unit.cardId] as UnitCard
 
-function hasGroup(card: CardInstance, group: CardGroupId): boolean {
-  return CARDS[card.cardId].groups.includes(group)
+function hasAttribute(card: CardInstance, attribute: CardAttributeId): boolean {
+  return CARDS[card.cardId].attributes.includes(attribute)
 }
 
 function isIsolated(player: PlayerState, unit: UnitInstance): boolean {
@@ -208,7 +209,7 @@ function hasKeyword(
   if (
     unit.cardId === 'last_ember'
     && isIsolated(game.players[owner], unit)
-    && keyword === 'windfury'
+    && keyword === 'charge'
   ) return true
   if (
     unit.cardId === 'carrion_crow'
@@ -254,7 +255,7 @@ function resetHandCost(card: CardInstance): CardInstance {
 }
 
 function applyDarkDiscardDiscount(player: PlayerState, card: CardInstance): void {
-  if (!hasGroup(card, 'dark')) return
+  if (!hasAttribute(card, 'dark')) return
   for (const handCard of player.hand) {
     if (handCard.cardId === 'coffin_warrior') {
       handCard.costReduction = Math.min(3, (handCard.costReduction ?? 0) + 1)
@@ -277,24 +278,32 @@ function moveFieldToDiscard(
   game: GameState,
   owner: PlayerId,
   index: number,
+  random: RandomSource,
 ): void {
   const player = game.players[owner]
   const [unit] = player.field.splice(index, 1)
-  if (unit) {
-    sendToDiscard(game, owner, {
-      instanceId: unit.instanceId,
-      cardId: unit.cardId,
-    })
+  if (!unit) return
+
+  sendToDiscard(game, owner, {
+    instanceId: unit.instanceId,
+    cardId: unit.cardId,
+    ownerId: unit.ownerId,
+    controllerId: unit.controllerId,
+  })
+
+  // 유언은 전장에서 묘지로 보내진 직후 발동합니다.
+  if (unit.cardId === 'last_ember') {
+    draw(player, random)
   }
 }
 
-function cleanupDead(game: GameState): void {
+function cleanupDead(game: GameState, random: RandomSource): void {
   for (const playerId of ['P1', 'P2'] as const) {
     const player = game.players[playerId]
     for (let index = player.field.length - 1; index >= 0; index -= 1) {
       const unit = player.field[index]!
       if (unit.damage >= healthValue(unit)) {
-        moveFieldToDiscard(game, playerId, index)
+        moveFieldToDiscard(game, playerId, index, random)
       }
     }
   }
@@ -355,20 +364,51 @@ function effectiveCost(card: CardInstance, definition: CardDefinition): number {
   return Math.max(0, definition.cost - (card.costReduction ?? 0))
 }
 
+export function getOpenFieldSlots(
+  game: GameState,
+  owner: PlayerId,
+): number[] {
+  const occupied = new Set(game.players[owner].field.map((unit) => unit.slotIndex))
+  return Array.from({ length: getFieldLimit(game) }, (_, index) => index)
+    .filter((index) => !occupied.has(index))
+}
+
+function requireOpenFieldSlot(
+  game: GameState,
+  owner: PlayerId,
+  slotIndex: number | undefined,
+): number {
+  if (!Number.isInteger(slotIndex)) {
+    throw new GameRuleError('소환할 전장 슬롯을 선택해야 합니다.')
+  }
+  const openSlots = getOpenFieldSlots(game, owner)
+  if (!openSlots.includes(slotIndex!)) {
+    throw new GameRuleError('선택한 전장 슬롯은 사용할 수 없습니다.')
+  }
+  return slotIndex!
+}
+
 function summonCard(
   game: GameState,
   owner: PlayerId,
   card: CardInstance,
   summonedThisTurn = true,
+  requestedSlot?: number,
 ): UnitInstance {
   const player = game.players[owner]
   if (player.field.length >= getFieldLimit(game)) {
     throw new GameRuleError('전장에 빈 슬롯이 없습니다.')
   }
 
+  const slotIndex = requestedSlot ?? getOpenFieldSlots(game, owner)[0]
+  if (slotIndex === undefined || !getOpenFieldSlots(game, owner).includes(slotIndex)) {
+    throw new GameRuleError('선택한 전장 슬롯은 사용할 수 없습니다.')
+  }
+
   const clean = resetHandCost(card)
   const unit: UnitInstance = {
     ...clean,
+    slotIndex,
     damage: 0,
     exhausted: false,
     summonedThisTurn,
@@ -377,6 +417,7 @@ function summonCard(
     temporaryHealthModifier: 0,
   }
   player.field.push(unit)
+  player.field.sort((left, right) => left.slotIndex - right.slotIndex)
   return unit
 }
 
@@ -427,9 +468,16 @@ function awaken(
   switch (card.cardId) {
     case 'living_smoke':
     case 'apostle_pigeon': {
-      if (player.field.length < getFieldLimit(game)) {
+      const openSlots = getOpenFieldSlots(game, owner)
+      if (openSlots.length === 1) {
         const handCard = removeFromHand(player, card.instanceId)
-        if (handCard) summonCard(game, owner, handCard)
+        if (handCard) summonCard(game, owner, handCard, true, openSlots[0])
+      } else if (openSlots.length > 1) {
+        enqueueChoice(game, {
+          type: 'AWAKEN_SUMMON_SLOT',
+          playerId: owner,
+          cardInstanceId: card.instanceId,
+        })
       }
       break
     }
@@ -445,7 +493,7 @@ function awaken(
     case 'demon_breath': {
       const handCard = removeFromHand(player, card.instanceId)
       if (handCard) {
-        resolveDemonBreath(game, owner)
+        resolveDemonBreath(game, owner, random)
         sendToDiscard(game, owner, handCard)
       }
       break
@@ -505,17 +553,17 @@ function resolveArrival(
   random: RandomSource,
 ): void {
   const player = game.players[actor]
-  const paidGroups = new Set(
-    paidMana.flatMap((mana) => CARDS[mana.cardId].groups),
+  const paidAttributes = new Set(
+    paidMana.flatMap((mana) => CARDS[mana.cardId].attributes),
   )
 
   switch (unit.cardId) {
     case 'ash_pirate_ship':
-      if (paidGroups.has('fire')) {
+      if (paidAttributes.has('fire')) {
         player.field.forEach((ally) => { ally.temporaryAttackModifier += 2 })
       }
       if (
-        paidGroups.has('water')
+        paidAttributes.has('water')
         && game.players.P1.field.length + game.players.P2.field.length - 1 >= 3
       ) {
         unit.temporaryRush = true
@@ -523,7 +571,7 @@ function resolveArrival(
       break
 
     case 'wave_reader': {
-      if (paidGroups.has('water')) {
+      if (paidAttributes.has('water')) {
         const top = player.deck[0]
         if (top) {
           enqueueChoice(game, {
@@ -541,7 +589,7 @@ function resolveArrival(
       if (top) {
         const definition = CARDS[top.cardId]
         const canSummon = definition.type === 'unit'
-          && definition.groups.includes('water')
+          && definition.attributes.includes('water')
           && player.field.length < getFieldLimit(game)
         enqueueChoice(game, {
           type: 'SURGING_WAVE_TOP',
@@ -571,13 +619,17 @@ function resolveArrival(
   }
 }
 
-function resolveDemonBreath(game: GameState, actor: PlayerId): void {
+function resolveDemonBreath(
+  game: GameState,
+  actor: PlayerId,
+  random: RandomSource,
+): void {
   const enemyId = opponent(actor)
   const enemy = game.players[enemyId]
   const maxHealth = Math.max(...enemy.field.map(healthValue), -1)
   for (let index = enemy.field.length - 1; index >= 0; index -= 1) {
     if (healthValue(enemy.field[index]!) === maxHealth) {
-      moveFieldToDiscard(game, enemyId, index)
+      moveFieldToDiscard(game, enemyId, index, random)
     }
   }
 }
@@ -611,13 +663,13 @@ function resolveSpell(
   const player = game.players[actor]
   const enemyId = opponent(actor)
   const enemy = game.players[enemyId]
-  const paidGroups = new Set(
-    paidMana.flatMap((mana) => CARDS[mana.cardId].groups),
+  const paidAttributes = new Set(
+    paidMana.flatMap((mana) => CARDS[mana.cardId].attributes),
   )
 
   switch (card.cardId) {
     case 'burning_procession': {
-      const revealCount = player.field.filter((unit) => hasGroup(unit, 'fire')).length
+      const revealCount = player.field.filter((unit) => hasAttribute(unit, 'fire')).length
       const revealedCards = player.deck.slice(0, revealCount).map((item) => ({ ...item }))
       if (revealedCards.length > 0) {
         enqueueChoice(game, {
@@ -632,7 +684,7 @@ function resolveSpell(
 
     case 'ebb':
     case 'reverse_current': {
-      if (card.cardId === 'ebb' && player.mana.some((mana) => !hasGroup(mana, 'water'))) {
+      if (card.cardId === 'ebb' && player.mana.some((mana) => !hasAttribute(mana, 'water'))) {
         throw new GameRuleError('마나에는 물 카드만 있어야 합니다.')
       }
       const targetId = requireUnitTarget(selection)
@@ -653,7 +705,7 @@ function resolveSpell(
         for (let index = current.field.length - 1; index >= 0; index -= 1) {
           const unit = current.field[index]!
           if (attackValue(game, playerId, unit) === 1 || healthValue(unit) === 1) {
-            moveFieldToDiscard(game, playerId, index)
+            moveFieldToDiscard(game, playerId, index, random)
           }
         }
       }
@@ -665,8 +717,8 @@ function resolveSpell(
       break
 
     case 'tsunami':
-      if (paidGroups.has('water')) draw(player, random)
-      if (paidGroups.has('earth')) {
+      if (paidAttributes.has('water')) draw(player, random)
+      if (paidAttributes.has('earth')) {
         const top = player.deck.shift()
         if (top) placeCardInMana(game, actor, top, true, random)
       }
@@ -686,7 +738,7 @@ function resolveSpell(
     }
 
     case 'overgrown_sprout':
-      if (player.mana.some((mana) => !hasGroup(mana, 'earth'))) {
+      if (player.mana.some((mana) => !hasAttribute(mana, 'earth'))) {
         throw new GameRuleError('마나에는 땅 카드만 있어야 합니다.')
       }
       player.extraLifeLossOnDirectAttack = true
@@ -718,21 +770,21 @@ function resolveSpell(
     }
 
     case 'demon_breath':
-      resolveDemonBreath(game, actor)
+      resolveDemonBreath(game, actor, random)
       break
 
     case 'eclipse':
-      if (paidGroups.has('light')) {
+      if (paidAttributes.has('light')) {
         for (const playerId of ['P1', 'P2'] as const) {
           game.players[playerId].field.forEach((unit) => { unit.exhausted = true })
         }
       }
-      if (paidGroups.has('dark')) {
+      if (paidAttributes.has('dark')) {
         for (const playerId of ['P1', 'P2'] as const) {
           const current = game.players[playerId]
           for (let index = current.field.length - 1; index >= 0; index -= 1) {
             if (current.field[index]!.exhausted) {
-              moveFieldToDiscard(game, playerId, index)
+              moveFieldToDiscard(game, playerId, index, random)
             }
           }
         }
@@ -757,12 +809,12 @@ function resolveSpell(
     }
 
     case 'battle_campfire':
-      if (paidGroups.has('fire')) {
+      if (paidAttributes.has('fire')) {
         game.players.P1.field.forEach((unit) => { unit.damage += 1 })
         game.players.P2.field.forEach((unit) => { unit.damage += 1 })
-        cleanupDead(game)
+        cleanupDead(game, random)
       }
-      if (paidGroups.has('light')) {
+      if (paidAttributes.has('light')) {
         player.field.forEach((unit) => { unit.damage = Math.max(0, unit.damage - 1) })
       }
       break
@@ -794,7 +846,7 @@ function playCard(
   }
   if (
     card.cardId === 'volcano_mouse'
-    && player.mana.filter((mana) => hasGroup(mana, 'fire')).length < 2
+    && player.mana.filter((mana) => hasAttribute(mana, 'fire')).length < 2
   ) {
     throw new GameRuleError('불 마나가 2장 이상 필요합니다.')
   }
@@ -803,7 +855,8 @@ function playCard(
   player.hand.splice(index, 1)
 
   if (definition.type === 'unit') {
-    const unit = summonCard(game, actor, card)
+    const fieldSlot = requireOpenFieldSlot(game, actor, selection?.fieldSlot)
+    const unit = summonCard(game, actor, card, true, fieldSlot)
     resolveArrival(game, actor, unit, paidMana, random)
   } else {
     resolveSpell(game, actor, resetHandCost(card), paidMana, random, selection)
@@ -816,6 +869,7 @@ function summonFromMana(
   game: GameState,
   actor: PlayerId,
   instanceId: string,
+  fieldSlot: number,
 ): GameState {
   ready(game, actor)
   assertNoPendingChoice(game)
@@ -826,11 +880,12 @@ function summonFromMana(
   if (index < 0) {
     throw new GameRuleError('소환할 수 있는 마나 카드가 아닙니다.')
   }
-  if (player.mana.filter((mana) => hasGroup(mana, 'earth')).length < 3) {
+  if (player.mana.filter((mana) => hasAttribute(mana, 'earth')).length < 3) {
     throw new GameRuleError('땅 마나가 3장 이상 필요합니다.')
   }
+  const slotIndex = requireOpenFieldSlot(game, actor, fieldSlot)
   const [mana] = player.mana.splice(index, 1)
-  summonCard(game, actor, mana!)
+  summonCard(game, actor, mana!, true, slotIndex)
   return game
 }
 
@@ -885,6 +940,7 @@ function attackUnit(
   actor: PlayerId,
   attackerId: string,
   defenderId: string,
+  random: RandomSource,
 ): GameState {
   ready(game, actor)
   assertNoPendingChoice(game)
@@ -905,7 +961,7 @@ function attackUnit(
   consumeAttack(player, attacker, game, actor)
   attacker.damage += attackValue(game, enemyId, defender)
   defender.damage += attackValue(game, actor, attacker)
-  cleanupDead(game)
+  cleanupDead(game, random)
   return game
 }
 
@@ -1034,28 +1090,27 @@ function resolveChoice(
     }
 
     case 'SURGING_WAVE_TOP': {
-      if (choiceIds.length !== 1 || !['leave', 'summon'].includes(choiceIds[0]!)) {
-        throw new GameRuleError('카드를 덱 위에 둘지 소환할지 선택해야 합니다.')
+      if (choiceIds.length !== 1) {
+        throw new GameRuleError('카드를 덱 위에 둘지 소환할 위치를 선택해야 합니다.')
       }
+      const choice = choiceIds[0]!
       const top = player.deck[0]
       if (!top || top.instanceId !== pending.revealedCard.instanceId) {
         throw new GameRuleError('확인했던 덱 위 카드가 변경되었습니다.')
       }
-      if (choiceIds[0] === 'summon') {
-        if (!pending.canSummon) {
+      if (choice !== 'leave') {
+        if (!choice.startsWith('summon:') || !pending.canSummon) {
           throw new GameRuleError('이 카드는 몰아치는 파도로 소환할 수 없습니다.')
         }
+        const slotIndex = requireOpenFieldSlot(game, actor, Number(choice.slice(7)))
         player.deck.shift()
-        summonCard(game, actor, top)
+        summonCard(game, actor, top, true, slotIndex)
       }
       game.pendingChoices.shift()
       return game
     }
 
     case 'BURNING_PROCESSION': {
-      if (new Set(choiceIds).size !== choiceIds.length) {
-        throw new GameRuleError('같은 카드를 두 번 선택할 수 없습니다.')
-      }
       const prefix = player.deck.slice(0, pending.revealedCards.length)
       if (
         prefix.length !== pending.revealedCards.length
@@ -1063,29 +1118,64 @@ function resolveChoice(
       ) {
         throw new GameRuleError('확인했던 덱 카드가 변경되었습니다.')
       }
-      const selectable = pending.revealedCards.filter((card) => {
+
+      const selectableIds = new Set(pending.revealedCards.filter((card) => {
         const definition = CARDS[card.cardId]
         return definition.type === 'unit'
           && definition.cost <= 1
-          && definition.groups.includes('fire')
+          && definition.attributes.includes('fire')
+      }).map((card) => card.instanceId))
+
+      const selections = choiceIds.map((choice) => {
+        const separator = choice.lastIndexOf('@')
+        if (separator < 1) throw new GameRuleError('소환할 카드와 슬롯을 함께 선택해야 합니다.')
+        return {
+          instanceId: choice.slice(0, separator),
+          slotIndex: Number(choice.slice(separator + 1)),
+        }
       })
-      const selectableIds = new Set(selectable.map((card) => card.instanceId))
-      if (choiceIds.some((id) => !selectableIds.has(id))) {
+      if (new Set(selections.map((item) => item.instanceId)).size !== selections.length) {
+        throw new GameRuleError('같은 카드를 두 번 선택할 수 없습니다.')
+      }
+      if (new Set(selections.map((item) => item.slotIndex)).size !== selections.length) {
+        throw new GameRuleError('같은 전장 슬롯을 두 번 선택할 수 없습니다.')
+      }
+      if (selections.some((item) => !selectableIds.has(item.instanceId))) {
         throw new GameRuleError('선택한 카드 중 소환할 수 없는 카드가 있습니다.')
       }
-      if (choiceIds.length > pending.maxSummons) {
+      if (selections.length > pending.maxSummons) {
         throw new GameRuleError('빈 전장 슬롯보다 많은 몬스터를 선택했습니다.')
+      }
+      const openSlots = new Set(getOpenFieldSlots(game, actor))
+      if (selections.some((item) => !Number.isInteger(item.slotIndex) || !openSlots.has(item.slotIndex))) {
+        throw new GameRuleError('선택한 전장 슬롯은 사용할 수 없습니다.')
       }
 
       const revealed = player.deck.splice(0, pending.revealedCards.length)
-      const selectedIds = new Set(choiceIds)
+      const selected = new Map(selections.map((item) => [item.instanceId, item.slotIndex]))
       for (const revealedCard of revealed) {
-        if (selectedIds.has(revealedCard.instanceId)) {
-          summonCard(game, actor, revealedCard)
+        const slotIndex = selected.get(revealedCard.instanceId)
+        if (slotIndex !== undefined) {
+          summonCard(game, actor, revealedCard, true, slotIndex)
         } else {
           sendToDiscard(game, actor, revealedCard)
         }
       }
+      game.pendingChoices.shift()
+      return game
+    }
+
+
+    case 'AWAKEN_SUMMON_SLOT': {
+      if (choiceIds.length !== 1 || !choiceIds[0]!.startsWith('slot:')) {
+        throw new GameRuleError('각성으로 소환할 전장 슬롯을 선택해야 합니다.')
+      }
+      const slotIndex = requireOpenFieldSlot(game, actor, Number(choiceIds[0]!.slice(5)))
+      const handCard = removeFromHand(player, pending.cardInstanceId)
+      if (!handCard) {
+        throw new GameRuleError('각성한 카드를 손에서 찾지 못했습니다.')
+      }
+      summonCard(game, actor, handCard, true, slotIndex)
       game.pendingChoices.shift()
       return game
     }
@@ -1173,10 +1263,10 @@ export function applyAction(
       result = resolveChoice(game, actor, action.choiceIds)
       break
     case 'SUMMON_FROM_MANA':
-      result = summonFromMana(game, actor, action.cardInstanceId)
+      result = summonFromMana(game, actor, action.cardInstanceId, action.fieldSlot)
       break
     case 'ATTACK_UNIT':
-      result = attackUnit(game, actor, action.attackerId, action.defenderId)
+      result = attackUnit(game, actor, action.attackerId, action.defenderId, random)
       break
     case 'ATTACK_PLAYER':
       result = attackPlayer(

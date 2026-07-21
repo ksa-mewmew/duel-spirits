@@ -1,6 +1,6 @@
 import {
   ALL_CARD_IDS,
-  CARD_GROUPS,
+  CARD_ATTRIBUTES,
   CARDS,
   DEFAULT_DECK,
   isCardId,
@@ -10,7 +10,7 @@ import { SET_IDS } from '../content/schema'
 import { CURRENT_CARD_ACCESS_POLICY } from './card-access'
 import { createRandomSeed, createSeededRandom } from './random'
 
-import type { CardGroupId, CardId } from './cards'
+import type { CardAttributeId, CardId } from './cards'
 import type {
   DeckFormatSelection,
   DraftPool,
@@ -45,7 +45,7 @@ export interface DeckValidationResult {
 }
 
 export type CountByCost = Record<number, number>
-export type CountByGroup = Record<CardGroupId, number>
+export type CountByAttribute = Record<CardAttributeId, number>
 
 export function createDefaultFormatSelection(
   formatId: GameFormatId = DEFAULT_FORMAT_ID,
@@ -300,10 +300,10 @@ export function getCardCounts(cardIds: readonly CardId[]): Map<CardId, number> {
   return counts
 }
 
-export function getGroupDistribution(cardIds: readonly CardId[]): CountByGroup {
-  const counts: CountByGroup = { fire: 0, water: 0, earth: 0, dark: 0, light: 0 }
+export function getAttributeDistribution(cardIds: readonly CardId[]): CountByAttribute {
+  const counts: CountByAttribute = { fire: 0, water: 0, earth: 0, dark: 0, light: 0 }
   for (const cardId of cardIds) {
-    for (const groupId of CARDS[cardId].groups) counts[groupId] += 1
+    for (const attributeId of CARDS[cardId].attributes) counts[attributeId] += 1
   }
   return counts
 }
@@ -322,8 +322,8 @@ export function getAverageCost(cardIds: readonly CardId[]): number {
   return cardIds.reduce((sum, cardId) => sum + CARDS[cardId].cost, 0) / cardIds.length
 }
 
-export function getGroupLabel(groupId: CardGroupId): string {
-  return CARD_GROUPS[groupId].name
+export function getAttributeLabel(attributeId: CardAttributeId): string {
+  return CARD_ATTRIBUTES[attributeId].name
 }
 
 export function sortCardIdsForBuilder(
@@ -333,7 +333,7 @@ export function sortCardIdsForBuilder(
     const left = CARDS[leftId]
     const right = CARDS[rightId]
     return left.cost - right.cost
-      || left.groups[0].localeCompare(right.groups[0])
+      || left.attributes[0].localeCompare(right.attributes[0])
       || left.name.localeCompare(right.name)
   })
 }

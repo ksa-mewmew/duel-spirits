@@ -92,9 +92,13 @@ describe('플레이어별 비공개 게임 뷰', () => {
 
     game.players.P2.field.push({
       ...fieldCard,
+      slotIndex: 2,
       damage: 0,
       exhausted: false,
       summonedThisTurn: false,
+      attacksThisTurn: 0,
+      temporaryAttackModifier: 0,
+      temporaryHealthModifier: 0,
     })
 
     game.players.P2.discard.push(discardCard)

@@ -663,7 +663,7 @@ button.card-pile {
 }
 
 .game-card__cost,
-.game-card__group,
+.game-card__attribute,
 .game-card__attack,
 .game-card__health {
   display: inline-grid;
@@ -779,19 +779,6 @@ button.card-pile {
   outline-offset: 1px;
 }
 
-.game-card.is-summoning::after {
-  content: 'NEW';
-  position: absolute;
-  z-index: 4;
-  top: 31px;
-  right: 5px;
-  padding: 2px 5px;
-  border-radius: 999px;
-  background: var(--ui-accent);
-  color: #111;
-  font-size: .52rem;
-  font-weight: 900;
-}
 
 .game-card--back {
   background:
@@ -1339,7 +1326,7 @@ button.card-pile {
 }
 
 .mana-card .game-card__cost,
-.mana-card .game-card__group,
+.mana-card .game-card__attribute,
 .mana-card .game-card__attack,
 .mana-card .game-card__health {
   min-width: 18px;
@@ -1556,4 +1543,249 @@ button.card-pile {
     max-height: 92svh;
     padding: 12px;
   }
+}
+
+/* 2026-07 playtest: attributes, stable status visuals, fixed slots, compact hidden text. */
+.game-card--multi-attribute {
+  --card-accent: #c467f0;
+  border-color: #d8a0f2;
+  box-shadow: inset 0 0 0 1px rgba(100, 219, 236, .3);
+}
+
+.game-card--multi-attribute .game-card__art {
+  background-image:
+    var(--card-art, none),
+    linear-gradient(145deg, #5a2c72 0%, #254f68 48%, #744831 100%);
+}
+
+.game-card__cost,
+.game-card__attribute,
+.game-card__attack,
+.game-card__health {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding-inline: 4px;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 70%, white);
+  border-radius: 999px;
+  background: rgba(9,10,13,.88);
+  font-size: .69rem;
+  font-weight: 850;
+}
+
+.game-card--name-only .game-card__name-only {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  text-align: center;
+}
+
+.game-card--name-only .game-card__name-only strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #f4f1e9;
+  font-size: clamp(.58rem, .8vw, .76rem);
+  line-height: 1.2;
+  text-shadow: 0 2px 5px #000;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+/* Status changes affect only the visual layer. Text and numbers keep fixed coordinates. */
+.game-card.is-exhausted,
+.game-card.is-summoning {
+  transform: none;
+}
+
+.game-card.is-exhausted {
+  filter: none;
+  opacity: .62;
+}
+
+.game-card.is-summoning:not(.is-exhausted) {
+  opacity: .76;
+}
+
+.game-card.is-exhausted .game-card__art,
+.game-card.is-exhausted .game-card__overlay {
+  transform: rotate(3deg) scale(.985);
+  filter: brightness(.55) saturate(.5);
+}
+
+.game-card.is-summoning:not(.is-exhausted) .game-card__art,
+.game-card.is-summoning:not(.is-exhausted) .game-card__overlay {
+  transform: rotate(-2.5deg) scale(.99);
+  filter: brightness(.78) saturate(.72);
+}
+
+.game-card__art,
+.game-card__overlay {
+  transform-origin: center;
+  transition: transform .15s ease, filter .15s ease;
+}
+
+.game-card.is-summoning::after {
+  content: none;
+}
+
+/* Hand and mana deliberately expose only the name; full text remains in the inspector. */
+.hand-card.game-card--name-only,
+.mana-card.game-card--name-only {
+  overflow: hidden;
+}
+
+.hand-card.game-card--name-only .game-card__actions,
+.mana-card.game-card--name-only .game-card__actions {
+  background: linear-gradient(180deg, transparent, rgba(7, 8, 10, .9));
+  padding-top: 16px;
+}
+
+.mana-card .game-card__badges {
+  display: none;
+}
+
+/* Fixed battlefield coordinates. */
+.field-slot,
+.field-slot-frame {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--card-w-field);
+  aspect-ratio: 5 / 7;
+  min-width: 0;
+}
+
+.field-slot-frame .field-card {
+  width: 100%;
+}
+
+.field-slot__number {
+  position: absolute;
+  z-index: 8;
+  top: 3px;
+  left: 4px;
+  display: inline-grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding-inline: 3px;
+  border: 1px solid rgba(255,255,255,.19);
+  border-radius: 999px;
+  background: rgba(5, 6, 8, .78);
+  color: #aeb3bc;
+  font-size: .52rem;
+  pointer-events: none;
+}
+
+.field-slot--selectable {
+  color: #e8d99f;
+  cursor: pointer;
+  border-color: color-mix(in srgb, var(--state-selected) 72%, #353a43);
+  background: color-mix(in srgb, var(--state-selected) 8%, rgba(255,255,255,.012));
+  animation: target-pulse 1.25s ease-in-out infinite;
+}
+
+.field-slot--selectable strong {
+  padding: 8px;
+  font-size: .63rem;
+  text-align: center;
+}
+
+.choice-card-with-slots {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+}
+
+.slot-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px;
+}
+
+.slot-choice-row button {
+  min-height: 25px;
+  padding: 2px 6px;
+  font-size: .58rem;
+}
+
+/* Life stays face-down and horizontal while its count remains unobstructed. */
+.life-zone--rail {
+  overflow: visible;
+}
+
+.life-zone--rail .zone-heading {
+  position: relative;
+  z-index: 20;
+  padding: 2px 3px 5px;
+  border-radius: 6px;
+  background: rgba(19, 22, 27, .94);
+}
+
+.life-stack {
+  gap: 0;
+  overflow: visible;
+}
+
+.life-stack > * + * {
+  margin-top: calc(var(--card-w-life) * -.36);
+}
+
+.life-card-frame {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: calc(var(--card-w-life) * 1.4);
+  height: var(--card-w-life);
+  flex: none;
+}
+
+.life-card-frame .life-card,
+.life-card-frame .life-slot,
+.life-card-frame .life-choice-button {
+  width: var(--card-w-life) !important;
+  height: calc(var(--card-w-life) * 1.4);
+  transform: rotate(90deg);
+  transform-origin: center;
+}
+
+.life-card-frame .life-choice-button .life-card {
+  width: 100% !important;
+  height: 100%;
+  transform: none;
+}
+
+.life-card-frame .life-card.is-selected {
+  transform: translateY(-5px) rotate(90deg);
+}
+
+.life-card-frame .life-choice-button .life-card.is-selected {
+  transform: translateY(-5px);
+}
+
+.life-position-label {
+  position: absolute;
+  z-index: 12;
+  right: 0;
+  bottom: 0;
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(7,8,10,.85);
+  color: #d2d5da;
+  font-size: .5rem;
+  pointer-events: none;
+}
+
+.field-slot--selectable.is-selected {
+  outline: 3px solid var(--state-selected);
+  outline-offset: 1px;
+  background: color-mix(in srgb, var(--state-selected) 18%, rgba(255,255,255,.02));
 }

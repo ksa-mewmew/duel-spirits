@@ -59,6 +59,11 @@ export type PendingChoiceView =
       type: 'HOLY_MIRROR_LIFE'
       playerId: PlayerId
     }
+  | {
+      type: 'AWAKEN_SUMMON_SLOT'
+      playerId: PlayerId
+      cardInstanceId: string
+    }
 
 /** 특정 플레이어 한 명을 위해 만든 게임 화면 상태입니다. */
 export interface GameView {
@@ -123,6 +128,13 @@ function createPendingChoiceView(
       return {
         type: pending.type,
         playerId: pending.playerId,
+      }
+
+    case 'AWAKEN_SUMMON_SLOT':
+      return {
+        type: pending.type,
+        playerId: pending.playerId,
+        cardInstanceId: pending.cardInstanceId,
       }
 
     case 'WAVE_READER_TOP':
