@@ -488,7 +488,12 @@ function renderLife(playerId: PlayerId, owner: 'self' | 'opponent'): string {
     const content = action
       ? `<button type="button" class="life-choice-button" data-action="${action}" data-life-index="${lifeIndex}">${cardBack}</button>`
       : cardBack
-    return `<div class="life-card-frame" data-life-slot="${slotIndex}" aria-label="라이프 카드">${content}</div>`
+    const frameClasses = [
+      'life-card-frame',
+      action ? 'is-targetable' : '',
+      selected ? 'is-selected' : '',
+    ].filter(Boolean).join(' ')
+    return `<div class="${frameClasses}" data-life-slot="${slotIndex}" aria-label="라이프 카드"><div class="life-card-rotator">${content}</div></div>`
   }).join('')
 }
 
@@ -748,8 +753,8 @@ function renderCardPile(playerId: PlayerId, kind: 'deck' | 'discard'): string {
     ${topCard ? `data-preview-card-id="${topCard.cardId}"` : ''}
     aria-label="${playerId}의 묘지 ${player.discard.length}장 열기"
   >
-    <div class="card-pile__face card-pile__face--${topDefinition?.attributes[0] ?? 'empty'}">
-      <span>${topDefinition ? escapeHtml(topDefinition.name) : '비어 있음'}</span>
+    <div class="card-pile__face card-pile__face--${topDefinition?.attributes[0] ?? 'empty'}" ${topDefinition ? '' : 'aria-hidden="true"'}>
+      ${topDefinition ? `<span>${escapeHtml(topDefinition.name)}</span>` : ''}
     </div>
     <span class="card-pile__label">묘지</span>
     <strong class="card-pile__count">${player.discard.length}</strong>

@@ -2250,10 +2250,11 @@ body.game-active {
   -webkit-line-clamp: 5;
 }
 
-/* 2026-07 card readability pass: fixed life rows, shared card backs, and clean name wrapping. */
+/* 2026-07 card readability pass: life uses the shared deck back, rotated 90deg. */
 .life-zone--rail {
   grid-template-rows: minmax(0, 1fr);
   padding: 5px 7px;
+  overflow: visible;
 }
 
 .life-zone--rail .zone-heading {
@@ -2261,44 +2262,61 @@ body.game-active {
 }
 
 .life-stack {
-  display: grid;
-  grid-template-rows: repeat(var(--life-slot-count, 4), minmax(0, 1fr));
-  align-items: stretch;
-  justify-items: stretch;
-  gap: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  min-height: 0;
   height: 100%;
-  padding: 0;
-  overflow: hidden;
+  padding: 4px 0;
+  overflow: visible;
+}
+
+.life-stack > * {
+  flex: none;
 }
 
 .life-stack > * + * {
-  margin-top: 0;
+  margin-top: calc(var(--card-w-life) * -.36);
 }
 
 .life-card-frame {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: calc(var(--card-w-life) * 1.4);
+  height: var(--card-w-life);
+  flex: none;
+}
+
+.life-card-frame.is-empty {
+  visibility: hidden;
 }
 
 .life-card-frame .life-card,
 .life-card-frame .life-slot,
 .life-card-frame .life-choice-button {
-  width: 100% !important;
-  height: 100%;
+  width: var(--card-w-life) !important;
+  height: calc(var(--card-w-life) * 1.4);
   min-height: 0;
-  transform: none;
+  transform: rotate(90deg);
+  transform-origin: center;
   border-radius: 8px;
 }
 
 .life-card-frame .life-choice-button .life-card {
   width: 100% !important;
   height: 100%;
+  transform: none;
 }
 
-.life-card-frame .life-card.is-selected,
+.life-card-frame .life-card.is-selected {
+  transform: translateY(-5px) rotate(90deg);
+}
+
 .life-card-frame .life-choice-button .life-card.is-selected {
-  transform: translateX(5px);
+  transform: translateY(-5px);
 }
 
 /* Deck and life use one shared back-face language. */
@@ -2386,4 +2404,138 @@ body.game-active {
 .hand-card.game-card--center-name:has(.game-card__actions):focus-within .game-card__code,
 .hand-card.game-card--center-name.is-selected .game-card__code {
   inset: 28px 8px 38px;
+}
+
+/* 2026-07 interaction polish: horizontal life backs, stable hand overlays, and preview naming. */
+
+/* Empty discard piles stay visually blank; only the pile label and count remain. */
+.card-pile--discard.is-empty .card-pile__face {
+  color: transparent;
+  font-size: 0;
+}
+
+.card-pile--discard.is-empty .card-pile__face::before,
+.card-pile--discard.is-empty .card-pile__face::after {
+  content: none;
+}
+
+/* A life card is the same portrait card back as the deck, rotated as a whole.
+   Each invisible frame retains its slot, so removing one life never shifts another. */
+.life-stack {
+  --life-card-short: clamp(42px, 5.8vh, 58px);
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 0;
+  overflow: visible;
+}
+
+.life-stack > * + * {
+  margin-top: 0;
+}
+
+.life-card-frame {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: calc(var(--life-card-short) * 1.4);
+  height: var(--life-card-short);
+  flex: none;
+}
+
+.life-card-frame.is-empty {
+  visibility: hidden;
+}
+
+.life-card-rotator {
+  display: grid;
+  width: var(--life-card-short);
+  height: calc(var(--life-card-short) * 1.4);
+  transform: rotate(90deg);
+  transform-origin: center;
+}
+
+.life-card-rotator > .life-card,
+.life-card-rotator > .life-choice-button,
+.life-card-rotator > .life-choice-button > .life-card {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0;
+  min-height: 0;
+  transform: none !important;
+}
+
+.life-card-rotator > .life-choice-button {
+  display: grid;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.life-card-frame.is-selected .life-card-rotator {
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--state-selected) 72%, transparent));
+}
+
+.life-card-frame.is-targetable .life-card-rotator {
+  cursor: pointer;
+}
+
+/* Hand actions are a separate overlay layer. Their appearance never pushes the
+   card name, stats, or neighboring hand cards out of place. */
+.hand-card:has(.game-card__actions) .game-card__footer {
+  padding-bottom: 0;
+}
+
+.hand-card.game-card--center-name:has(.game-card__actions):hover .game-card__code,
+.hand-card.game-card--center-name:has(.game-card__actions):focus-within .game-card__code,
+.hand-card.game-card--center-name.is-selected .game-card__code {
+  inset: 28px 8px 28px;
+}
+
+.hand-card:has(.game-card__actions):hover .game-card__footer,
+.hand-card:has(.game-card__actions):focus-within .game-card__footer,
+.hand-card.is-selected .game-card__footer {
+  inset: 0;
+}
+
+.hand-card.is-selected {
+  transform: none;
+}
+
+.hand-card .game-card__actions {
+  inset: 44% 4px 4px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: end;
+  gap: 4px;
+  padding: 20px 4px 4px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, transparent 0%, rgba(4, 5, 7, .78) 35%, rgba(4, 5, 7, .97) 70%);
+  pointer-events: none;
+}
+
+.hand-card:hover .game-card__actions,
+.hand-card:focus-within .game-card__actions,
+.hand-card.is-selected .game-card__actions {
+  pointer-events: auto;
+}
+
+.hand-card .game-card__actions button:only-child {
+  grid-column: 1 / -1;
+}
+
+/* In the large card preview, place the card name centered just above the
+   lower stat row rather than anchoring it to the lower-left corner. */
+.card-preview-card .game-card__code {
+  inset: auto 8px 32px;
+  display: -webkit-box;
+  max-width: none;
+  width: auto;
+  text-align: center;
+  text-wrap: balance;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  font-size: .76rem;
+  line-height: 1.16;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
