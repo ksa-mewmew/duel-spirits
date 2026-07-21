@@ -1,7 +1,7 @@
 :root {
   --card-w-field: clamp(82px, 10.6vh, 112px);
   --card-w-hand: clamp(94px, 13vh, 132px);
-  --card-w-life: clamp(48px, 6.7vh, 62px);
+  --card-w-life: clamp(56px, 7.4vh, 70px);
   --state-selected: #f0c85e;
   --state-target: #e78278;
   --state-ready: #83c7ad;
@@ -182,7 +182,7 @@ body.game-active #app {
 
 .combat-row {
   display: grid;
-  grid-template-columns: 82px minmax(420px, 1fr) minmax(205px, 18vw);
+  grid-template-columns: clamp(100px, 7.5vw, 116px) minmax(420px, 1fr) minmax(205px, 18vw);
   gap: 8px;
   min-height: 0;
 }
@@ -1085,11 +1085,11 @@ button.card-pile {
   :root {
     --card-w-field: clamp(76px, 10vh, 100px);
     --card-w-hand: clamp(88px, 12.3vh, 120px);
-    --card-w-life: clamp(44px, 6.2vh, 56px);
+    --card-w-life: clamp(52px, 7vh, 64px);
   }
 
   .combat-row {
-    grid-template-columns: 70px minmax(350px, 1fr) minmax(180px, 22vw);
+    grid-template-columns: 92px minmax(350px, 1fr) minmax(180px, 22vw);
   }
 
   .mana-list {
@@ -1110,7 +1110,7 @@ button.card-pile {
   :root {
     --card-w-field: 78px;
     --card-w-hand: 94px;
-    --card-w-life: 46px;
+    --card-w-life: 54px;
   }
 
   .battle-board {
@@ -1169,7 +1169,7 @@ button.card-pile {
   }
 
   .combat-row {
-    grid-template-columns: 60px minmax(0, 1fr);
+    grid-template-columns: 84px minmax(0, 1fr);
   }
 
   .resource-rail {
@@ -2182,11 +2182,14 @@ body.game-active {
 
 /* 2026-07 fixed life slots and temporary no-art card presentation. */
 .life-stack {
-  gap: 2px;
+  gap: 0;
 }
 
+/* Keep every life in its own logical slot, but overlap the fixed frames so the
+   cards can stay readable inside the vertical rail. Hidden frames preserve the
+   same pitch, so later life cards never slide into an emptied slot. */
 .life-stack > * + * {
-  margin-top: 0;
+  margin-top: calc(var(--card-w-life) * -.3);
 }
 
 .life-card-frame.is-empty {
