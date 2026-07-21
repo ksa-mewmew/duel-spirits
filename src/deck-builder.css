@@ -576,6 +576,142 @@ body.deck-builder-active #app {
   font-size: .76rem;
 }
 
+
+.sample-deck-panel {
+  margin-bottom: 14px;
+  padding: 14px;
+  border-color: color-mix(in srgb, var(--ui-line) 58%, transparent);
+  background: rgba(17, 20, 24, .68);
+}
+
+.sample-deck-panel .section-heading {
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.sample-deck-panel .section-heading h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.sample-deck-panel .section-heading p {
+  margin: 3px 0 0;
+  color: var(--ui-muted);
+  font-size: .7rem;
+}
+
+.sample-deck-panel .section-heading > span {
+  color: var(--ui-muted);
+  font-size: .72rem;
+}
+
+.sample-deck-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.sample-deck-card {
+  --sample-accent: #a79a72;
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--sample-accent) 42%, var(--ui-line));
+  border-left: 3px solid var(--sample-accent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--sample-accent) 5%, rgba(12, 14, 18, .9));
+}
+
+.sample-deck-card--fire { --sample-accent: #d85b3f; }
+.sample-deck-card--water { --sample-accent: #4f8fd6; }
+.sample-deck-card--earth { --sample-accent: #7ea35a; }
+.sample-deck-card--dark { --sample-accent: #9a6bb5; }
+.sample-deck-card--light { --sample-accent: #d7c879; }
+
+.sample-deck-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sample-deck-card__header span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  height: 24px;
+  padding-inline: 7px;
+  border: 1px solid color-mix(in srgb, var(--sample-accent) 68%, transparent);
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--sample-accent) 78%, white);
+  background: color-mix(in srgb, var(--sample-accent) 12%, transparent);
+  font-size: .68rem;
+  font-weight: 800;
+}
+
+.sample-deck-card__header h3 {
+  margin: 0;
+  color: var(--ui-text);
+  font-size: .86rem;
+}
+
+.sample-deck-card__goal {
+  min-height: 2.7em;
+  margin: 0;
+  color: var(--ui-muted);
+  font-size: .72rem;
+  line-height: 1.48;
+}
+
+.sample-deck-card details {
+  border-top: 1px solid color-mix(in srgb, var(--ui-line) 52%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--ui-line) 52%, transparent);
+  padding-block: 7px;
+}
+
+.sample-deck-card summary {
+  cursor: pointer;
+  color: color-mix(in srgb, var(--sample-accent) 70%, var(--ui-text));
+  font-size: .7rem;
+  font-weight: 700;
+}
+
+.sample-deck-card__details {
+  display: grid;
+  gap: 7px;
+  padding-top: 8px;
+}
+
+.sample-deck-card__details p {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  color: var(--ui-muted);
+  font-size: .66rem;
+  line-height: 1.48;
+}
+
+.sample-deck-card__details strong {
+  color: var(--ui-text);
+  font-size: .64rem;
+}
+
+.sample-deck-card > button {
+  min-height: 36px;
+  margin-top: auto;
+  border-color: color-mix(in srgb, var(--sample-accent) 52%, var(--ui-line));
+  color: var(--ui-text);
+  background: color-mix(in srgb, var(--sample-accent) 12%, var(--ui-panel-soft));
+  font-size: .72rem;
+}
+
+.sample-deck-card > button:hover,
+.sample-deck-card > button:focus-visible {
+  border-color: var(--sample-accent);
+  background: color-mix(in srgb, var(--sample-accent) 20%, var(--ui-panel-soft));
+}
+
 @media (max-width: 1320px) {
   .deck-builder-layout {
     grid-template-columns: 175px minmax(500px, 1fr) 300px;
