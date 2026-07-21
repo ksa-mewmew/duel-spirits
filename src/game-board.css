@@ -1415,9 +1415,9 @@ button.card-pile {
 
 .rulebook-dialog {
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 12px;
-  width: min(1040px, 100%);
+  width: min(940px, 100%);
   max-height: min(90svh, 820px);
   padding: 17px;
   border: 1px solid #505662;
@@ -1437,49 +1437,8 @@ button.card-pile {
 .rulebook-dialog__header h2,
 .rulebook-dialog__header p,
 .rulebook-content h3,
-.rulebook-content p,
-.rulebook-meta p,
-.rulebook-callout p {
+.rulebook-content p {
   margin: 0;
-}
-
-
-.rulebook-subtitle {
-  margin-top: 3px !important;
-  color: var(--ui-muted);
-  font-size: .72rem;
-}
-
-.rulebook-meta {
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px 12px;
-  padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--ui-accent) 38%, var(--ui-line));
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--ui-accent) 7%, #121419);
-}
-
-.rulebook-meta span,
-.rulebook-meta strong {
-  white-space: nowrap;
-}
-
-.rulebook-meta span {
-  color: var(--ui-muted);
-  font-size: .68rem;
-}
-
-.rulebook-meta strong {
-  color: #ecd99c;
-  font-size: .78rem;
-}
-
-.rulebook-meta p {
-  color: #d9d7d1;
-  font-size: .72rem;
-  line-height: 1.45;
 }
 
 .rulebook-index {
@@ -1522,60 +1481,9 @@ button.card-pile {
   line-height: 1.55;
 }
 
-.rulebook-content ol,
-.rulebook-content ul {
+.rulebook-content ol {
   margin: 0;
   padding-left: 1.25rem;
-}
-
-.rulebook-rule-list {
-  display: grid;
-  gap: 5px;
-}
-
-
-.rulebook-callout {
-  display: grid;
-  gap: 5px;
-  padding: 10px 12px;
-  border-left: 3px solid var(--ui-accent);
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--ui-accent) 9%, #121419);
-}
-
-.rulebook-callout strong {
-  color: #ecd99c;
-  font-size: .78rem;
-}
-
-.rulebook-terms {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin: 0;
-}
-
-.rulebook-terms > div {
-  display: grid;
-  grid-template-columns: 66px minmax(0, 1fr);
-  gap: 9px;
-  padding: 8px 10px;
-  border: 1px solid #343943;
-  border-radius: 9px;
-  background: #121419;
-}
-
-.rulebook-terms dt {
-  color: #ecd99c;
-  font-size: .76rem;
-  font-weight: 850;
-}
-
-.rulebook-terms dd {
-  margin: 0;
-  color: #d9d7d1;
-  font-size: .8rem;
-  line-height: 1.55;
 }
 
 .keyword-list {
@@ -1627,12 +1535,7 @@ button.card-pile {
     --card-w-mana: 62px;
   }
 
-  .keyword-list,
-  .rulebook-terms {
-    grid-template-columns: 1fr;
-  }
-
-  .rulebook-meta {
+  .keyword-list {
     grid-template-columns: 1fr;
   }
 

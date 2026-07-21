@@ -1041,12 +1041,12 @@ function renderRulebookBlock(block: ReturnType<typeof createRulebookDocument>['s
       return `<p>${escapeHtml(block.text)}</p>`
     case 'list': {
       const tag = block.ordered ? 'ol' : 'ul'
-      return `<${tag} class="rulebook-rule-list">${block.items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</${tag}>`
+      return `<${tag}>${block.items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</${tag}>`
     }
     case 'callout':
-      return `<aside class="rulebook-callout"><strong>${escapeHtml(block.title)}</strong><p>${escapeHtml(block.text)}</p></aside>`
+      return `<p><strong>${escapeHtml(block.title)}</strong><br>${escapeHtml(block.text)}</p>`
     case 'terms':
-      return `<dl class="rulebook-terms">${block.items.map((item) => `<div><dt>${escapeHtml(item.term)}</dt><dd>${escapeHtml(item.description)}</dd></div>`).join('')}</dl>`
+      return `<dl class="keyword-list">${block.items.map((item) => `<div><dt>${escapeHtml(item.term)}</dt><dd>${escapeHtml(item.description)}</dd></div>`).join('')}</dl>`
   }
 }
 
@@ -1062,19 +1062,14 @@ function renderRulebookModal(): string {
     .join('')
 
   return `<div class="modal-backdrop rulebook-backdrop" data-modal="rulebook">
-    <section class="rulebook-dialog" role="dialog" aria-modal="true" aria-labelledby="rulebook-title" aria-describedby="rulebook-summary">
+    <section class="rulebook-dialog" role="dialog" aria-modal="true" aria-labelledby="rulebook-title">
       <header class="rulebook-dialog__header">
-        <div><p class="eyebrow">DUEL SPIRITS</p><h2 id="rulebook-title">${escapeHtml(document.title)}</h2><p id="rulebook-summary" class="rulebook-subtitle">${escapeHtml(document.subtitle)}</p></div>
+        <div><p class="eyebrow">DUEL SPIRITS</p><h2 id="rulebook-title">${escapeHtml(document.title)}</h2></div>
         <button type="button" data-action="close-rulebook" aria-label="룰북 닫기">닫기</button>
       </header>
-      <div class="rulebook-meta" aria-label="적용 중인 규칙 정보">
-        <span>규칙 ${escapeHtml(document.rulesVersion)}</span>
-        <strong>${escapeHtml(document.formatName)}</strong>
-        <p>${escapeHtml(document.formatSummary)}</p>
-      </div>
       <nav class="rulebook-index" aria-label="룰북 목차">${index}</nav>
       <div class="rulebook-content">${sections}</div>
-      <footer class="rulebook-dialog__footer"><span>카드 문구가 일반 규칙보다 우선합니다.</span><button type="button" data-action="close-rulebook">게임으로 돌아가기</button></footer>
+      <footer class="rulebook-dialog__footer"><span>규칙 ${escapeHtml(document.rulesVersion)} · ${escapeHtml(document.formatName)} · 카드 문구가 일반 규칙보다 우선합니다.</span><button type="button" data-action="close-rulebook">게임으로 돌아가기</button></footer>
     </section>
   </div>`
 }
