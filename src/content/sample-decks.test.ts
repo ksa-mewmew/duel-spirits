@@ -17,13 +17,13 @@ describe('sample decks', () => {
     }
   })
 
-  it('uses at most two copies of each card', () => {
+  it('uses at most three copies of each card and exercises the new limit', () => {
     for (const deck of SAMPLE_DECK_LIST) {
       const counts = new Map<string, number>()
       for (const cardId of deck.cardIds) {
         counts.set(cardId, (counts.get(cardId) ?? 0) + 1)
       }
-      expect(Math.max(...counts.values())).toBeLessThanOrEqual(2)
+      expect(Math.max(...counts.values())).toBe(3)
     }
   })
 })

@@ -34,6 +34,12 @@ describe('콘텐츠와 포맷', () => {
     ])
   })
 
+  test('모든 포맷에서 같은 카드는 최대 세 장까지 사용한다', () => {
+    for (const format of Object.values(GAME_FORMATS)) {
+      expect(format.maxCopiesPerCard).toBe(3)
+    }
+  })
+
   test('모든 카드에 세트와 수집 번호가 있다', () => {
     for (const card of Object.values(CARDS)) {
       expect(card.setId).toBe('foundations-001')
@@ -85,13 +91,20 @@ describe('콘텐츠와 포맷', () => {
 
   test('드래프트 덱은 생성된 풀의 수량을 넘을 수 없다', () => {
     const pool = createDraftPool('fixed-draft-seed', 'draft-v1', 1)
-    const deck = pool.cardIds.slice(0, 20)
+    const counts = new Map<keyof typeof CARDS, number>()
+    const deck = pool.cardIds.filter((cardId) => {
+      const nextCount = (counts.get(cardId) ?? 0) + 1
+      if (nextCount > 3) return false
+      counts.set(cardId, nextCount)
+      return true
+    }).slice(0, 20)
     const selection = {
       formatId: 'draft-v1' as const,
       selectedSetIds: [],
       draftPool: pool,
     }
 
+    expect(deck).toHaveLength(20)
     expect(validateDeck(deck, selection).valid).toBe(true)
 
     const unavailable = Object.keys(CARDS).find(

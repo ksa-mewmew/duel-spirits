@@ -79,10 +79,10 @@ describe('카드군 1 개정 원고', () => {
     expect(CARDS.cathedral_guard.rulesText).toContain('비용 1 이하 몬스터로 공격할 수 없다')
   })
 
-  test('기본 덱은 20장이며 같은 이름은 최대 2장이다', () => {
+  test('기본 덱은 20장이며 같은 이름은 최대 3장이다', () => {
     expect(DEFAULT_DECK).toHaveLength(20)
     const counts = new Map<string, number>()
     for (const cardId of DEFAULT_DECK) counts.set(cardId, (counts.get(cardId) ?? 0) + 1)
-    expect(Math.max(...counts.values())).toBeLessThanOrEqual(2)
+    expect(Math.max(...counts.values())).toBeLessThanOrEqual(3)
   })
 })

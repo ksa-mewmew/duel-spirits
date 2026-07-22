@@ -28,7 +28,7 @@ export interface RulebookDocument {
 
 function formatCopyRule(format: GameFormat<CardId>): string {
   if (format.deckSource === 'draft') {
-    return '드래프트에서 받은 카드만 쓸 수 있습니다. 같은 카드도 받은 수량보다 많이 넣을 수 없습니다.'
+    return `드래프트에서 받은 카드만 쓸 수 있습니다. 같은 카드는 최대 ${format.maxCopiesPerCard}장까지, 그리고 받은 수량보다 많이 넣을 수 없습니다.`
   }
 
   const restricted = Object.entries(format.restrictedCardLimits)

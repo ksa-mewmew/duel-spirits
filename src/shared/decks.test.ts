@@ -26,15 +26,18 @@ describe('덱 검증', () => {
     )
   })
 
-  test('동일 카드를 세 장 넣을 수 없다', () => {
-    const invalidDeck = [...DEFAULT_DECK]
-    invalidDeck[2] = 'living_flame'
+  test('동일 카드는 세 장까지 넣을 수 있고 네 장부터 거부한다', () => {
+    const validDeck = [...DEFAULT_DECK]
+    validDeck[2] = 'living_flame'
+    expect(validateDeck(validDeck).valid).toBe(true)
 
+    const invalidDeck = [...validDeck]
+    invalidDeck[3] = 'living_flame'
     const result = validateDeck(invalidDeck)
 
     expect(result.valid).toBe(false)
     expect(result.errors.some(
-      (error) => error.includes('최대 2장'),
+      (error) => error.includes('최대 3장'),
     )).toBe(true)
   })
 })

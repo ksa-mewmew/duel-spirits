@@ -14,6 +14,7 @@ describe('종합 규칙 문서', () => {
     expect(document.formatSummary).toContain('시작 손 4장')
     expect(document.formatSummary).toContain('시작 덱 12장')
     expect(document.formatSummary).toContain('전장 4슬롯')
+    expect(JSON.stringify(document)).toContain('같은 카드는 최대 3장')
   })
 
   test('목차 id와 핵심 키워드가 빠짐없이 존재한다', () => {
