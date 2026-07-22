@@ -168,9 +168,15 @@ function isGameAction(value: unknown): value is GameAction {
     case 'ATTACK_UNIT':
       return hasString(value, 'attackerId')
         && hasString(value, 'defenderId')
-    case 'ATTACK_PLAYER':
+    case 'ATTACK_PLAYER': {
+      const hasLifeSlotIndices = value.lifeSlotIndices !== undefined
+      const hasLifeIndices = value.lifeIndices !== undefined
+
       return hasString(value, 'attackerId')
-        && isIntegerArray(value.lifeIndices)
+        && (hasLifeSlotIndices || hasLifeIndices)
+        && (!hasLifeSlotIndices || isIntegerArray(value.lifeSlotIndices))
+        && (!hasLifeIndices || isIntegerArray(value.lifeIndices))
+    }
     case 'END_TURN':
     case 'SURRENDER':
       return true
