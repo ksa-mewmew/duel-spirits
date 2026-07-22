@@ -1148,7 +1148,14 @@ function renderWaitingRoom(): string {
 
   return `<section class="panel match-lobby">
     <header class="section-heading"><h2>대전 준비 · ${escapeHtml(getFormat(roomSettings.formatId).name)}</h2><span>${connectedPlayers.length}/2 접속</span></header>
-    <div class="seat-grid">${(['P1', 'P2'] as const).map((playerId) => `<div class="seat-card ${connectedPlayers.includes(playerId) ? 'is-online' : ''}"><strong>${playerId}${playerId === me ? ' · 나' : ''}</strong><span>${connectedPlayers.includes(playerId) ? '접속 중' : reservedPlayers.includes(playerId) ? '재접속 대기' : '빈자리'}</span><span>${deckStates[playerId].name ?? '덱 미제출'}</span><span>${deckStates[playerId].ready ? '준비 완료' : '준비 중'}</span><small id="seat-expiry-${playerId}"></small></div>`).join('')}</div>
+    <div class="seat-grid">${(['P1', 'P2'] as const).map((playerId) => {
+      const deckState = deckStates[playerId]
+      const deckLabel = playerId === me
+        ? deckState.name ?? (deckState.submitted ? '덱 제출 완료' : '덱 미제출')
+        : deckState.submitted ? '덱 제출 완료' : '덱 미제출'
+
+      return `<div class="seat-card ${connectedPlayers.includes(playerId) ? 'is-online' : ''}"><strong>${playerId}${playerId === me ? ' · 나' : ''}</strong><span>${connectedPlayers.includes(playerId) ? '접속 중' : reservedPlayers.includes(playerId) ? '재접속 대기' : '빈자리'}</span><span>${escapeHtml(deckLabel)}</span><span>${deckState.ready ? '준비 완료' : '준비 중'}</span><small id="seat-expiry-${playerId}"></small></div>`
+    }).join('')}</div>
     <div class="match-deck-controls"><label>사용할 덱<select id="room-deck-select">${options}</select></label><button id="submit-deck-button" type="button">덱 제출</button><button id="deck-ready-button" type="button" ${myDeckState?.submitted ? '' : 'disabled'}>${ready ? '준비 취소' : '준비 완료'}</button><a class="button-link" href="./#decks" target="_blank">덱 빌더</a></div>
   </section>`
 }
