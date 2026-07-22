@@ -88,6 +88,30 @@ describe('기본 행동', () => {
     expect(next.players.P2.hand).toHaveLength(5)
     expect(next.players.P2.deck).toHaveLength(3)
   })
+
+  test('덱이 비어 있으면 묘지를 섞은 뒤 같은 드로우에서 한 장을 뽑는다', () => {
+    const game = createGame({
+      random: () => 0.5,
+      idSource: createIdSource(),
+      startingPlayer: 'P1',
+    })
+    game.players.P2.deck = []
+    game.players.P2.discard = [{
+      instanceId: 'recycled-draw',
+      cardId: 'wave_reader',
+    }]
+    const handSizeBefore = game.players.P2.hand.length
+
+    const next = applyAction(game, 'P1', { type: 'END_TURN' })
+
+    expect(next.players.P2.hand).toHaveLength(handSizeBefore + 1)
+    expect(next.players.P2.hand.at(-1)).toMatchObject({
+      instanceId: 'recycled-draw',
+      cardId: 'wave_reader',
+    })
+    expect(next.players.P2.deck).toHaveLength(0)
+    expect(next.players.P2.discard).toHaveLength(0)
+  })
 })
 
 describe('플레이어 선택 처리', () => {
@@ -472,6 +496,63 @@ describe('선공과 전장 슬롯', () => {
 
     expect(collectDeadUnitsInResolutionOrder(game).map((unit) => unit.instanceId))
       .toEqual(['earlier-on-board', 'later-on-board'])
+  })
+})
+
+describe('사도의 비둘기 지속 효과', () => {
+  test('사도의 비둘기가 전장을 떠나면 같은 턴의 공격 제한도 즉시 사라진다', () => {
+    const game = createGame({
+      random: () => 0.5,
+      idSource: createIdSource(),
+      startingPlayer: 'P1',
+    })
+    game.players.P1.field = [
+      {
+        instanceId: 'pigeon-hunter', cardId: 'floating_mountains', damage: 0,
+        slotIndex: 0,
+        battlefieldEntrySeq: 1,
+        exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
+        temporaryAttackModifier: 0, temporaryHealthModifier: 0,
+      },
+      {
+        instanceId: 'second-attacker', cardId: 'living_flame', damage: 0,
+        slotIndex: 1,
+        battlefieldEntrySeq: 2,
+        exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
+        temporaryAttackModifier: 0, temporaryHealthModifier: 0,
+      },
+    ]
+    game.players.P2.field = [{
+      instanceId: 'apostle-pigeon', cardId: 'apostle_pigeon', damage: 0,
+      slotIndex: 0,
+      battlefieldEntrySeq: 3,
+      exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
+      temporaryAttackModifier: 0, temporaryHealthModifier: 0,
+    }]
+    game.players.P2.life = [0, 1, 2, 3].map((lifeSlotIndex) => ({
+      instanceId: `pigeon-life-${lifeSlotIndex}`,
+      cardId: 'ash_hound' as const,
+      lifeSlotIndex,
+    }))
+
+    const afterPigeonDies = applyAction(game, 'P1', {
+      type: 'ATTACK_UNIT',
+      attackerId: 'pigeon-hunter',
+      defenderId: 'apostle-pigeon',
+    })
+
+    expect(afterPigeonDies.players.P2.field).toHaveLength(0)
+    expect(afterPigeonDies.players.P1.attacksThisTurn).toBe(1)
+
+    const afterSecondAttack = applyAction(afterPigeonDies, 'P1', {
+      type: 'ATTACK_PLAYER',
+      attackerId: 'second-attacker',
+      lifeSlotIndices: [1],
+    })
+
+    expect(afterSecondAttack.players.P1.attacksThisTurn).toBe(2)
+    expect(afterSecondAttack.players.P2.life.map((card) => card.lifeSlotIndex))
+      .toEqual([0, 2, 3])
   })
 })
 

@@ -377,11 +377,14 @@ export function collectDeadUnitsInResolutionOrder(game: GameState): Array<{
 }
 
 function draw(player: PlayerState, random: RandomSource): void {
-  if (player.deck.length === 0 && player.discard.length > 0) {
+  let card = player.deck.shift()
+
+  if (!card && player.discard.length > 0) {
     player.deck = shuffle(player.discard, random)
     player.discard = []
+    card = player.deck.shift()
   }
-  const card = player.deck.shift()
+
   if (card) player.hand.push(card)
 }
 
@@ -958,6 +961,11 @@ function summonFromMana(
   return game
 }
 
+function hasApostlePigeonOnBattlefield(game: GameState): boolean {
+  return game.players.P1.field.concat(game.players.P2.field)
+    .some((unit) => unit.cardId === 'apostle_pigeon')
+}
+
 function assertCanAttack(
   game: GameState,
   actor: PlayerId,
@@ -983,8 +991,7 @@ function assertCanAttack(
     throw new GameRuleError('공격 횟수를 모두 사용했습니다.')
   }
   if (
-    game.players.P1.field.concat(game.players.P2.field)
-      .some((fieldUnit) => fieldUnit.cardId === 'apostle_pigeon')
+    hasApostlePigeonOnBattlefield(game)
     && game.players[actor].attacksThisTurn >= 1
   ) {
     throw new GameRuleError('사도의 비둘기 때문에 이번 턴에는 더 공격할 수 없습니다.')
