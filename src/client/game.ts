@@ -88,6 +88,7 @@ let selectedDeckId = getActiveDeck().id
 let openDiscardPlayerId: PlayerId | null = null
 let openManaPlayerId: PlayerId | null = null
 let pinnedPreviewCardId: CardId | null = null
+let pinnedPreviewInstanceId: string | null = null
 let roomMenuOpen = false
 let rulebookOpen = false
 
@@ -254,6 +255,7 @@ const socket = connectToRoom(
           openDiscardPlayerId = null
           openManaPlayerId = null
           pinnedPreviewCardId = null
+          pinnedPreviewInstanceId = null
           roomMenuOpen = false
           rulebookOpen = false
           socket.close()
@@ -269,6 +271,7 @@ const socket = connectToRoom(
           openDiscardPlayerId = null
           openManaPlayerId = null
           pinnedPreviewCardId = null
+          pinnedPreviewInstanceId = null
           roomMenuOpen = false
           rulebookOpen = false
           message = '현재 게임이 정리되었습니다.'
@@ -318,11 +321,31 @@ function actionButton(
   value?: string,
   disabled = false,
 ): string {
-  return `<button type="button" data-action="${action}" ${valueName && value !== undefined ? `data-${valueName}="${escapeHtml(value)}"` : ''} ${disabled ? 'disabled' : ''}>${escapeHtml(label)}</button>`
+  const tone = action.startsWith('confirm-') || action === 'attack-unit'
+    ? 'primary'
+    : action.startsWith('cancel-') || action.startsWith('close-')
+      ? 'secondary'
+      : 'choice'
+  return `<button type="button" class="action-button action-button--${tone}" data-action="${action}" ${valueName && value !== undefined ? `data-${valueName}="${escapeHtml(value)}"` : ''} ${disabled ? 'disabled' : ''}>${escapeHtml(label)}</button>`
 }
 
 function effectiveCost(card: CardInstance): number {
   return Math.max(0, CARDS[card.cardId].cost - (card.costReduction ?? 0))
+}
+
+function findVisibleCardInstance(instanceId: string | null): CardInstance | undefined {
+  if (!game || !instanceId) return undefined
+
+  for (const player of Object.values(game.players)) {
+    const card = [
+      ...player.hand,
+      ...player.mana,
+      ...player.field,
+      ...player.discard,
+    ].find((candidate) => candidate.instanceId === instanceId)
+    if (card) return card
+  }
+  return undefined
 }
 
 function unitTargetMode(cardId: CardId): 'any' | 'exhausted' | 'highest-health' | null {
@@ -495,8 +518,13 @@ function renderLife(playerId: PlayerId, owner: 'self' | 'opponent'): string {
       action ? 'is-targetable' : '',
       selected ? 'is-selected' : '',
     ].filter(Boolean))
+    const targetLabel = action === 'select-attack-life'
+      ? '<span class="life-target-label">직접 공격</span>'
+      : action
+        ? '<span class="life-target-label">선택</span>'
+        : ''
     const content = action
-      ? `<button type="button" class="life-choice-button" data-action="${action}" data-life-index="${lifeIndex}" data-life-slot="${slotIndex}">${cardBack}</button>`
+      ? `<button type="button" class="life-choice-button" data-action="${action}" data-life-index="${lifeIndex}" data-life-slot="${slotIndex}">${cardBack}${targetLabel}</button>`
       : cardBack
     const frameClasses = [
       'life-card-frame',
@@ -613,7 +641,7 @@ function renderMana(
     if (isSelf && playDraft && !mana.exhausted) {
       const draftCard = selectedPlayCard()
       actions.push(actionButton(
-        selectedAsCost ? '비용 취소' : '비용 선택',
+        selectedAsCost ? '비용 선택 해제' : '비용으로 선택',
         'select-cost-mana',
         'mana-id',
         mana.instanceId,
@@ -621,7 +649,7 @@ function renderMana(
       ))
       if (draftCard?.cardId === 'grave_digging') {
         actions.push(actionButton(
-          selectedAsEffect ? '효과 취소' : '묘지로 보냄',
+          selectedAsEffect ? '효과 선택 해제' : '묘지로 보낼 마나',
           'select-effect-mana',
           'mana-id',
           mana.instanceId,
@@ -647,6 +675,7 @@ function renderMana(
       exhausted: mana.exhausted,
       selected: selectedAsCost || selectedAsEffect || selectedForSummon,
       targetable: isSelf && playDraft !== null && !mana.exhausted,
+      displayCost: effectiveCost(mana),
       classNames: [
         'mana-card',
         expanded ? 'mana-card--expanded' : 'mana-card--rail',
@@ -662,6 +691,43 @@ function renderMana(
       },
     })
   }).join('') || '<div class="zone-empty">마나 없음</div>'
+}
+
+function isPlayDraftReady(): boolean {
+  if (!game || !playDraft) return false
+  const card = selectedPlayCard()
+  if (!card) return false
+  const definition = CARDS[card.cardId]
+  if (playDraft.manaIds.length !== effectiveCost(card)) return false
+  if (definition.type === 'unit' && playDraft.fieldSlot === undefined) return false
+  if (unitTargetMode(card.cardId) && !playDraft.unitId) return false
+  if (needsLifeTarget(card.cardId) && playDraft.lifeIndex === undefined) return false
+  if (card.cardId === 'grave_digging' && !playDraft.effectManaId) return false
+  return true
+}
+
+function renderManaSelectionToolbar(): string {
+  if (!playDraft) return ''
+  const card = selectedPlayCard()
+  if (!card) return ''
+  const definition = CARDS[card.cardId]
+  const cost = effectiveCost(card)
+  const ready = isPlayDraftReady()
+  return `<div class="mana-selection-toolbar ${ready ? 'is-ready' : ''}" aria-live="polite">
+    <div class="mana-selection-toolbar__copy">
+      <span>사용할 카드</span>
+      <strong>${escapeHtml(definition.name)}</strong>
+    </div>
+    <div class="mana-selection-toolbar__progress">
+      <span>비용 마나</span>
+      <strong>${playDraft.manaIds.length} / ${cost}</strong>
+    </div>
+    <div class="mana-selection-toolbar__hint">${ready ? '필요한 선택이 모두 끝났습니다.' : '밝게 표시된 버튼으로 마나와 대상을 선택하세요.'}</div>
+    <div class="mana-selection-toolbar__actions">
+      ${actionButton(ready ? '이 카드 사용' : '선택을 완료하세요', 'confirm-play-card', undefined, undefined, !ready)}
+      ${actionButton('사용 취소', 'cancel-play-card')}
+    </div>
+  </div>`
 }
 
 function renderManaDrawer(): string {
@@ -682,7 +748,10 @@ function renderManaDrawer(): string {
         </div>
         <button type="button" data-action="close-mana-drawer" aria-label="마나 닫기">닫기</button>
       </header>
-      ${isSelf ? renderManaAbilityButtons(player, true) : ''}
+      <div class="mana-drawer__commands">
+        ${isSelf ? renderManaSelectionToolbar() : ''}
+        ${isSelf ? renderManaAbilityButtons(player, true) : ''}
+      </div>
       <div class="mana-drawer__body">
         <section class="mana-drawer__group">
           <header><strong>준비</strong><span>${readyMana.length}</span></header>
@@ -694,8 +763,11 @@ function renderManaDrawer(): string {
         </section>
       </div>
       <footer class="mana-drawer__footer">
-        <span>${playDraft ? '카드 사용에 필요한 마나를 선택한 뒤 사용을 확정하세요.' : '발동 가능한 마나 능력은 항상 위쪽에 표시됩니다.'}</span>
-        <button type="button" data-action="close-mana-drawer">전장으로 돌아가기</button>
+        <span>${playDraft ? '카드 아래의 큰 버튼으로 비용 마나를 선택할 수 있습니다.' : '발동 가능한 마나 능력은 항상 위쪽에 표시됩니다.'}</span>
+        <div class="mana-drawer__footer-actions">
+          ${playDraft ? actionButton(isPlayDraftReady() ? '이 카드 사용' : '선택 미완료', 'confirm-play-card', undefined, undefined, !isPlayDraftReady()) : ''}
+          <button type="button" class="action-button action-button--secondary" data-action="close-mana-drawer">전장으로 돌아가기</button>
+        </div>
       </footer>
     </section>
   </div>`
@@ -759,6 +831,7 @@ function renderHand(player: PlayerView, isSelf: boolean): string {
     return renderCard(card.cardId, {
       instanceId: card.instanceId,
       selected,
+      displayCost: effectiveCost(card),
       classNames: ['hand-card', 'game-card--center-name'],
       actionsHtml: actions.join(''),
     })
@@ -880,13 +953,13 @@ function renderField(player: PlayerView, isSelf: boolean): string {
       )
     } else if (isSelf && canSelectAttacker) {
       actions = actionButton(
-        selectedForAttack ? '선택 취소' : '공격',
+        selectedForAttack ? '공격 선택 취소' : '공격할 카드 선택',
         'select-attacker',
         'unit-id',
         unit.instanceId,
       )
     } else if (canAttackTarget) {
-      actions = actionButton('공격 대상', 'attack-unit', 'defender-id', unit.instanceId)
+      actions = actionButton('이 몬스터 공격', 'attack-unit', 'defender-id', unit.instanceId)
     }
 
     const statusBadges = getUnitStatusBadges(player, unit)
@@ -1051,7 +1124,7 @@ function renderPlayDraftPanel(): string {
   return `<div class="selection-panel selection-panel--play">
     <div class="selection-panel__title"><span>카드 사용</span><h3>${escapeHtml(definition.name)}</h3></div>
     <div class="selection-steps">${stepMarkup}</div>
-    <div class="choice-actions">${actionButton('사용 확정', 'confirm-play-card')}${actionButton('취소', 'cancel-play-card')}</div>
+    <div class="choice-actions">${actionButton(isPlayDraftReady() ? '카드 사용' : '선택 미완료', 'confirm-play-card', undefined, undefined, !isPlayDraftReady())}${actionButton('사용 취소', 'cancel-play-card')}</div>
   </div>`
 }
 
@@ -1113,7 +1186,19 @@ function renderAttackLifePanel(opponentPlayer: PlayerView): string {
   if (!selectedAttackerId || playDraft || game?.pendingChoice) return ''
   if (!canSelectedAttackerDirectAttack(opponentPlayer)) return ''
   const required = requiredAttackLifeCount(opponentPlayer)
-  return `<div class="selection-panel"><h3>직접 공격</h3><p>파괴할 라이프: ${selectedAttackLifeSlotIndices.length}/${required}</p><div class="choice-actions">${actionButton('직접 공격 확정', 'confirm-attack-player', undefined, undefined, selectedAttackLifeSlotIndices.length !== required)}${actionButton('공격 선택 취소', 'cancel-attacker')}</div></div>`
+  const selected = selectedAttackLifeSlotIndices.length
+  const ready = selected === required
+  return `<div class="selection-panel selection-panel--attack ${ready ? 'is-ready' : ''}">
+    <div class="selection-panel__title"><span>공격 행동</span><h3>직접 공격</h3></div>
+    <div class="attack-selection-status">
+      <strong>${ready ? '공격할 라이프 선택 완료' : '상대 라이프 카드를 선택하세요'}</strong>
+      <span>${selected}/${required}</span>
+    </div>
+    <div class="choice-actions">
+      ${actionButton(ready ? '직접 공격 실행' : '라이프 선택 필요', 'confirm-attack-player', undefined, undefined, !ready)}
+      ${actionButton('공격 취소', 'cancel-attacker')}
+    </div>
+  </div>`
 }
 
 function renderCardInspectorPlaceholder(): string {
@@ -1127,12 +1212,15 @@ function renderCardInspectorPlaceholder(): string {
 function renderCardInspector(): string {
   const cardId = pinnedPreviewCardId
   return `<aside id="card-inspector" class="card-inspector is-visible ${cardId ? 'is-pinned' : 'is-empty'}" aria-live="polite" aria-hidden="false">
-    ${cardId ? renderCardInspectorContent(cardId) : renderCardInspectorPlaceholder()}
+    ${cardId ? renderCardInspectorContent(cardId, pinnedPreviewInstanceId) : renderCardInspectorPlaceholder()}
   </aside>`
 }
 
-function renderCardInspectorContent(cardId: CardId): string {
+function renderCardInspectorContent(cardId: CardId, instanceId: string | null = null): string {
   const card = CARDS[cardId]
+  const instance = findVisibleCardInstance(instanceId)
+  const currentCost = instance?.cardId === cardId ? effectiveCost(instance) : card.cost
+  const costReduced = currentCost < card.cost
   const attributes = card.attributes.map((attributeId) => CARD_ATTRIBUTES[attributeId].name).join(' · ')
   const families = card.families.length > 0 ? card.families.join(' · ') : '없음'
   const keywordNames: Record<string, string> = {
@@ -1143,12 +1231,13 @@ function renderCardInspectorContent(cardId: CardId): string {
     : []
   return `<div class="card-inspector__inner">
     <button type="button" class="card-inspector__close" data-action="close-card-preview" aria-label="카드 상세 닫기">×</button>
-    <div class="card-inspector__visual">${renderCard(cardId, { interactive: false, detailLayout: true, classNames: ['card-preview-card'] })}</div>
+    <div class="card-inspector__visual">${renderCard(cardId, { interactive: false, detailLayout: true, displayCost: currentCost, classNames: ['card-preview-card'] })}</div>
     <div class="card-inspector__copy">
-      <div class="card-inspector__meta"><span>속성: ${escapeHtml(attributes)}</span><span>카드군: ${escapeHtml(families)}</span><span>${card.type === 'unit' ? '몬스터' : '주문'} · 비용 ${card.cost}</span></div>
+      <div class="card-inspector__meta"><span>속성: ${escapeHtml(attributes)}</span><span>카드군: ${escapeHtml(families)}</span><span>${card.type === 'unit' ? '몬스터' : '주문'} · ${costReduced ? `현재 비용 ${currentCost} · 기본 ${card.cost}` : `비용 ${card.cost}`}</span></div>
       <h2>${escapeHtml(card.name)}</h2>
       ${card.type === 'unit' ? `<p class="card-inspector__stats">공격력 ${card.attack} · 체력 ${card.health}</p>` : ''}
       ${keywords.length > 0 ? `<div class="card-inspector__keywords">${keywords.map((keyword) => `<span>${escapeHtml(keyword)}</span>`).join('')}</div>` : ''}
+      ${costReduced ? `<p class="card-inspector__cost-notice"><strong>비용 감소 적용 중</strong><span>${card.cost} → ${currentCost}</span></p>` : ''}
       <p class="card-inspector__rules">${escapeHtml(card.rulesText || '능력 없음')}</p>
       <p class="card-inspector__hint">마우스를 떼면 닫히며, 카드를 클릭하면 고정됩니다.</p>
     </div>
@@ -1456,9 +1545,12 @@ function confirmPlayDraft(): void {
   })
 }
 
-function setCardInspector(cardId: CardId | null, pinned: boolean): void {
+function setCardInspector(cardId: CardId | null, pinned: boolean, instanceId: string | null = null): void {
   const inspector = document.querySelector<HTMLElement>('#card-inspector')
-  if (pinned) pinnedPreviewCardId = cardId
+  if (pinned) {
+    pinnedPreviewCardId = cardId
+    pinnedPreviewInstanceId = instanceId
+  }
   if (!inspector) return
 
   if (!cardId) {
@@ -1469,13 +1561,14 @@ function setCardInspector(cardId: CardId | null, pinned: boolean): void {
     return
   }
 
-  inspector.innerHTML = renderCardInspectorContent(cardId)
+  inspector.innerHTML = renderCardInspectorContent(cardId, instanceId)
   inspector.classList.add('is-visible')
   inspector.classList.remove('is-empty')
-  inspector.classList.toggle('is-pinned', pinnedPreviewCardId === cardId)
+  inspector.classList.toggle('is-pinned', pinnedPreviewCardId === cardId && pinnedPreviewInstanceId === instanceId)
   inspector.setAttribute('aria-hidden', 'false')
   inspector.querySelector<HTMLElement>('[data-action="close-card-preview"]')?.addEventListener('click', () => {
     pinnedPreviewCardId = null
+    pinnedPreviewInstanceId = null
     setCardInspector(null, false)
   })
 }
@@ -1503,6 +1596,7 @@ function closeTransientLayers(): boolean {
   }
   if (pinnedPreviewCardId) {
     pinnedPreviewCardId = null
+    pinnedPreviewInstanceId = null
     setCardInspector(null, false)
     return true
   }
@@ -1569,6 +1663,7 @@ function bindEvents(): void {
       if (playerId !== 'P1' && playerId !== 'P2') return
       openManaPlayerId = playerId
       pinnedPreviewCardId = null
+      pinnedPreviewInstanceId = null
       render()
     })
   }
@@ -1588,6 +1683,7 @@ function bindEvents(): void {
   for (const control of document.querySelectorAll<HTMLElement>('[data-action="close-card-preview"]')) {
     control.addEventListener('click', () => {
       pinnedPreviewCardId = null
+      pinnedPreviewInstanceId = null
       setCardInspector(null, false)
     })
   }
@@ -1598,29 +1694,44 @@ function bindEvents(): void {
     if (!rawCardId || !(rawCardId in CARDS)) continue
     const cardId = rawCardId as CardId
 
+    const instanceId = element.dataset.instanceId ?? null
     element.addEventListener('pointerenter', () => {
-      if (!pinnedPreviewCardId) setCardInspector(cardId, false)
+      if (!pinnedPreviewCardId) setCardInspector(cardId, false, instanceId)
     })
     element.addEventListener('pointerleave', () => {
       if (!pinnedPreviewCardId) setCardInspector(null, false)
     })
     element.addEventListener('focus', () => {
-      if (!pinnedPreviewCardId) setCardInspector(cardId, false)
+      if (!pinnedPreviewCardId) setCardInspector(cardId, false, instanceId)
     })
     element.addEventListener('blur', () => {
       if (!pinnedPreviewCardId) setCardInspector(null, false)
     })
     element.addEventListener('click', (event) => {
       if ((event.target as HTMLElement).closest('button, [data-action]')) return
-      pinnedPreviewCardId = pinnedPreviewCardId === cardId ? null : cardId
-      setCardInspector(pinnedPreviewCardId, pinnedPreviewCardId !== null)
+      const samePinnedCard = pinnedPreviewCardId === cardId
+        && pinnedPreviewInstanceId === instanceId
+      if (samePinnedCard) {
+        pinnedPreviewCardId = null
+        pinnedPreviewInstanceId = null
+        setCardInspector(null, false)
+      } else {
+        setCardInspector(cardId, true, instanceId)
+      }
     })
     element.addEventListener('keydown', (event) => {
       if (event.key !== 'Enter' && event.key !== ' ') return
       if ((event.target as HTMLElement).closest('button')) return
       event.preventDefault()
-      pinnedPreviewCardId = pinnedPreviewCardId === cardId ? null : cardId
-      setCardInspector(pinnedPreviewCardId, pinnedPreviewCardId !== null)
+      const samePinnedCard = pinnedPreviewCardId === cardId
+        && pinnedPreviewInstanceId === instanceId
+      if (samePinnedCard) {
+        pinnedPreviewCardId = null
+        pinnedPreviewInstanceId = null
+        setCardInspector(null, false)
+      } else {
+        setCardInspector(cardId, true, instanceId)
+      }
     })
   }
 
@@ -1708,15 +1819,19 @@ function bindEvents(): void {
       render()
     })
   }
-  document.querySelector<HTMLButtonElement>('[data-action="confirm-play-card"]')?.addEventListener('click', confirmPlayDraft)
-  document.querySelector<HTMLButtonElement>('[data-action="cancel-play-card"]')?.addEventListener('click', () => {
-    playDraft = null
-    summonFromManaDraftId = null
-    openDiscardPlayerId = null
-    openManaPlayerId = null
-    message = '카드 사용 선택을 취소했습니다.'
-    render()
-  })
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="confirm-play-card"]')) {
+    button.addEventListener('click', confirmPlayDraft)
+  }
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="cancel-play-card"]')) {
+    button.addEventListener('click', () => {
+      playDraft = null
+      summonFromManaDraftId = null
+      openDiscardPlayerId = null
+      openManaPlayerId = null
+      message = '카드 사용 선택을 취소했습니다.'
+      render()
+    })
+  }
 
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="begin-summon-from-mana"]')) {
     button.addEventListener('click', () => {

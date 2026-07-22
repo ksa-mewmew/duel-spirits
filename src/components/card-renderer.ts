@@ -17,6 +17,8 @@ export interface RenderCardOptions {
   summonedThisTurn?: boolean
   remainingHealth?: number
   displayAttack?: number
+  /** 카드 인스턴스에 적용된 현재 비용입니다. 기본 비용과 다르면 감소 상태를 표시합니다. */
+  displayCost?: number
   actionsHtml?: string
   dataAttributes?: Record<string, string>
   interactive?: boolean
@@ -95,9 +97,15 @@ export function renderCard(
     ? `style="--card-art: url('${escapeHtml(card.artUrl)}')"`
     : ''
   const interactive = options.interactive !== false
+  const displayCost = options.displayCost ?? card.cost
+  const costReduction = Math.max(0, card.cost - displayCost)
+  if (costReduction > 0) classes.push('has-reduced-cost')
+  const costSummary = costReduction > 0
+    ? `현재 비용 ${displayCost}, 기본 비용 ${card.cost}`
+    : `비용 ${displayCost}`
   const accessibleSummary = card.type === 'unit'
-    ? `${card.name}, ${attributeLabel} 속성 몬스터, 비용 ${card.cost}, 공격력 ${options.displayAttack ?? card.attack}, 체력 ${options.remainingHealth ?? card.health}`
-    : `${card.name}, ${attributeLabel} 속성 주문, 비용 ${card.cost}`
+    ? `${card.name}, ${attributeLabel} 속성 몬스터, ${costSummary}, 공격력 ${options.displayAttack ?? card.attack}, 체력 ${options.remainingHealth ?? card.health}`
+    : `${card.name}, ${attributeLabel} 속성 주문, ${costSummary}`
 
   return `
     <article
@@ -118,7 +126,10 @@ export function renderCard(
         </div>
       ` : `
         <header class="game-card__header">
-          <span class="game-card__cost">${card.cost}</span>
+          <span class="game-card__cost-cluster" title="${costReduction > 0 ? `현재 비용 ${displayCost} · 기본 비용 ${card.cost}` : `비용 ${displayCost}`}">
+            <span class="game-card__cost">${displayCost}</span>
+            ${costReduction > 0 ? `<span class="game-card__cost-reduction" aria-hidden="true">−${costReduction}</span>` : ''}
+          </span>
           <span class="game-card__attribute" title="${escapeHtml(card.attributes.map((attributeId) => CARD_ATTRIBUTES[attributeId].name).join(', '))}">
             ${escapeHtml(attributeLabel)}
           </span>

@@ -28,6 +28,17 @@ describe('renderCard', () => {
     expect(markup).not.toContain(card.rulesText)
   })
 
+  it('shows an effective cost and reduction marker when an instance cost is reduced', () => {
+    const markup = renderCard('coffin_warrior', { displayCost: 2 })
+
+    expect(markup).toContain('has-reduced-cost')
+    expect(markup).toContain('game-card__cost">2</span>')
+    expect(markup).toContain('game-card__cost-reduction')
+    expect(markup).toContain('−2')
+    expect(markup).toContain('현재 비용 2')
+    expect(markup).toContain('기본 비용 4')
+  })
+
   it('keeps only the in-game detail layout out of the centered-name default', () => {
     const markup = renderCard('seeding_fairy', { detailLayout: true })
 

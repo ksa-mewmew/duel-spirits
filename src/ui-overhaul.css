@@ -2372,3 +2372,537 @@ body.room-waiting-active { background: #030506; }
     min-height: 24px;
   }
 }
+
+/* Dynamic hand costs: e.g. 관 속의 전사. */
+.game-card__cost-cluster {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.game-card__cost-reduction {
+  display: inline-grid;
+  place-items: center;
+  min-width: 21px;
+  height: 18px;
+  padding: 0 4px;
+  border: 1px solid rgba(119, 226, 143, .78);
+  border-radius: 999px;
+  background: rgba(10, 42, 23, .94);
+  color: #baf3c6;
+  font-size: .56rem;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 0 12px rgba(83, 211, 111, .22);
+}
+
+.game-card.has-reduced-cost .game-card__cost {
+  border-color: #79e493;
+  background: linear-gradient(180deg, rgba(25, 75, 40, .98), rgba(8, 31, 17, .98));
+  color: #ddffe4;
+  box-shadow:
+    0 0 0 1px rgba(123, 232, 148, .2),
+    0 0 15px rgba(74, 213, 106, .34);
+}
+
+.hand-card.has-reduced-cost {
+  box-shadow:
+    0 0 0 1px rgba(102, 224, 129, .42),
+    0 12px 24px rgba(0, 0, 0, .42),
+    0 0 20px rgba(68, 204, 99, .13);
+}
+
+.hand-card .game-card__cost-reduction {
+  min-width: 23px;
+  height: 20px;
+  font-size: .61rem;
+}
+
+.card-inspector__cost-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 9px 11px;
+  border: 1px solid rgba(109, 226, 135, .52);
+  border-radius: 10px;
+  background: rgba(20, 61, 31, .5);
+  color: #d9f9df;
+  font-size: .78rem;
+}
+
+.card-inspector__cost-notice strong {
+  color: #aef0bb;
+}
+
+.card-inspector__cost-notice span {
+  font-size: .92rem;
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+
+/* 2026-07 v6 combat interaction pass: dynamic costs, proportional mana cards,
+   and high-visibility attack / selection controls. */
+
+/* Keep the reduction marker from changing the header geometry. */
+.game-card__cost-cluster {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.game-card__cost-reduction {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 50%;
+  z-index: 8;
+  transform: translateX(-50%);
+  min-width: 24px;
+  height: 17px;
+  padding: 0 4px;
+  border-width: 1px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.hand-card.has-reduced-cost .game-card__cost {
+  color: #e8ffed;
+  font-size: .86rem;
+}
+
+.hand-card.has-reduced-cost::after {
+  content: '비용 감소';
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  z-index: 7;
+  transform: translateX(-50%);
+  padding: 3px 7px;
+  border: 1px solid rgba(112, 229, 139, .64);
+  border-radius: 999px;
+  background: rgba(8, 38, 17, .9);
+  color: #c7f7d1;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: .05em;
+  pointer-events: none;
+}
+
+/* All generated action buttons have a stable visual hierarchy. */
+.action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 7px 13px;
+  border: 1px solid rgba(216, 190, 120, .42);
+  border-radius: 9px;
+  background: rgba(28, 29, 27, .98);
+  color: #eee5cc;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 5px 14px rgba(0,0,0,.22);
+}
+
+.action-button:hover:not(:disabled),
+.action-button:focus-visible:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: #f0d17b;
+  color: #fff7df;
+  box-shadow: 0 0 0 2px rgba(240, 209, 123, .16), 0 8px 20px rgba(0,0,0,.3);
+}
+
+.action-button--primary {
+  border-color: rgba(242, 199, 83, .88);
+  background: linear-gradient(180deg, #82621e, #4f390e);
+  color: #fff5d4;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 0 18px rgba(225, 178, 53, .18);
+}
+
+.action-button--choice {
+  border-color: rgba(105, 187, 214, .72);
+  background: linear-gradient(180deg, rgba(31, 91, 112, .98), rgba(15, 52, 66, .98));
+  color: #e4f8ff;
+}
+
+.action-button--secondary {
+  border-color: rgba(190, 192, 198, .28);
+  background: rgba(24, 27, 32, .96);
+  color: #c9cbd0;
+}
+
+.action-button:disabled {
+  opacity: .38;
+  filter: saturate(.5);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Expanded mana cards are actual 5:7 cards with every internal measurement
+   expressed against the card itself. This prevents fixed-pixel badges from
+   drifting when the modal or viewport changes size. */
+.mana-drawer__grid {
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 14px 12px;
+  padding: 8px;
+}
+
+.mana-card--expanded {
+  container-type: inline-size;
+  width: clamp(104px, 13cqh, 132px) !important;
+  height: auto !important;
+  aspect-ratio: 5 / 7 !important;
+  border-radius: 9cqw !important;
+}
+
+.mana-card--expanded .game-card__header {
+  inset: 5cqw 5cqw auto;
+  align-items: flex-start;
+}
+
+.mana-card--expanded .game-card__cost,
+.mana-card--expanded .game-card__attribute,
+.mana-card--expanded .game-card__attack,
+.mana-card--expanded .game-card__health {
+  min-width: 20cqw;
+  height: 20cqw;
+  padding-inline: 3cqw;
+  border-width: max(1px, 1cqw);
+  font-size: 10cqw;
+  line-height: 1;
+}
+
+.mana-card--expanded .game-card__cost-reduction {
+  top: calc(100% + 1cqw);
+  min-width: 22cqw;
+  height: 14cqw;
+  padding: 0 2.5cqw;
+  border-radius: 8cqw;
+  font-size: 7cqw;
+}
+
+.mana-card--expanded .game-card__code,
+.mana-card--expanded.game-card--center-name .game-card__code {
+  inset: 27cqw 7cqw 31cqw;
+  padding: 3cqw;
+  font-size: 10cqw;
+  line-height: 1.18;
+  -webkit-line-clamp: 3;
+}
+
+.mana-card--expanded.game-card--name-long .game-card__code {
+  font-size: 8.5cqw;
+}
+
+.mana-card--expanded.game-card--name-xlong .game-card__code {
+  font-size: 7.5cqw;
+}
+
+.mana-card--expanded .game-card__attack,
+.mana-card--expanded .game-card__health {
+  bottom: 5cqw;
+}
+
+.mana-card--expanded .game-card__attack { left: 5cqw; }
+.mana-card--expanded .game-card__health { right: 5cqw; }
+
+.mana-card--expanded .game-card__spell-type {
+  right: 5cqw;
+  bottom: 5cqw;
+  min-height: 17cqw;
+  padding: 2cqw 5cqw;
+  border-radius: 8cqw;
+  font-size: 7cqw;
+}
+
+.mana-card--expanded .game-card__actions {
+  inset: 49% 4cqw 4cqw;
+  gap: 4cqw;
+  padding: 19cqw 3cqw 3cqw;
+  border-radius: 7cqw;
+  background: linear-gradient(180deg, transparent, rgba(3, 5, 8, .86) 36%, rgba(3, 5, 8, .98) 67%);
+}
+
+.mana-card--expanded .game-card__actions .action-button {
+  width: 100%;
+  min-width: 0;
+  min-height: 25cqw;
+  padding: 4cqw 3cqw;
+  border-radius: 5cqw;
+  font-size: 8.2cqw;
+  line-height: 1.08;
+  white-space: normal;
+}
+
+.mana-card--expanded.is-targetable:not(.is-selected) {
+  outline: max(2px, 1.5cqw) solid rgba(91, 190, 221, .58);
+  outline-offset: max(1px, 1cqw);
+}
+
+.mana-card--expanded.is-selected {
+  outline: max(3px, 2cqw) solid #f1ca60;
+  outline-offset: max(1px, 1cqw);
+  animation: none;
+  box-shadow: 0 0 0 max(1px, 1cqw) rgba(241, 202, 96, .24), 0 0 24px rgba(241, 202, 96, .32);
+}
+
+/* A sticky, self-contained command row makes mana selection and confirmation
+   possible without closing the modal or hunting for the lower dock. */
+.mana-selection-toolbar {
+  display: grid;
+  grid-template-columns: auto auto minmax(180px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(99, 184, 213, .5);
+  border-radius: 11px;
+  background: linear-gradient(90deg, rgba(16, 60, 76, .96), rgba(9, 17, 23, .97));
+  box-shadow: 0 8px 24px rgba(0,0,0,.24);
+}
+
+.mana-selection-toolbar.is-ready {
+  border-color: rgba(235, 194, 79, .72);
+  background: linear-gradient(90deg, rgba(83, 63, 16, .95), rgba(18, 17, 12, .98));
+}
+
+.mana-selection-toolbar__copy,
+.mana-selection-toolbar__progress {
+  display: grid;
+  gap: 2px;
+}
+
+.mana-selection-toolbar__copy span,
+.mana-selection-toolbar__progress span {
+  color: #aeb7b8;
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .08em;
+}
+
+.mana-selection-toolbar__copy strong {
+  color: #f5f0e1;
+  font-size: 14px;
+}
+
+.mana-selection-toolbar__progress {
+  min-width: 76px;
+  padding: 5px 10px;
+  border-left: 1px solid rgba(255,255,255,.12);
+}
+
+.mana-selection-toolbar__progress strong {
+  color: #d9f4ff;
+  font-size: 17px;
+}
+
+.mana-selection-toolbar.is-ready .mana-selection-toolbar__progress strong {
+  color: #ffe39a;
+}
+
+.mana-selection-toolbar__hint {
+  color: #c8cdca;
+  font-size: 11px;
+}
+
+.mana-selection-toolbar__actions,
+.mana-drawer__footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.mana-selection-toolbar__actions .action-button {
+  min-width: 116px;
+}
+
+.mana-drawer__footer-actions .action-button,
+.mana-drawer__footer-actions > button {
+  min-height: 36px;
+  padding: 6px 12px;
+  font-size: 11px;
+}
+
+/* Direct attack targets visibly announce themselves instead of relying only on
+   a subtle outline around a face-down card. */
+.life-choice-button {
+  position: relative;
+  overflow: visible;
+}
+
+.life-target-label {
+  position: absolute;
+  left: 50%;
+  bottom: -3px;
+  z-index: 20;
+  transform: translateX(-50%);
+  min-width: 72px;
+  padding: 5px 8px;
+  border: 1px solid rgba(238, 108, 93, .9);
+  border-radius: 999px;
+  background: rgba(106, 24, 19, .96);
+  color: #fff2ed;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 0 16px rgba(226, 80, 63, .34);
+  pointer-events: none;
+}
+
+.life-card-frame.is-targetable .life-choice-button {
+  filter: brightness(1.14);
+}
+
+.life-card-frame.is-targetable:not(.is-selected) {
+  animation: life-target-pulse 1.25s ease-in-out infinite;
+}
+
+@keyframes life-target-pulse {
+  0%, 100% { filter: drop-shadow(0 0 2px rgba(232, 100, 83, .28)); }
+  50% { filter: drop-shadow(0 0 10px rgba(232, 100, 83, .76)); }
+}
+
+.selection-panel--attack {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  width: 100%;
+  gap: 12px;
+  padding: 4px 6px;
+}
+
+.attack-selection-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 7px 11px;
+  border: 1px solid rgba(231, 107, 90, .44);
+  border-radius: 9px;
+  background: rgba(75, 22, 18, .46);
+}
+
+.attack-selection-status strong {
+  overflow: hidden;
+  color: #f7ddd7;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attack-selection-status span {
+  display: grid;
+  place-items: center;
+  min-width: 38px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.35);
+  color: #ffb6a9;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.selection-panel--attack.is-ready .attack-selection-status {
+  border-color: rgba(240, 199, 83, .66);
+  background: rgba(88, 66, 15, .52);
+}
+
+.selection-panel--attack.is-ready .attack-selection-status strong,
+.selection-panel--attack.is-ready .attack-selection-status span {
+  color: #ffe6a4;
+}
+
+/* Battlefield buttons are readable even before the card receives final art. */
+.field-card .game-card__actions {
+  inset: 45% 5px 5px;
+  display: grid;
+  align-content: end;
+  padding: 20px 4px 4px;
+  background: linear-gradient(180deg, transparent, rgba(4,5,7,.92) 52%);
+}
+
+.field-card .game-card__actions .action-button {
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 7px;
+  font-size: 10px;
+  white-space: normal;
+}
+
+.field-card.is-targetable .game-card__actions,
+.field-card.is-selected .game-card__actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (max-width: 1050px), (max-height: 680px) {
+  .mana-selection-toolbar {
+    grid-template-columns: auto auto minmax(0, 1fr);
+  }
+
+  .mana-selection-toolbar__actions {
+    grid-column: 1 / -1;
+  }
+
+  .selection-panel--attack {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .selection-panel--attack > .choice-actions {
+    grid-column: 1 / -1;
+  }
+
+  .mana-card--expanded {
+    width: clamp(94px, 12.2cqh, 118px) !important;
+  }
+}
+
+/* Expanded mana cards never rotate or lift; exhaustion is conveyed by tone only. */
+.mana-card--expanded,
+.mana-card--expanded:hover,
+.mana-card--expanded:focus-within,
+.mana-card--expanded.is-exhausted,
+.mana-card--expanded.is-exhausted:hover,
+.mana-card--expanded.is-selected,
+.mana-card--expanded.is-selected:hover {
+  transform: none !important;
+}
+
+.mana-drawer__commands {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mana-drawer__commands:empty {
+  display: none;
+}
+
+.mana-drawer__commands > .mana-ability-list {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.mana-drawer__commands > .mana-ability-list .mana-ability-button {
+  min-height: 38px;
+  padding: 6px 9px;
+}
+
+.mana-drawer__commands > .mana-ability-list .mana-ability-button__copy strong {
+  font-size: 11px;
+}
+
+.mana-drawer__commands > .mana-ability-list .mana-ability-button__copy small,
+.mana-drawer__commands > .mana-ability-list .mana-ability-button__action {
+  font-size: 9px;
+}
