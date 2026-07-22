@@ -40,3 +40,11 @@
 - Each battlefield card retains and displays its numbered original slot.
 - Exhausted and newly summoned states use faded, slightly tilted artwork while text and stat coordinates remain fixed.
 - The rulebook now covers hidden information, fixed slots, random first player, attribute/family separation, timing, combat, Awakening, and all current keywords.
+
+## UI follow-up — hand proportions and mana abilities
+
+- Hand cards now preserve the 5:7 card ratio at every density. Large hands shrink uniformly instead of becoming short, wide tiles.
+- The mana rail now includes an always-visible ability row for cards that can activate from mana.
+- `너무 무거운 씨앗` displays its current requirement and a direct `마나에서 소환` button.
+- Playing a card automatically opens a full mana tray for cost and effect selection.
+- The full mana tray separates ready/exhausted mana, uses full 5:7 cards, and only introduces internal scrolling at unusually high mana counts.

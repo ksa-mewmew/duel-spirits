@@ -86,6 +86,7 @@ let hasLeftRoom = false
 let joinRejectedMessage: string | null = null
 let selectedDeckId = getActiveDeck().id
 let openDiscardPlayerId: PlayerId | null = null
+let openManaPlayerId: PlayerId | null = null
 let pinnedPreviewCardId: CardId | null = null
 let roomMenuOpen = false
 let rulebookOpen = false
@@ -217,6 +218,7 @@ const socket = connectToRoom(
           selectedAttackLifeSlotIndices = []
           playDraft = null
           summonFromManaDraftId = null
+          openManaPlayerId = null
           pendingChoiceIds = []
           awaitingServer = false
           message = game.status === 'finished'
@@ -250,6 +252,7 @@ const socket = connectToRoom(
           assignedPlayerId = null
           window.localStorage.removeItem(seatStorageKey)
           openDiscardPlayerId = null
+          openManaPlayerId = null
           pinnedPreviewCardId = null
           roomMenuOpen = false
           rulebookOpen = false
@@ -264,6 +267,7 @@ const socket = connectToRoom(
           summonFromManaDraftId = null
           pendingChoiceIds = []
           openDiscardPlayerId = null
+          openManaPlayerId = null
           pinnedPreviewCardId = null
           roomMenuOpen = false
           rulebookOpen = false
@@ -503,21 +507,107 @@ function renderLife(playerId: PlayerId, owner: 'self' | 'opponent'): string {
   }).join('')
 }
 
-function renderMana(player: PlayerView, isSelf: boolean): string {
-  if (!game) return ''
-  const normalCanAct = isSelf
+type ManaDisplayMode = 'rail' | 'drawer'
+
+type ManaCardView = PlayerView['mana'][number]
+
+interface ManaAbilityPresentation {
+  title: string
+  description: string
+  status: string
+  actionLabel: string
+  action: 'begin-summon-from-mana' | 'cancel-summon-from-mana'
+  enabled: boolean
+  active: boolean
+}
+
+function canTakeNormalAction(isSelf: boolean): boolean {
+  return Boolean(
+    game
+    && isSelf
     && game.viewer === game.currentPlayer
     && game.status === 'playing'
     && roomPhase === 'playing'
     && game.pendingChoice === null
     && playDraft === null
     && summonFromManaDraftId === null
-    && !awaitingServer
+    && !awaitingServer,
+  )
+}
 
-  return player.mana.map((mana) => {
+function getManaAbilityPresentation(
+  player: PlayerView,
+  mana: ManaCardView,
+  isSelf: boolean,
+): ManaAbilityPresentation | null {
+  if (mana.cardId !== 'heavy_seed') return null
+
+  const earthMana = player.mana.filter((candidate) =>
+    CARDS[candidate.cardId].attributes.includes('earth'),
+  ).length
+  const openSlots = getOpenFieldSlotsView(player).length
+  const active = summonFromManaDraftId === mana.instanceId
+  const requirementsMet = earthMana >= 4 && openSlots > 0
+  const canAct = canTakeNormalAction(isSelf)
+  const status = earthMana < 4
+    ? `땅 마나 ${earthMana}/4`
+    : openSlots < 1
+      ? '빈 전장 슬롯 없음'
+      : '발동 가능'
+
+  return {
+    title: CARDS[mana.cardId].name,
+    description: '마나에서 자신의 전장으로 소환합니다.',
+    status: active ? '소환 위치 선택 중' : status,
+    actionLabel: active ? '선택 취소' : '마나에서 소환',
+    action: active ? 'cancel-summon-from-mana' : 'begin-summon-from-mana',
+    enabled: active || (canAct && requirementsMet),
+    active,
+  }
+}
+
+function renderManaAbilityButtons(player: PlayerView, isSelf: boolean): string {
+  if (!isSelf) return ''
+
+  const abilityCards = player.mana.flatMap((mana) => {
+    const presentation = getManaAbilityPresentation(player, mana, isSelf)
+    return presentation ? [{ mana, presentation }] : []
+  })
+  if (abilityCards.length === 0) return ''
+
+  return `<div class="mana-ability-list" aria-label="마나에서 발동하는 능력">
+    ${abilityCards.map(({ mana, presentation }) => `<button
+      type="button"
+      class="mana-ability-button ${presentation.enabled ? 'is-ready' : ''} ${presentation.active ? 'is-active' : ''}"
+      title="${escapeHtml(presentation.description)}"
+      data-action="${presentation.action}"
+      ${presentation.action === 'begin-summon-from-mana' ? `data-mana-id="${escapeHtml(mana.instanceId)}"` : ''}
+      ${presentation.enabled ? '' : 'disabled'}
+    >
+      <span class="mana-ability-button__mark" aria-hidden="true">◆</span>
+      <span class="mana-ability-button__copy">
+        <strong>${escapeHtml(presentation.title)}</strong>
+        <small>${escapeHtml(presentation.status)}</small>
+      </span>
+      <span class="mana-ability-button__action">${escapeHtml(presentation.actionLabel)}</span>
+    </button>`).join('')}
+  </div>`
+}
+
+function renderMana(
+  player: PlayerView,
+  isSelf: boolean,
+  mode: ManaDisplayMode = 'rail',
+  manaCards: ManaCardView[] = player.mana,
+): string {
+  if (!game) return ''
+  const expanded = mode === 'drawer'
+
+  return manaCards.map((mana) => {
     const selectedAsCost = playDraft?.manaIds.includes(mana.instanceId) ?? false
     const selectedAsEffect = playDraft?.effectManaId === mana.instanceId
     const selectedForSummon = summonFromManaDraftId === mana.instanceId
+    const ability = getManaAbilityPresentation(player, mana, isSelf)
     const actions: string[] = []
 
     if (isSelf && playDraft && !mana.exhausted) {
@@ -538,23 +628,77 @@ function renderMana(player: PlayerView, isSelf: boolean): string {
           selectedAsCost,
         ))
       }
-    } else if (normalCanAct && mana.cardId === 'heavy_seed') {
-      actions.push(actionButton('소환 위치 선택', 'begin-summon-from-mana', 'mana-id', mana.instanceId))
+    } else if (expanded && ability) {
+      actions.push(actionButton(
+        ability.actionLabel,
+        ability.action,
+        ability.action === 'begin-summon-from-mana' ? 'mana-id' : undefined,
+        ability.action === 'begin-summon-from-mana' ? mana.instanceId : undefined,
+        !ability.enabled,
+      ))
     } else if (selectedForSummon) {
       actions.push(actionButton('취소', 'cancel-summon-from-mana'))
     }
 
     return renderCard(mana.cardId, {
       instanceId: mana.instanceId,
-      compact: true,
-      nameOnly: true,
+      compact: !expanded,
+      nameOnly: !expanded,
       exhausted: mana.exhausted,
       selected: selectedAsCost || selectedAsEffect || selectedForSummon,
       targetable: isSelf && playDraft !== null && !mana.exhausted,
-      classNames: ['mana-card'],
+      classNames: [
+        'mana-card',
+        expanded ? 'mana-card--expanded' : 'mana-card--rail',
+        ability ? 'has-mana-ability' : '',
+        ability?.enabled ? 'has-ready-mana-ability' : '',
+      ].filter(Boolean),
       actionsHtml: actions.join(''),
+      dataAttributes: {
+        'mana-attribute': CARDS[mana.cardId].attributes
+          .map((attributeId) => CARD_ATTRIBUTES[attributeId].shortName)
+          .join('·'),
+        ...(ability ? { 'mana-ability': ability.status } : {}),
+      },
     })
   }).join('') || '<div class="zone-empty">마나 없음</div>'
+}
+
+function renderManaDrawer(): string {
+  if (!game || !openManaPlayerId) return ''
+  const player = game.players[openManaPlayerId]
+  const isSelf = player.isViewer
+  const readyMana = player.mana.filter((mana) => !mana.exhausted)
+  const exhaustedMana = player.mana.filter((mana) => mana.exhausted)
+  const title = isSelf ? '내 마나' : '상대 마나'
+
+  return `<div class="modal-backdrop mana-drawer-backdrop" data-modal="mana-drawer">
+    <section class="mana-drawer" role="dialog" aria-modal="true" aria-labelledby="mana-drawer-title">
+      <header class="mana-drawer__header">
+        <div>
+          <p class="eyebrow">MANA ZONE</p>
+          <h2 id="mana-drawer-title">${title}</h2>
+          <p>카드를 직접 선택해 비용을 지불하거나, 마나에서 발동하는 능력을 사용합니다.</p>
+        </div>
+        <button type="button" data-action="close-mana-drawer" aria-label="마나 닫기">닫기</button>
+      </header>
+      ${isSelf ? renderManaAbilityButtons(player, true) : ''}
+      <div class="mana-drawer__body">
+        <section class="mana-drawer__group">
+          <header><strong>준비</strong><span>${readyMana.length}</span></header>
+          <div class="mana-drawer__grid">${renderMana(player, isSelf, 'drawer', readyMana)}</div>
+        </section>
+        <section class="mana-drawer__group is-exhausted-group">
+          <header><strong>소진</strong><span>${exhaustedMana.length}</span></header>
+          <div class="mana-drawer__grid">${renderMana(player, isSelf, 'drawer', exhaustedMana)}</div>
+        </section>
+      </div>
+      <footer class="mana-drawer__footer">
+        <span>${playDraft ? '카드 사용에 필요한 마나를 선택한 뒤 사용을 확정하세요.' : '발동 가능한 마나 능력은 항상 위쪽에 표시됩니다.'}</span>
+        <button type="button" data-action="close-mana-drawer">전장으로 돌아가기</button>
+      </footer>
+    </section>
+  </div>`
 }
 
 function hasLegalPlayTarget(card: CardInstance, self: PlayerView, enemy: PlayerView): boolean {
@@ -827,9 +971,14 @@ function renderPlayerBoard(playerId: PlayerId, position: 'self' | 'opponent'): s
     </section>
 
     <aside class="resource-rail">
-      <section class="mana-zone" aria-label="${playerId} 마나">
-        <div class="zone-heading"><span>마나</span><strong>${readyMana}/${player.mana.length}</strong></div>
-        <div class="mana-list">${renderMana(player, isSelf)}</div>
+      <section class="mana-zone ${isSelf ? 'mana-zone--self' : ''}" aria-label="${playerId} 마나">
+        <div class="zone-heading">
+          <span>마나</span>
+          <strong>${readyMana}/${player.mana.length}</strong>
+          <button type="button" class="mana-open-button" data-action="open-mana-drawer" data-player-id="${playerId}">펼치기</button>
+        </div>
+        <div class="mana-list ${player.mana.length > 12 ? 'is-very-dense' : player.mana.length > 8 ? 'is-dense' : ''}">${renderMana(player, isSelf)}</div>
+        ${renderManaAbilityButtons(player, isSelf)}
       </section>
       <div class="pile-row">
         ${renderCardPile(playerId, 'deck')}
@@ -847,7 +996,7 @@ function renderPlayerBoard(playerId: PlayerId, position: 'self' | 'opponent'): s
     ${strip}
     <section class="hand-area" aria-label="내 손패">
       <div class="hand-heading"><span>내 손패</span><strong>${player.handCount}</strong></div>
-      <div class="hand-zone hand-zone--self">${renderHand(player, true)}</div>
+      <div class="hand-zone hand-zone--self ${player.handCount > 12 ? 'is-very-dense' : player.handCount > 8 ? 'is-dense' : ''}" style="--hand-count: ${Math.max(1, player.handCount)}">${renderHand(player, true)}</div>
     </section>
   </section>`
 }
@@ -1145,19 +1294,39 @@ function renderWaitingRoom(): string {
   const me = assignedPlayerId
   const myDeckState = me ? deckStates[me] : null
   const ready = myDeckState?.ready ?? false
+  const playerIds: PlayerId[] = me === 'P2' ? ['P1', 'P2'] : ['P2', 'P1']
+  const seatCards = playerIds.map((playerId) => {
+    const deckState = deckStates[playerId]
+    const isMe = playerId === me
+    const connected = connectedPlayers.includes(playerId)
+    const reserved = reservedPlayers.includes(playerId)
+    const deckLabel = isMe
+      ? deckState.name ?? (deckState.submitted ? '덱 적용 완료' : '덱을 선택해 주세요')
+      : deckState.submitted ? '덱 적용 완료' : '덱 정보 비공개'
+    const connectionLabel = connected ? '접속 중' : reserved ? '재접속 대기' : '빈자리'
+    const statusLabel = deckState.ready ? '준비 완료' : connected ? '준비 중' : '상대를 기다리는 중'
+    return `<article class="seat-card ${connected ? 'is-online' : ''} ${deckState.ready ? 'is-ready' : ''}">
+      <strong>${isMe ? '나' : '상대 플레이어'}</strong>
+      <span>${escapeHtml(deckLabel)}</span>
+      <span class="seat-status">${escapeHtml(statusLabel)}</span>
+      <small>${escapeHtml(connectionLabel)} <span id="seat-expiry-${playerId}"></span></small>
+    </article>`
+  }).join('<div class="seat-grid__versus" aria-hidden="true">VS</div>')
 
-  return `<section class="panel match-lobby">
-    <header class="section-heading"><h2>대전 준비 · ${escapeHtml(getFormat(roomSettings.formatId).name)}</h2><span>${connectedPlayers.length}/2 접속</span></header>
-    <div class="seat-grid">${(['P1', 'P2'] as const).map((playerId) => {
-      const deckState = deckStates[playerId]
-      const deckLabel = playerId === me
-        ? deckState.name ?? (deckState.submitted ? '덱 제출 완료' : '덱 미제출')
-        : deckState.submitted ? '덱 제출 완료' : '덱 미제출'
-
-      return `<div class="seat-card ${connectedPlayers.includes(playerId) ? 'is-online' : ''}"><strong>${playerId}${playerId === me ? ' · 나' : ''}</strong><span>${connectedPlayers.includes(playerId) ? '접속 중' : reservedPlayers.includes(playerId) ? '재접속 대기' : '빈자리'}</span><span>${escapeHtml(deckLabel)}</span><span>${deckState.ready ? '준비 완료' : '준비 중'}</span><small id="seat-expiry-${playerId}"></small></div>`
-    }).join('')}</div>
-    <div class="match-deck-controls"><label>사용할 덱<select id="room-deck-select">${options}</select></label><button id="submit-deck-button" type="button">덱 제출</button><button id="deck-ready-button" type="button" ${myDeckState?.submitted ? '' : 'disabled'}>${ready ? '준비 취소' : '준비 완료'}</button><a class="button-link" href="./#decks" target="_blank">덱 빌더</a></div>
-  </section>`
+  return `<div class="waiting-stage"><section class="panel match-lobby">
+    <header class="match-lobby__header">
+      <div><p class="eyebrow">PRIVATE DUEL ROOM</p><h2>${escapeHtml(getFormat(roomSettings.formatId).name)}</h2></div>
+      <div class="match-lobby__room-meta"><span>방 코드</span><strong>${escapeHtml(roomId)}</strong><button id="copy-invite-button" type="button">초대 링크 복사</button></div>
+    </header>
+    <div class="seat-grid">${seatCards}</div>
+    <div class="match-deck-controls">
+      <label>사용할 덱<select id="room-deck-select">${options}</select></label>
+      <button id="submit-deck-button" type="button">선택 덱 적용</button>
+      <button id="deck-ready-button" class="ready-primary" type="button" ${myDeckState?.submitted ? '' : 'disabled'}>${ready ? '준비 취소' : '이 덱으로 준비'}</button>
+      <a class="button-link" href="./#decks" target="_blank">덱 편집</a>
+      <p class="match-lobby__message" role="status">${escapeHtml(message || (connectedPlayers.length < 2 ? '초대 링크를 친구에게 보내세요.' : '두 플레이어가 준비하면 대전이 시작됩니다.'))}</p>
+    </div>
+  </section></div>`
 }
 
 function render(): void {
@@ -1167,6 +1336,7 @@ function render(): void {
   let content = ''
 
   document.body.classList.toggle('game-active', game !== null)
+  document.body.classList.toggle('room-waiting-active', game === null && !joinRejectedMessage && !hasLeftRoom)
 
   if (joinRejectedMessage || hasLeftRoom) {
     content = `<section class="panel room-ended-panel"><h2>${escapeHtml(joinRejectedMessage ?? '자리에서 나왔습니다.')}</h2><a class="button-link" href="./">첫 화면</a></section>`
@@ -1180,6 +1350,7 @@ function render(): void {
         ${renderDecisionDock(opponentId)}
       </main>
       ${renderCardInspector()}
+      ${renderManaDrawer()}
       ${renderDiscardModal()}
     </section>`
   }
@@ -1194,7 +1365,7 @@ function render(): void {
           ${renderRoomMenu()}
         </div>
       </header>`
-    : `<header class="room-topbar"><strong>Duel Spirits</strong><span>${escapeHtml(networkStatus)}</span><button id="rulebook-button" class="topbar-text-button" type="button">룰북</button></header>`
+    : `<header class="room-topbar"><div class="brand-cluster"><strong>Duel Spirits</strong><span class="connection-state">${escapeHtml(networkStatus)}</span></div><span>친구와 대전 준비</span><button id="rulebook-button" class="topbar-text-button" type="button">룰북</button></header>`
 
   appElement.innerHTML = `<div class="room-screen ${game ? 'room-screen--game' : ''}">${gameTopbar}${content}</div>${renderRulebookModal()}`
   bindEvents()
@@ -1253,6 +1424,7 @@ function confirmPlayDraft(): void {
     fieldSlot: playDraft.fieldSlot,
   }
   openDiscardPlayerId = null
+  openManaPlayerId = null
   sendAction({
     type: 'PLAY_CARD',
     cardInstanceId: playDraft.cardInstanceId,
@@ -1293,6 +1465,11 @@ function closeTransientLayers(): boolean {
   }
   if (openDiscardPlayerId) {
     openDiscardPlayerId = null
+    render()
+    return true
+  }
+  if (openManaPlayerId) {
+    openManaPlayerId = null
     render()
     return true
   }
@@ -1363,6 +1540,28 @@ function bindEvents(): void {
     }
   })
 
+  for (const control of document.querySelectorAll<HTMLElement>('[data-action="open-mana-drawer"]')) {
+    control.addEventListener('click', () => {
+      const playerId = control.dataset.playerId
+      if (playerId !== 'P1' && playerId !== 'P2') return
+      openManaPlayerId = playerId
+      pinnedPreviewCardId = null
+      render()
+    })
+  }
+  for (const control of document.querySelectorAll<HTMLElement>('[data-action="close-mana-drawer"]')) {
+    control.addEventListener('click', () => {
+      openManaPlayerId = null
+      render()
+    })
+  }
+  document.querySelector<HTMLElement>('[data-modal="mana-drawer"]')?.addEventListener('click', (event) => {
+    if (event.target === event.currentTarget) {
+      openManaPlayerId = null
+      render()
+    }
+  })
+
   for (const control of document.querySelectorAll<HTMLElement>('[data-action="close-card-preview"]')) {
     control.addEventListener('click', () => {
       pinnedPreviewCardId = null
@@ -1425,6 +1624,7 @@ function bindEvents(): void {
       const id = button.dataset.cardInstanceId
       if (!id) return
       playDraft = { cardInstanceId: id, manaIds: [] }
+      openManaPlayerId = game?.viewer ?? null
       summonFromManaDraftId = null
       selectedAttackerId = null
       selectedAttackLifeSlotIndices = []
@@ -1490,6 +1690,7 @@ function bindEvents(): void {
     playDraft = null
     summonFromManaDraftId = null
     openDiscardPlayerId = null
+    openManaPlayerId = null
     message = '카드 사용 선택을 취소했습니다.'
     render()
   })
@@ -1499,6 +1700,7 @@ function bindEvents(): void {
       const id = button.dataset.manaId
       if (!id) return
       summonFromManaDraftId = id
+      openManaPlayerId = null
       playDraft = null
       selectedAttackerId = null
       message = '너무 무거운 씨앗을 소환할 빈 슬롯을 선택하세요.'

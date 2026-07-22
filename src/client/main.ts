@@ -2,6 +2,7 @@ import '../style.css'
 import '../room-ui.css'
 import '../deck-builder.css'
 import '../game-board.css'
+import '../ui-overhaul.css'
 
 import { renderDeckBuilder } from './deck-builder'
 import { renderLobby } from './lobby'
@@ -23,6 +24,7 @@ if (roomId && roomKey) {
   const renderSurface = (): void => {
     const isDeckBuilder = window.location.hash === '#decks'
     document.body.classList.toggle('deck-builder-active', isDeckBuilder)
+    document.body.classList.toggle('lobby-active', !isDeckBuilder)
     if (isDeckBuilder) {
       renderDeckBuilder(appElement)
     } else {

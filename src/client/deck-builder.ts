@@ -385,31 +385,8 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
   }
 
   function renderSampleDeckPanel(): string {
-    const decks = SAMPLE_DECK_LIST.map((sampleDeck) => {
-      const composition = [...getCardCounts(sampleDeck.cardIds).entries()]
-        .map(([cardId, count]) => `${CARDS[cardId].name} ×${count}`)
-        .join(' · ')
-
-      return `<article class="sample-deck-card sample-deck-card--${sampleDeck.attribute}">
-        <header class="sample-deck-card__header"><span>${escapeHtml(CARD_ATTRIBUTES[sampleDeck.attribute].name)}</span><h3>${escapeHtml(sampleDeck.archetype)}</h3></header>
-        <p class="sample-deck-card__goal">${escapeHtml(sampleDeck.goal)}</p>
-        <details>
-          <summary>구성과 운용 보기</summary>
-          <div class="sample-deck-card__details">
-            <p><strong>구성</strong>${escapeHtml(composition)}</p>
-            <p><strong>운용</strong>${escapeHtml(sampleDeck.playGuide)}</p>
-            <p><strong>마나 우선순위</strong>${escapeHtml(sampleDeck.manaPriority)}</p>
-            <p><strong>확인할 점</strong>${escapeHtml(sampleDeck.testPoints)}</p>
-          </div>
-        </details>
-        <button type="button" data-load-sample-deck="${sampleDeck.id}">새 덱으로 불러오기</button>
-      </article>`
-    }).join('')
-
-    return `<section class="panel sample-deck-panel">
-      <header class="section-heading"><div><h2>카드군 1 견본 덱</h2><p>성능 축을 비교하기 위한 20장 시험 덱입니다. 불러온 뒤 자유롭게 수정할 수 있습니다.</p></div><span>5개</span></header>
-      <div class="sample-deck-grid">${decks}</div>
-    </section>`
+    const decks = SAMPLE_DECK_LIST.map((sampleDeck) => `<button type="button" data-load-sample-deck="${sampleDeck.id}">${escapeHtml(CARD_ATTRIBUTES[sampleDeck.attribute].shortName)} · ${escapeHtml(sampleDeck.archetype)}</button>`).join('')
+    return `<details class="builder-tools-details"><summary>견본 덱 불러오기</summary><div class="builder-tools-details__body">${decks}</div></details>`
   }
 
   function renderDistribution(): string {
@@ -519,30 +496,34 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
 
     appElement.innerHTML = `<main class="app-shell deck-builder-screen">
       <header class="builder-header">
-        <div><p class="eyebrow">DUEL SPIRITS · DECK WORKSHOP</p><h1>덱 빌더</h1></div>
-        <div class="builder-header__summary"><span>현재 덱</span><strong>${state.cardIds.length} / ${format.deckSize}</strong><button id="builder-rulebook-button" class="button-link" type="button">룰북</button><a class="button-link" href="./">방 화면</a></div>
+        <div class="builder-header__brand"><a class="button-link" href="./" aria-label="메인 화면으로">←</a><div><p class="eyebrow">DUEL SPIRITS</p><h1>덱 작업대</h1></div></div>
+        <div class="builder-header__editor">
+          <label><span>저장 덱</span><select id="deck-select" aria-label="저장 덱">${deckOptions}</select></label>
+          <label><span>덱 이름</span><input id="deck-name" value="${escapeHtml(state.name)}" maxlength="40" aria-label="덱 이름"></label>
+          <label><span>포맷</span><select id="format-select" aria-label="포맷">${DECK_BUILDER_FORMATS.map((item) => `<option value="${item.id}" ${item.id === state.formatId ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('')}</select></label>
+        </div>
+        <div class="builder-header__summary"><span>현재 덱</span><strong>${state.cardIds.length}/${format.deckSize}</strong><button id="new-deck-button" type="button">새 덱</button><button id="save-deck-button" type="button" ${validation.valid ? '' : 'disabled'}>저장·사용</button><button id="delete-deck-button" type="button">삭제</button><button id="builder-rulebook-button" type="button">룰북</button></div>
       </header>
-      <section class="panel deck-toolbar">
-        <label>저장 덱<select id="deck-select">${deckOptions}</select></label>
-        <label>덱 이름<input id="deck-name" value="${escapeHtml(state.name)}" maxlength="40"></label>
-        <label>포맷<select id="format-select">${DECK_BUILDER_FORMATS.map((item) => `<option value="${item.id}" ${item.id === state.formatId ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('')}</select></label>
-        <div class="deck-toolbar__actions"><button id="new-deck-button" type="button">새 덱</button><button id="save-deck-button" type="button" ${validation.valid ? '' : 'disabled'}>저장·사용</button><button id="delete-deck-button" type="button">삭제</button></div>
-      </section>
-      <section class="panel format-summary"><strong>${escapeHtml(format.name)}</strong><span>${escapeHtml(format.description)}</span>${setControls}${restrictionSummary}${draftControls}</section>
-      ${renderSampleDeckPanel()}
-      <section class="deck-builder-layout">
+
+      <section class="deck-builder-workspace">
         <aside class="panel deck-filters">
-          <div class="section-heading"><h2>찾기</h2><span>${filteredCards.length}종</span></div>
+          <div class="section-heading"><h2>카드 찾기</h2><span>${filteredCards.length}종</span></div>
           <label>검색<input id="card-search" type="search" value="${escapeHtml(state.searchQuery)}" placeholder="이름 또는 능력"></label>
-          <label>속성<select id="attribute-filter"><option value="all">전체</option>${Object.values(CARD_ATTRIBUTES).map((attribute) => `<option value="${attribute.id}" ${state.attributeFilter === attribute.id ? 'selected' : ''}>${escapeHtml(attribute.name)}</option>`).join('')}</select></label>
-          <label>종류<select id="type-filter"><option value="all">전체</option><option value="unit" ${state.typeFilter === 'unit' ? 'selected' : ''}>몬스터</option><option value="spell" ${state.typeFilter === 'spell' ? 'selected' : ''}>주문</option></select></label>
-          <label>비용<select id="cost-filter"><option value="all">전체</option>${[0, 1, 2, 3, 4, 5].map((cost) => `<option value="${cost}" ${state.costFilter === cost ? 'selected' : ''}>${cost}</option>`).join('')}</select></label>
+          <label>속성<select id="attribute-filter"><option value="all">전체 속성</option>${Object.values(CARD_ATTRIBUTES).map((attribute) => `<option value="${attribute.id}" ${state.attributeFilter === attribute.id ? 'selected' : ''}>${escapeHtml(attribute.name)}</option>`).join('')}</select></label>
+          <label>종류<select id="type-filter"><option value="all">전체 종류</option><option value="unit" ${state.typeFilter === 'unit' ? 'selected' : ''}>몬스터</option><option value="spell" ${state.typeFilter === 'spell' ? 'selected' : ''}>주문</option></select></label>
+          <label>비용<select id="cost-filter"><option value="all">전체 비용</option>${[0, 1, 2, 3, 4, 5].map((cost) => `<option value="${cost}" ${state.costFilter === cost ? 'selected' : ''}>비용 ${cost}</option>`).join('')}</select></label>
+          <div class="deck-filter-divider"></div>
+          <div class="deck-format-note"><strong>${escapeHtml(format.name)}</strong>${escapeHtml(format.description)}</div>
+          ${setControls}${restrictionSummary}${draftControls}
+          ${renderSampleDeckPanel()}
           ${renderDistribution()}
         </aside>
+
         <section class="panel card-pool-panel">
-          <header class="section-heading"><div><h2>카드 풀</h2><p>클릭: 상세 고정 · 더블 클릭: 덱에 추가</p></div><span>전 카드 해금</span></header>
+          <header class="section-heading"><div><h2>카드 풀</h2><p>클릭해 상세 고정 · 더블 클릭해 추가</p></div><span>전 카드 해금</span></header>
           <div class="card-pool-grid">${poolMarkup || '<p class="empty-row">조건에 맞는 카드가 없습니다.</p>'}</div>
         </section>
+
         <aside class="builder-side-rail">
           ${renderCardPreview(previewCardId)}
           <section class="panel current-deck-panel">
