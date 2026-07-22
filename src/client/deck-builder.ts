@@ -150,7 +150,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
 
     if (getFormat(formatId).deckSource === 'draft') {
       state.draftPool = createDraftPool()
-      state.message = '36장의 드래프트 풀이 생성되었습니다.'
+      state.message = `${state.draftPool.cardIds.length}장의 드래프트 풀이 생성되었습니다.`
     } else {
       state.message = `${getFormat(formatId).name}으로 변경했습니다.`
     }
@@ -399,6 +399,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
             <p><strong>구성</strong>${escapeHtml(composition)}</p>
             <p><strong>운용</strong>${escapeHtml(sampleDeck.playGuide)}</p>
             <p><strong>마나 우선순위</strong>${escapeHtml(sampleDeck.manaPriority)}</p>
+            <p><strong>확인할 점</strong>${escapeHtml(sampleDeck.testPoints)}</p>
           </div>
         </details>
         <button type="button" data-load-sample-deck="${sampleDeck.id}">새 덱으로 불러오기</button>
@@ -406,7 +407,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     }).join('')
 
     return `<section class="panel sample-deck-panel">
-      <header class="section-heading"><div><h2>카드군 1 견본 덱</h2><p>성능 축을 비교하기 위한 12장 시험 덱입니다. 불러온 뒤 자유롭게 수정할 수 있습니다.</p></div><span>5개</span></header>
+      <header class="section-heading"><div><h2>카드군 1 견본 덱</h2><p>성능 축을 비교하기 위한 20장 시험 덱입니다. 불러온 뒤 자유롭게 수정할 수 있습니다.</p></div><span>5개</span></header>
       <div class="sample-deck-grid">${decks}</div>
     </section>`
   }

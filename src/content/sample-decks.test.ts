@@ -4,11 +4,11 @@ import { SAMPLE_DECK_LIST } from './sample-decks'
 import { validateDeck } from '../shared/decks'
 
 describe('sample decks', () => {
-  it('provides five valid 12-card decks', () => {
+  it('provides five valid 20-card decks', () => {
     expect(SAMPLE_DECK_LIST).toHaveLength(5)
 
     for (const deck of SAMPLE_DECK_LIST) {
-      expect(deck.cardIds).toHaveLength(12)
+      expect(deck.cardIds).toHaveLength(20)
       expect(validateDeck(deck.cardIds, {
         formatId: deck.formatId,
         selectedSetIds: [],

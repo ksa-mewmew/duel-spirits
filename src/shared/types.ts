@@ -29,6 +29,7 @@ export interface UnitInstance extends CardInstance {
   temporaryAttackModifier: number
   temporaryHealthModifier: number
   temporaryRush?: boolean
+  temporaryFlying?: boolean
 }
 
 export interface PlayerState {
@@ -62,14 +63,29 @@ export type PendingChoice =
   | {
       type: 'SURGING_WAVE_TOP'
       playerId: PlayerId
-      revealedCard: CardInstance
-      canSummon: boolean
+      revealedCards: CardInstance[]
     }
   | {
       type: 'BURNING_PROCESSION'
       playerId: PlayerId
       revealedCards: CardInstance[]
       maxSummons: number
+    }
+  | {
+      type: 'GRAVE_DIGGING_RETURN'
+      playerId: PlayerId
+      sourceCard: CardInstance
+      maxCards: number
+    }
+  | {
+      type: 'DEMON_FINGER_DISCARD'
+      playerId: PlayerId
+    }
+  | {
+      type: 'DEMON_BREATH_TARGET'
+      playerId: PlayerId
+      sourceCard: CardInstance
+      candidateUnitIds: string[]
     }
   | {
       type: 'HOLY_MIRROR_LIFE'

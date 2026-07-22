@@ -2545,3 +2545,13 @@ body.game-active {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
+
+.choice-card-with-actions {
+  display: grid;
+  gap: .45rem;
+  align-content: start;
+}
+
+.choice-card-with-actions > .action-button {
+  width: 100%;
+}

@@ -3,6 +3,7 @@ export interface CardPlaySelection {
   lifeIndex?: number
   effectManaId?: string
   discardId?: string
+  discardIds?: string[]
   fieldSlot?: number
 }
 

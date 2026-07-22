@@ -19,7 +19,7 @@ export { DECK_SIZE } from './decks'
 
 export const LIFE_SIZE = 4
 export const STARTING_HAND_SIZE = 4
-export const DRAW_DECK_SIZE = 4
+export const DRAW_DECK_SIZE = 12
 export const FIELD_LIMIT = 4
 
 export type RandomSource = () => number
@@ -216,8 +216,13 @@ function hasKeyword(
     && keyword === 'charge'
   ) return true
   if (
+    unit.cardId === 'volcano_mouse'
+    && game.players[owner].mana.filter((mana) => hasAttribute(mana, 'fire')).length >= 2
+    && keyword === 'charge'
+  ) return true
+  if (
     unit.cardId === 'carrion_crow'
-    && game.players[owner].discard.length >= 2
+    && game.players[owner].discard.length >= 3
     && keyword === 'windfury'
   ) return true
   if (
@@ -225,6 +230,7 @@ function hasKeyword(
     && game.players[owner].field.some((other) => other.instanceId !== unit.instanceId)
     && keyword === 'stealth'
   ) return true
+  if (keyword === 'flying' && unit.temporaryFlying) return true
   if (
     unit.cardId === 'nameless_shadow'
     && isIsolated(game.players[owner], unit)
@@ -243,13 +249,17 @@ function attackValue(
     + (
       unit.cardId === 'last_ember'
       && isIsolated(game.players[owner], unit)
-        ? 2
+        ? 1
         : 0
     )
 }
 
 function healthValue(unit: UnitInstance): number {
   return unitDefinition(unit).health + unit.temporaryHealthModifier
+}
+
+function remainingHealth(unit: UnitInstance): number {
+  return healthValue(unit) - unit.damage
 }
 
 function resetHandCost(
@@ -297,7 +307,7 @@ function applyDarkDiscardDiscount(player: PlayerState, card: CardInstance): void
   if (!hasAttribute(card, 'dark')) return
   for (const handCard of player.hand) {
     if (handCard.cardId === 'coffin_warrior') {
-      handCard.costReduction = Math.min(3, (handCard.costReduction ?? 0) + 1)
+      handCard.costReduction = Math.min(4, (handCard.costReduction ?? 0) + 1)
     }
   }
 }
@@ -329,6 +339,12 @@ function handleUnitDeath(
   // 유언은 전장에서 묘지로 보내진 직후 발동합니다.
   if (unit.cardId === 'last_ember') {
     draw(game.players[owner], random)
+  }
+  if (unit.cardId === 'demon_finger') {
+    const chooser = opponent(owner)
+    if (game.players[chooser].hand.length > 0) {
+      enqueueChoice(game, { type: 'DEMON_FINGER_DISCARD', playerId: chooser })
+    }
   }
 }
 
@@ -486,6 +502,7 @@ function summonCard(
     attacksThisTurn: 0,
     temporaryAttackModifier: 0,
     temporaryHealthModifier: 0,
+    temporaryFlying: false,
   }
   player.field.push(unit)
   player.field.sort((left, right) => left.slotIndex - right.slotIndex)
@@ -553,19 +570,23 @@ function awaken(
       break
     }
 
-    case 'tree_fairy': {
-      const handCard = removeFromHand(player, card.instanceId)
-      if (handCard) {
-        placeCardInMana(game, owner, handCard, true, random)
-      }
-      break
-    }
-
     case 'demon_breath': {
       const handCard = removeFromHand(player, card.instanceId)
       if (handCard) {
-        resolveDemonBreath(game, owner, random)
-        sendToDiscard(game, owner, handCard)
+        const candidateUnitIds = getDemonBreathCandidates(game, owner)
+        if (candidateUnitIds.length === 1) {
+          destroyDemonBreathTarget(game, owner, candidateUnitIds[0]!, random)
+          sendToDiscard(game, owner, handCard)
+        } else if (candidateUnitIds.length > 1) {
+          enqueueChoice(game, {
+            type: 'DEMON_BREATH_TARGET',
+            playerId: owner,
+            sourceCard: handCard,
+            candidateUnitIds,
+          })
+        } else {
+          sendToDiscard(game, owner, handCard)
+        }
       }
       break
     }
@@ -634,10 +655,7 @@ function resolveArrival(
       if (paidAttributes.has('fire')) {
         player.field.forEach((ally) => { ally.temporaryAttackModifier += 2 })
       }
-      if (
-        paidAttributes.has('water')
-        && game.players.P1.field.length + game.players.P2.field.length - 1 >= 3
-      ) {
+      if (paidAttributes.has('water')) {
         unit.temporaryRush = true
       }
       break
@@ -657,17 +675,12 @@ function resolveArrival(
     }
 
     case 'surging_wave': {
-      const top = player.deck[0]
-      if (top) {
-        const definition = CARDS[top.cardId]
-        const canSummon = definition.type === 'unit'
-          && definition.attributes.includes('water')
-          && player.field.length < getFieldLimit(game)
+      const revealedCards = player.deck.slice(0, 2).map((card) => ({ ...card }))
+      if (revealedCards.length > 0) {
         enqueueChoice(game, {
           type: 'SURGING_WAVE_TOP',
           playerId: actor,
-          revealedCard: { ...top },
-          canSummon,
+          revealedCards,
         })
       }
       break
@@ -691,19 +704,32 @@ function resolveArrival(
   }
 }
 
-function resolveDemonBreath(
+function getDemonBreathCandidates(
   game: GameState,
   actor: PlayerId,
+): string[] {
+  const enemy = game.players[opponent(actor)]
+  const maxRemainingHealth = Math.max(...enemy.field.map(remainingHealth), -1)
+  return enemy.field
+    .filter((unit) => remainingHealth(unit) === maxRemainingHealth)
+    .map((unit) => unit.instanceId)
+}
+
+function destroyDemonBreathTarget(
+  game: GameState,
+  actor: PlayerId,
+  unitId: string,
   random: RandomSource,
 ): void {
   const enemyId = opponent(actor)
   const enemy = game.players[enemyId]
-  const maxHealth = Math.max(...enemy.field.map(healthValue), -1)
-  for (let index = enemy.field.length - 1; index >= 0; index -= 1) {
-    if (healthValue(enemy.field[index]!) === maxHealth) {
-      moveFieldToDiscard(game, enemyId, index, random)
-    }
+  const candidateIds = getDemonBreathCandidates(game, actor)
+  if (!candidateIds.includes(unitId)) {
+    throw new GameRuleError('남은 체력이 가장 높은 상대 몬스터를 선택해야 합니다.')
   }
+  const index = enemy.field.findIndex((unit) => unit.instanceId === unitId)
+  if (index < 0) throw new GameRuleError('선택한 상대 몬스터가 없습니다.')
+  moveFieldToDiscard(game, enemyId, index, random)
 }
 
 function requireUnitTarget(
@@ -741,14 +767,13 @@ function resolveSpell(
 
   switch (card.cardId) {
     case 'burning_procession': {
-      const revealCount = player.field.filter((unit) => hasAttribute(unit, 'fire')).length
-      const revealedCards = player.deck.slice(0, revealCount).map((item) => ({ ...item }))
+      const revealedCards = player.deck.slice(0, 4).map((item) => ({ ...item }))
       if (revealedCards.length > 0) {
         enqueueChoice(game, {
           type: 'BURNING_PROCESSION',
           playerId: actor,
           revealedCards,
-          maxSummons: getFieldLimit(game) - player.field.length,
+          maxSummons: Math.min(2, getFieldLimit(game) - player.field.length),
         })
       }
       break
@@ -776,7 +801,7 @@ function resolveSpell(
         const current = game.players[playerId]
         for (let index = current.field.length - 1; index >= 0; index -= 1) {
           const unit = current.field[index]!
-          if (attackValue(game, playerId, unit) === 1 || healthValue(unit) === 1) {
+          if (attackValue(game, playerId, unit) === 1 || remainingHealth(unit) === 1) {
             moveFieldToDiscard(game, playerId, index, random)
           }
         }
@@ -810,17 +835,17 @@ function resolveSpell(
     }
 
     case 'overgrown_sprout':
-      if (player.mana.some((mana) => !hasAttribute(mana, 'earth'))) {
-        throw new GameRuleError('마나에는 땅 카드만 있어야 합니다.')
+      if (player.mana.filter((mana) => hasAttribute(mana, 'earth')).length >= 4) {
+        player.field.forEach((unit) => {
+          if (attackValue(game, actor, unit) === 1) unit.temporaryFlying = true
+        })
       }
-      player.extraLifeLossOnDirectAttack = true
       break
 
     case 'grave_digging': {
       const effectManaId = selection?.effectManaId
-      const discardId = selection?.discardId
-      if (!effectManaId || !discardId) {
-        throw new GameRuleError('묘지로 보낼 마나와 손으로 가져올 카드를 선택해야 합니다.')
+      if (!effectManaId) {
+        throw new GameRuleError('묘지로 보낼 준비된 마나를 선택해야 합니다.')
       }
       const manaIndex = player.mana.findIndex(
         (mana) => mana.instanceId === effectManaId && !mana.exhausted,
@@ -830,20 +855,20 @@ function resolveSpell(
       }
       const [mana] = player.mana.splice(manaIndex, 1)
       sendToDiscard(game, actor, mana!)
-      const discardIndex = player.discard.findIndex(
-        (discardCard) => discardCard.instanceId === discardId,
-      )
-      if (discardIndex < 0) {
-        throw new GameRuleError('선택한 묘지 카드를 찾지 못했습니다.')
-      }
-      const [returned] = player.discard.splice(discardIndex, 1)
-      player.hand.push(returned!)
-      break
+      enqueueChoice(game, {
+        type: 'GRAVE_DIGGING_RETURN',
+        playerId: actor,
+        sourceCard: card,
+        maxCards: 2,
+      })
+      return
     }
 
-    case 'demon_breath':
-      resolveDemonBreath(game, actor, random)
+    case 'demon_breath': {
+      const targetId = requireUnitTarget(selection)
+      destroyDemonBreathTarget(game, actor, targetId, random)
       break
+    }
 
     case 'eclipse':
       if (paidAttributes.has('light')) {
@@ -916,13 +941,6 @@ function playCard(
   if (definition.type === 'unit' && player.field.length >= getFieldLimit(game)) {
     throw new GameRuleError('전장에 빈 슬롯이 없습니다.')
   }
-  if (
-    card.cardId === 'volcano_mouse'
-    && player.mana.filter((mana) => hasAttribute(mana, 'fire')).length < 2
-  ) {
-    throw new GameRuleError('불 마나가 2장 이상 필요합니다.')
-  }
-
   const paidMana = spend(player, effectiveCost(card, definition), manaIds)
   player.hand.splice(index, 1)
 
@@ -952,8 +970,8 @@ function summonFromMana(
   if (index < 0) {
     throw new GameRuleError('소환할 수 있는 마나 카드가 아닙니다.')
   }
-  if (player.mana.filter((mana) => hasAttribute(mana, 'earth')).length < 3) {
-    throw new GameRuleError('땅 마나가 3장 이상 필요합니다.')
+  if (player.mana.filter((mana) => hasAttribute(mana, 'earth')).length < 4) {
+    throw new GameRuleError('땅 마나가 4장 이상 필요합니다.')
   }
   const slotIndex = requireOpenFieldSlot(game, actor, fieldSlot)
   const [mana] = player.mana.splice(index, 1)
@@ -1030,6 +1048,15 @@ function attackUnit(
   }
 
   assertCanAttack(game, actor, attacker, 'unit')
+  if (
+    enemy.field.some((unit) => unit.cardId === 'cathedral_guard' && !unit.exhausted)
+    && unitDefinition(attacker).cost <= 1
+  ) {
+    throw new GameRuleError('준비된 성당 경비병 때문에 비용 1 이하 몬스터는 공격할 수 없습니다.')
+  }
+  if (attacker.cardId === 'blue_black_hound' && !defender.exhausted) {
+    throw new GameRuleError('검푸른 들개는 준비된 몬스터를 공격할 수 없습니다.')
+  }
   if (hasKeyword(game, enemyId, defender, 'stealth')) {
     throw new GameRuleError('잠행 몬스터는 공격 대상으로 선택할 수 없습니다.')
   }
@@ -1057,6 +1084,12 @@ function attackPlayer(
   if (!attacker) throw new GameRuleError('공격 몬스터를 찾지 못했습니다.')
 
   assertCanAttack(game, actor, attacker, 'player')
+  if (
+    enemy.field.some((unit) => unit.cardId === 'cathedral_guard' && !unit.exhausted)
+    && unitDefinition(attacker).cost <= 1
+  ) {
+    throw new GameRuleError('준비된 성당 경비병 때문에 비용 1 이하 몬스터는 공격할 수 없습니다.')
+  }
   const hasAttackableUnit = enemy.field.some(
     (unit) => !hasKeyword(game, enemyId, unit, 'stealth'),
   )
@@ -1064,11 +1097,7 @@ function attackPlayer(
     throw new GameRuleError('공격 가능한 상대 몬스터가 있습니다.')
   }
 
-  const extraLoss = player.extraLifeLossOnDirectAttack
-    && attackValue(game, actor, attacker) === 1
-    ? 1
-    : 0
-  const requestedLoss = 1 + extraLoss
+  const requestedLoss = 1
   const selectableLoss = Math.min(requestedLoss, enemy.life.length)
 
   const selectedLifeCards = lifeSlotIndices.map((slotIndex) => enemy.life.find(
@@ -1101,6 +1130,7 @@ function resolveChoice(
   game: GameState,
   actor: PlayerId,
   choiceIds: string[],
+  random: RandomSource,
 ): GameState {
   if (game.status !== 'playing') {
     throw new GameRuleError('이미 끝난 게임입니다.')
@@ -1166,21 +1196,37 @@ function resolveChoice(
 
     case 'SURGING_WAVE_TOP': {
       if (choiceIds.length !== 1) {
-        throw new GameRuleError('카드를 덱 위에 둘지 소환할 위치를 선택해야 합니다.')
+        throw new GameRuleError('가져올 카드와 덱 맨 아래 순서를 선택해야 합니다.')
       }
-      const choice = choiceIds[0]!
-      const top = player.deck[0]
-      if (!top || top.instanceId !== pending.revealedCard.instanceId) {
+      const prefix = player.deck.slice(0, pending.revealedCards.length)
+      if (
+        prefix.length !== pending.revealedCards.length
+        || prefix.some((card, index) => card.instanceId !== pending.revealedCards[index]!.instanceId)
+      ) {
         throw new GameRuleError('확인했던 덱 위 카드가 변경되었습니다.')
       }
-      if (choice !== 'leave') {
-        if (!choice.startsWith('summon:') || !pending.canSummon) {
-          throw new GameRuleError('이 카드는 몰아치는 파도로 소환할 수 없습니다.')
+
+      const choice = choiceIds[0]!
+      const revealed = player.deck.splice(0, pending.revealedCards.length)
+      let bottomCards = [...revealed]
+
+      if (choice.startsWith('take:')) {
+        const instanceId = choice.slice(5)
+        const index = revealed.findIndex((card) => card.instanceId === instanceId)
+        const selected = revealed[index]
+        const definition = selected ? CARDS[selected.cardId] : null
+        if (!selected || definition?.type !== 'unit' || !definition.attributes.includes('water')) {
+          throw new GameRuleError('손으로 가져올 수 있는 물 몬스터를 선택해야 합니다.')
         }
-        const slotIndex = requireOpenFieldSlot(game, actor, Number(choice.slice(7)))
-        player.deck.shift()
-        summonCard(game, actor, top, true, slotIndex)
+        player.hand.push(selected)
+        bottomCards = revealed.filter((_, cardIndex) => cardIndex !== index)
+      } else if (choice === 'bottom:reverse') {
+        bottomCards.reverse()
+      } else if (choice !== 'bottom:normal') {
+        throw new GameRuleError('몰아치는 파도의 처리 방법을 선택해야 합니다.')
       }
+
+      player.deck.push(...bottomCards)
       game.pendingChoices.shift()
       return game
     }
@@ -1197,7 +1243,7 @@ function resolveChoice(
       const selectableIds = new Set(pending.revealedCards.filter((card) => {
         const definition = CARDS[card.cardId]
         return definition.type === 'unit'
-          && definition.cost <= 1
+          && definition.cost <= 2
           && definition.attributes.includes('fire')
       }).map((card) => card.instanceId))
 
@@ -1240,6 +1286,47 @@ function resolveChoice(
       return game
     }
 
+
+    case 'GRAVE_DIGGING_RETURN': {
+      if (choiceIds.length > pending.maxCards || new Set(choiceIds).size !== choiceIds.length) {
+        throw new GameRuleError(`묘지에서 최대 ${pending.maxCards}장까지 선택할 수 있습니다.`)
+      }
+      const selectedCards = choiceIds.map((instanceId) => {
+        const index = player.discard.findIndex((card) => card.instanceId === instanceId)
+        if (index < 0) throw new GameRuleError('선택한 묘지 카드를 찾지 못했습니다.')
+        return player.discard[index]!
+      })
+      for (const selected of selectedCards) {
+        const index = player.discard.findIndex((card) => card.instanceId === selected.instanceId)
+        const [returned] = player.discard.splice(index, 1)
+        player.hand.push(returned!)
+      }
+      sendToDiscard(game, actor, pending.sourceCard)
+      game.pendingChoices.shift()
+      return game
+    }
+
+    case 'DEMON_FINGER_DISCARD': {
+      if (choiceIds.length !== 1) {
+        throw new GameRuleError('묘지로 보낼 손 카드 한 장을 선택해야 합니다.')
+      }
+      const handIndex = player.hand.findIndex((card) => card.instanceId === choiceIds[0])
+      if (handIndex < 0) throw new GameRuleError('선택한 손 카드를 찾지 못했습니다.')
+      const [discarded] = player.hand.splice(handIndex, 1)
+      sendToDiscard(game, actor, discarded!)
+      game.pendingChoices.shift()
+      return game
+    }
+
+    case 'DEMON_BREATH_TARGET': {
+      if (choiceIds.length !== 1 || !pending.candidateUnitIds.includes(choiceIds[0]!)) {
+        throw new GameRuleError('남은 체력이 가장 높은 상대 몬스터 중 한 장을 선택해야 합니다.')
+      }
+      destroyDemonBreathTarget(game, actor, choiceIds[0]!, random)
+      sendToDiscard(game, actor, pending.sourceCard)
+      game.pendingChoices.shift()
+      return game
+    }
 
     case 'AWAKEN_SUMMON_SLOT': {
       if (choiceIds.length !== 1 || !choiceIds[0]!.startsWith('slot:')) {
@@ -1284,6 +1371,7 @@ function clearEndOfTurnEffects(
       unit.temporaryAttackModifier = 0
       unit.temporaryHealthModifier = 0
       unit.temporaryRush = false
+      unit.temporaryFlying = false
     }
   }
   cleanupDead(game, random)
@@ -1353,7 +1441,7 @@ export function applyAction(
       )
       break
     case 'RESOLVE_CHOICE':
-      result = resolveChoice(game, actor, action.choiceIds)
+      result = resolveChoice(game, actor, action.choiceIds, random)
       break
     case 'SUMMON_FROM_MANA':
       result = summonFromMana(game, actor, action.cardInstanceId, action.fieldSlot)

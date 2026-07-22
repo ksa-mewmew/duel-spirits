@@ -11,10 +11,16 @@ import { createGame, applyAction } from './rules'
 import { createMatchConfig } from './match-config'
 
 const setDeck = [
-  'living_flame', 'living_flame', 'living_flame',
-  'ash_hound', 'ash_hound', 'ash_hound',
-  'pegasus_rider', 'pegasus_rider', 'pegasus_rider',
-  'cathedral_guard', 'cathedral_guard', 'cathedral_guard',
+  'living_flame', 'living_flame',
+  'living_smoke', 'living_smoke',
+  'ash_hound', 'ash_hound',
+  'pegasus_rider', 'pegasus_rider',
+  'cathedral_guard', 'cathedral_guard',
+  'wave_reader', 'wave_reader',
+  'ripple_spirit', 'ripple_spirit',
+  'battle_campfire', 'battle_campfire',
+  'temple_prospect', 'temple_prospect',
+  'moth_swarm', 'moth_swarm',
 ] as const
 
 describe('콘텐츠와 포맷', () => {
@@ -69,9 +75,17 @@ describe('콘텐츠와 포맷', () => {
     expect(result.errors.some((error) => error.includes('최대 1장'))).toBe(true)
   })
 
+  test('드래프트는 50장 풀에서 20장 덱을 만든다', () => {
+    const format = GAME_FORMATS['draft-v1']
+    const pool = createDraftPool('pool-size-seed', 'draft-v1', 1)
+
+    expect(format.draft).toMatchObject({ poolSize: 50, deckSize: 20 })
+    expect(pool.cardIds).toHaveLength(50)
+  })
+
   test('드래프트 덱은 생성된 풀의 수량을 넘을 수 없다', () => {
     const pool = createDraftPool('fixed-draft-seed', 'draft-v1', 1)
-    const deck = pool.cardIds.slice(0, 12)
+    const deck = pool.cardIds.slice(0, 20)
     const selection = {
       formatId: 'draft-v1' as const,
       selectedSetIds: [],

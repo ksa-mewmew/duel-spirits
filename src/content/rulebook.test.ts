@@ -9,10 +9,10 @@ describe('종합 규칙 문서', () => {
     const document = createRulebookDocument(getFormat('open-v1'))
 
     expect(document.rulesVersion).toBe(RULES_VERSION)
-    expect(document.formatSummary).toContain('덱 12장')
+    expect(document.formatSummary).toContain('덱 20장')
     expect(document.formatSummary).toContain('시작 라이프 4장')
     expect(document.formatSummary).toContain('시작 손 4장')
-    expect(document.formatSummary).toContain('시작 덱 4장')
+    expect(document.formatSummary).toContain('시작 덱 12장')
     expect(document.formatSummary).toContain('전장 4슬롯')
   })
 

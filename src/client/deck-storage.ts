@@ -62,6 +62,18 @@ export function loadDecks(): SavedDeck[] {
     const decks = parsed
       .map(parseSavedDeck)
       .filter((deck): deck is SavedDeck => deck !== null)
+      .map((deck) => {
+        if (deck.id !== 'default-deck' || validateDeck(deck.cardIds, deck).valid) {
+          return deck
+        }
+
+        const migrated = createDefaultSavedDeck(deck.createdAt)
+        return {
+          ...migrated,
+          name: deck.name,
+          updatedAt: Date.now(),
+        }
+      })
 
     if (decks.length === 0) {
       const defaultDeck = createDefaultSavedDeck()

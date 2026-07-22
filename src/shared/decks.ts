@@ -18,7 +18,7 @@ import type {
   SetId,
 } from '../content/schema'
 
-export const DECK_SCHEMA_VERSION = 2
+export const DECK_SCHEMA_VERSION = 3
 export const MAX_SAVED_DECKS = 12
 export const DECK_SIZE = getFormat(DEFAULT_FORMAT_ID).deckSize
 export const MAX_COPIES_PER_CARD = getFormat(DEFAULT_FORMAT_ID).maxCopiesPerCard

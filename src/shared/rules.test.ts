@@ -17,8 +17,8 @@ function createIdSource(): () => string {
   return () => `test-${nextId++}`
 }
 
-describe('4 · 4 · 4 게임 시작', () => {
-  test('각 플레이어에게 라이프 4, 손 4, 덱 4를 배분한다', () => {
+describe('4 · 4 · 12 게임 시작', () => {
+  test('각 플레이어에게 라이프 4, 손 4, 덱 12를 배분한다', () => {
     const game = createGame({
       random: () => 0.5,
       idSource: createIdSource(),
@@ -86,7 +86,7 @@ describe('기본 행동', () => {
 
     expect(next.currentPlayer).toBe('P2')
     expect(next.players.P2.hand).toHaveLength(5)
-    expect(next.players.P2.deck).toHaveLength(3)
+    expect(next.players.P2.deck).toHaveLength(11)
   })
 
   test('덱이 비어 있으면 묘지를 섞은 뒤 같은 드로우에서 한 장을 뽑는다', () => {
@@ -127,18 +127,18 @@ describe('플레이어 선택 처리', () => {
     const next = applyAction(game, 'P1', {
       type: 'PLAY_CARD',
       cardInstanceId: 'spell',
-      manaIds: ['light-mana', 'fire-mana'],
+      manaIds: ['light-mana', 'fire-mana', 'earth-mana'],
     })
 
     expect(next.players.P1.mana.find((mana) => mana.instanceId === 'fire-mana')?.exhausted).toBe(true)
     expect(next.players.P1.mana.find((mana) => mana.instanceId === 'light-mana')?.exhausted).toBe(true)
-    expect(next.players.P1.mana.find((mana) => mana.instanceId === 'earth-mana')?.exhausted).toBe(false)
+    expect(next.players.P1.mana.find((mana) => mana.instanceId === 'earth-mana')?.exhausted).toBe(true)
   })
 
   test('대상 지정 주문은 선택한 몬스터에만 적용된다', () => {
     const game = createGame({ random: () => 0.5, idSource: createIdSource() })
     game.players.P1.hand = [{ instanceId: 'spell', cardId: 'reverse_current' }]
-    game.players.P1.mana = [0, 1, 2].map((index) => ({
+    game.players.P1.mana = [0, 1, 2, 3].map((index) => ({
       instanceId: `mana-${index}`,
       cardId: 'ripple_spirit' as const,
       exhausted: false,
@@ -163,7 +163,7 @@ describe('플레이어 선택 처리', () => {
     const next = applyAction(game, 'P1', {
       type: 'PLAY_CARD',
       cardInstanceId: 'spell',
-      manaIds: ['mana-0', 'mana-1', 'mana-2'],
+      manaIds: ['mana-0', 'mana-1', 'mana-2', 'mana-3'],
       selection: { unitId: 'chosen-target' },
     })
 
@@ -207,6 +207,7 @@ describe('플레이어 선택 처리', () => {
     ]
     game.players.P1.mana = [
       { instanceId: 'light-mana', cardId: 'pegasus_rider', exhausted: false },
+      { instanceId: 'light-mana-2', cardId: 'cathedral_guard', exhausted: false },
     ]
     game.players.P1.life = [
       { instanceId: 'life-0', cardId: 'ash_hound', lifeSlotIndex: 0 },
@@ -216,7 +217,7 @@ describe('플레이어 선택 처리', () => {
     const firstChoice = applyAction(game, 'P1', {
       type: 'PLAY_CARD',
       cardInstanceId: 'prospect',
-      manaIds: ['light-mana'],
+      manaIds: ['light-mana', 'light-mana-2'],
       selection: { fieldSlot: 0 },
     })
     expect(firstChoice.pendingChoices[0]?.type).toBe('TEMPLE_PROSPECT_LIFE')
@@ -259,6 +260,7 @@ describe('카드 상호작용 보강', () => {
     game.players.P1.hand = [{ instanceId: 'seeder', cardId: 'seeding_fairy' }]
     game.players.P1.mana = [
       { instanceId: 'earth-mana', cardId: 'seeding_fairy', exhausted: false },
+      { instanceId: 'earth-mana-2', cardId: 'tree_fairy', exhausted: false },
     ]
     game.players.P1.deck = [
       { instanceId: 'tree-on-top', cardId: 'tree_fairy' },
@@ -268,7 +270,7 @@ describe('카드 상호작용 보강', () => {
     const next = applyAction(game, 'P1', {
       type: 'PLAY_CARD',
       cardInstanceId: 'seeder',
-      manaIds: ['earth-mana'],
+      manaIds: ['earth-mana', 'earth-mana-2'],
       selection: { fieldSlot: 0 },
     })
 
@@ -307,7 +309,7 @@ describe('카드 상호작용 보강', () => {
       attacksThisTurn: 1,
       exhausted: true,
     })
-    expect(isolatedAttack.players.P2.field[0]?.damage).toBe(4)
+    expect(isolatedAttack.players.P2.field[0]?.damage).toBe(3)
 
     const notIsolated = createGame({ random: () => 0.5, idSource: createIdSource(), startingPlayer: 'P1' })
     notIsolated.players.P1.field = [
@@ -460,7 +462,7 @@ describe('선공과 전장 슬롯', () => {
     }]
     game.players.P1.deck = [{ instanceId: 'draw-after-death', cardId: 'wave_reader' }]
     game.players.P2.field = [{
-      instanceId: 'killer', cardId: 'blue_black_hound', slotIndex: 1, damage: 0,
+      instanceId: 'killer', cardId: 'ash_hound', slotIndex: 1, damage: 0,
       battlefieldEntrySeq: 2,
       exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
       temporaryAttackModifier: 0, temporaryHealthModifier: 0,

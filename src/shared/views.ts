@@ -48,14 +48,27 @@ export type PendingChoiceView =
   | {
       type: 'SURGING_WAVE_TOP'
       playerId: PlayerId
-      revealedCard: CardInstance | null
-      canSummon: boolean
+      revealedCards: CardInstance[]
     }
   | {
       type: 'BURNING_PROCESSION'
       playerId: PlayerId
       revealedCards: CardInstance[]
       maxSummons: number
+    }
+  | {
+      type: 'GRAVE_DIGGING_RETURN'
+      playerId: PlayerId
+      maxCards: number
+    }
+  | {
+      type: 'DEMON_FINGER_DISCARD'
+      playerId: PlayerId
+    }
+  | {
+      type: 'DEMON_BREATH_TARGET'
+      playerId: PlayerId
+      candidateUnitIds: string[]
     }
   | {
       type: 'HOLY_MIRROR_LIFE'
@@ -128,6 +141,7 @@ function createPendingChoiceView(
     case 'TEMPLE_PROSPECT_LIFE':
     case 'TEMPLE_PROSPECT_HAND':
     case 'HOLY_MIRROR_LIFE':
+    case 'DEMON_FINGER_DISCARD':
       return {
         type: pending.type,
         playerId: pending.playerId,
@@ -151,8 +165,21 @@ function createPendingChoiceView(
       return {
         type: pending.type,
         playerId: pending.playerId,
-        revealedCard: isChooser ? cloneCard(pending.revealedCard) : null,
-        canSummon: isChooser && pending.canSummon,
+        revealedCards: isChooser ? pending.revealedCards.map(cloneCard) : [],
+      }
+
+    case 'GRAVE_DIGGING_RETURN':
+      return {
+        type: pending.type,
+        playerId: pending.playerId,
+        maxCards: isChooser ? pending.maxCards : 0,
+      }
+
+    case 'DEMON_BREATH_TARGET':
+      return {
+        type: pending.type,
+        playerId: pending.playerId,
+        candidateUnitIds: isChooser ? [...pending.candidateUnitIds] : [],
       }
 
     case 'BURNING_PROCESSION':
