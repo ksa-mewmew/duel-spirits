@@ -387,19 +387,61 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
   function renderSampleDeckPanel(): string {
     const decks = SAMPLE_DECK_LIST.map((sampleDeck) => {
       const attribute = CARD_ATTRIBUTES[sampleDeck.attribute]
-      const tooltip = `${sampleDeck.archetype} — ${sampleDeck.goal}`
+      const guideId = `sample-deck-guide-${sampleDeck.id}`
       return `<button
         type="button"
         class="sample-deck-button sample-deck-button--${sampleDeck.attribute}"
         data-load-sample-deck="${sampleDeck.id}"
-        data-tooltip="${escapeHtml(tooltip)}"
+        data-preview-sample-deck="${sampleDeck.id}"
         aria-label="${escapeHtml(attribute.name)} 견본 덱: ${escapeHtml(sampleDeck.archetype)}"
+        aria-controls="${guideId}"
+        aria-expanded="false"
       ><span>${escapeHtml(attribute.shortName)}</span></button>`
     }).join('')
     return `<section class="sample-deck-panel" aria-labelledby="sample-deck-title">
-      <header><div><span class="sample-deck-panel__eyebrow">QUICK START</span><h3 id="sample-deck-title">견본 덱</h3></div><small>속성에 마우스를 올리면 덱 설명을 볼 수 있습니다.</small></header>
+      <header><div><span class="sample-deck-panel__eyebrow">QUICK START</span><h3 id="sample-deck-title">견본 덱</h3></div><small>마우스를 올려 설명을 보고, 클릭해 불러옵니다.</small></header>
       <div class="sample-deck-grid">${decks}</div>
     </section>`
+  }
+
+  function renderSampleDeckGuideLayer(): string {
+    const guides = SAMPLE_DECK_LIST.map((sampleDeck) => {
+      const counts = new Map<CardId, number>()
+      for (const cardId of sampleDeck.cardIds) counts.set(cardId, (counts.get(cardId) ?? 0) + 1)
+      const composition = [...counts.entries()]
+        .map(([cardId, count]) => `<li><span>${escapeHtml(CARDS[cardId].name)}</span><strong>×${count}</strong></li>`)
+        .join('')
+      const attribute = CARD_ATTRIBUTES[sampleDeck.attribute]
+      return `<article
+        class="sample-deck-guide sample-deck-guide--${sampleDeck.attribute}"
+        id="sample-deck-guide-${sampleDeck.id}"
+        data-sample-deck-guide="${sampleDeck.id}"
+        hidden
+      >
+        <header class="sample-deck-guide__header">
+          <div><span class="sample-deck-guide__attribute">${escapeHtml(attribute.name)}</span><span class="sample-deck-guide__label">견본 덱</span></div>
+          <h3>${escapeHtml(sampleDeck.archetype)}</h3>
+          <p>${escapeHtml(sampleDeck.goal)}</p>
+        </header>
+        <div class="sample-deck-guide__body">
+          <section class="sample-deck-guide__composition">
+            <h4>덱 구성 <span>${sampleDeck.cardIds.length}장</span></h4>
+            <ul>${composition}</ul>
+          </section>
+          <section class="sample-deck-guide__strategy">
+            <h4>운영 전략</h4>
+            <p>${escapeHtml(sampleDeck.playGuide)}</p>
+          </section>
+          <section class="sample-deck-guide__mana">
+            <h4>마나 우선순위</h4>
+            <p>${escapeHtml(sampleDeck.manaPriority)}</p>
+          </section>
+        </div>
+        <footer>버튼을 클릭하면 이 구성으로 새 덱을 불러옵니다.</footer>
+      </article>`
+    }).join('')
+
+    return `<div class="sample-deck-guide-layer" id="sample-deck-guide-layer" aria-live="polite">${guides}</div>`
   }
 
   function renderDistribution(): string {
@@ -534,7 +576,10 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
 
         <section class="panel card-pool-panel">
           <header class="section-heading"><div><h2>카드 풀</h2><p>클릭해 상세 고정 · 더블 클릭해 추가</p></div><span>전 카드 해금</span></header>
-          <div class="card-pool-grid">${poolMarkup || '<p class="empty-row">조건에 맞는 카드가 없습니다.</p>'}</div>
+          <div class="card-pool-stage">
+            <div class="card-pool-grid">${poolMarkup || '<p class="empty-row">조건에 맞는 카드가 없습니다.</p>'}</div>
+            ${renderSampleDeckGuideLayer()}
+          </div>
         </section>
 
         <aside class="builder-side-rail">
@@ -567,9 +612,34 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
       })
     }
 
+    const sampleGuideLayer = document.querySelector<HTMLElement>('#sample-deck-guide-layer')
+    const hideSampleDeckGuide = (): void => {
+      sampleGuideLayer?.classList.remove('is-visible')
+      for (const guide of document.querySelectorAll<HTMLElement>('[data-sample-deck-guide]')) guide.hidden = true
+      for (const button of document.querySelectorAll<HTMLButtonElement>('[data-preview-sample-deck]')) button.setAttribute('aria-expanded', 'false')
+    }
+    const showSampleDeckGuide = (sampleDeckId: SampleDeckId): void => {
+      let found = false
+      for (const guide of document.querySelectorAll<HTMLElement>('[data-sample-deck-guide]')) {
+        const isActive = guide.dataset.sampleDeckGuide === sampleDeckId
+        guide.hidden = !isActive
+        found ||= isActive
+      }
+      if (!found) return
+      sampleGuideLayer?.classList.add('is-visible')
+      for (const button of document.querySelectorAll<HTMLButtonElement>('[data-preview-sample-deck]')) {
+        button.setAttribute('aria-expanded', String(button.dataset.previewSampleDeck === sampleDeckId))
+      }
+    }
+
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-load-sample-deck]')) {
       const sampleDeckId = button.dataset.loadSampleDeck as SampleDeckId | undefined
-      if (sampleDeckId) button.addEventListener('click', () => loadSampleDeck(sampleDeckId))
+      if (!sampleDeckId) continue
+      button.addEventListener('click', () => loadSampleDeck(sampleDeckId))
+      button.addEventListener('pointerenter', () => showSampleDeckGuide(sampleDeckId))
+      button.addEventListener('pointerleave', hideSampleDeckGuide)
+      button.addEventListener('focus', () => showSampleDeckGuide(sampleDeckId))
+      button.addEventListener('blur', hideSampleDeckGuide)
     }
 
     document.querySelector<HTMLSelectElement>('#deck-select')?.addEventListener('change', (event) => selectDeck((event.currentTarget as HTMLSelectElement).value))

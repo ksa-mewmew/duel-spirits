@@ -1952,43 +1952,6 @@ body.room-waiting-active { background: #030506; }
   text-shadow: 0 1px 5px rgba(0,0,0,.72);
 }
 
-.sample-deck-button::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  z-index: 20;
-  left: calc(-1 * var(--sample-index, 0) * (100% + 5px));
-  top: calc(100% + 8px);
-  width: calc(500% + 20px);
-  min-height: 72px;
-  padding: 10px 11px;
-  display: grid;
-  align-content: center;
-  border: 1px solid rgba(236, 211, 142, .52);
-  border-radius: 9px;
-  background: rgba(5, 8, 12, .98);
-  box-shadow: 0 14px 35px rgba(0,0,0,.52);
-  color: #eee9dc;
-  font-size: 10px;
-  line-height: 1.5;
-  text-align: left;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-4px);
-  transition: opacity .13s ease, transform .13s ease;
-}
-
-.sample-deck-button:hover::after,
-.sample-deck-button:focus-visible::after {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.sample-deck-button:nth-child(1) { --sample-index: 0; }
-.sample-deck-button:nth-child(2) { --sample-index: 1; }
-.sample-deck-button:nth-child(3) { --sample-index: 2; }
-.sample-deck-button:nth-child(4) { --sample-index: 3; }
-.sample-deck-button:nth-child(5) { --sample-index: 4; }
-
 .sample-deck-button--fire {
   border-color: rgba(236, 99, 65, .72);
   background: linear-gradient(180deg, rgba(154, 47, 27, .72), rgba(50, 20, 16, .94));
@@ -2113,21 +2076,299 @@ body.room-waiting-active { background: #030506; }
   transform: translateX(2px);
 }
 
-/* Tooltip is anchored to the whole preset panel, not to the tiny button. */
-.sample-deck-button { position: static; }
-.sample-deck-button::after {
-  inset: 0;
-  width: auto;
+/* 2026-07 v5: sample-deck guides use the real deck notes and cover the card pool.
+   Hover/focus previews; click still loads the preset. Developer test notes remain
+   in content data but are intentionally never rendered here. */
+.card-pool-stage {
+  position: relative;
+  min-width: 0;
   min-height: 0;
-  padding: 13px;
-  align-content: center;
-  border: 0;
-  border-radius: 9px;
-  background:
-    linear-gradient(145deg, rgba(13, 17, 23, .985), rgba(5, 8, 12, .995));
-  font-size: 11px;
-  line-height: 1.55;
-  transform: none;
+  overflow: hidden;
 }
-.sample-deck-button:hover::after,
-.sample-deck-button:focus-visible::after { transform: none; }
+
+.card-pool-stage > .card-pool-grid {
+  width: 100%;
+  height: 100%;
+}
+
+.sample-deck-button,
+.sample-deck-button:hover,
+.sample-deck-button:focus-visible {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.sample-deck-button {
+  line-height: 1;
+}
+
+.sample-deck-button span {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  text-align: center;
+}
+
+/* Retire the v4 pseudo-tooltip; the guide now belongs to the card-pool stage. */
+.sample-deck-button::after {
+  content: none !important;
+  display: none !important;
+}
+
+.sample-deck-button[aria-expanded="true"] {
+  filter: brightness(1.2);
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 2px rgba(255, 239, 185, .18), 0 7px 18px rgba(0, 0, 0, .34);
+}
+
+.sample-deck-guide-layer {
+  position: absolute;
+  z-index: 30;
+  inset: 0;
+  padding: .55cqh .45cqw 1.2cqh;
+  overflow: hidden;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(5px);
+  transition: opacity .14s ease, transform .14s ease, visibility 0s linear .14s;
+}
+
+.sample-deck-guide-layer.is-visible {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0s;
+}
+
+.sample-deck-guide[hidden] {
+  display: none;
+}
+
+.sample-deck-guide {
+  --sample-accent: #e8cf87;
+  --sample-glow: rgba(232, 207, 135, .12);
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: clamp(16px, 2.25cqh, 24px) clamp(17px, 1.45cqw, 25px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: clamp(11px, 1.7cqh, 18px);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--sample-accent) 56%, rgba(255, 255, 255, .08));
+  border-top: 3px solid var(--sample-accent);
+  border-radius: 13px;
+  background:
+    radial-gradient(circle at 88% 8%, var(--sample-glow), transparent 35%),
+    linear-gradient(145deg, rgba(13, 17, 23, .995), rgba(4, 7, 11, .998));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .62), inset 0 0 0 1px rgba(255, 255, 255, .025);
+  color: #eee9dd;
+}
+
+.sample-deck-guide--fire {
+  --sample-accent: #ef7655;
+  --sample-glow: rgba(239, 92, 55, .17);
+}
+
+.sample-deck-guide--water {
+  --sample-accent: #62aaf0;
+  --sample-glow: rgba(64, 142, 224, .17);
+}
+
+.sample-deck-guide--earth {
+  --sample-accent: #c4934e;
+  --sample-glow: rgba(178, 125, 55, .18);
+}
+
+.sample-deck-guide--dark {
+  --sample-accent: #b27ad3;
+  --sample-glow: rgba(140, 76, 177, .19);
+}
+
+.sample-deck-guide--light {
+  --sample-accent: #f0d66f;
+  --sample-glow: rgba(231, 199, 76, .17);
+}
+
+.sample-deck-guide__header {
+  min-width: 0;
+  padding-bottom: clamp(10px, 1.25cqh, 14px);
+  border-bottom: 1px solid rgba(255, 255, 255, .09);
+}
+
+.sample-deck-guide__header > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.sample-deck-guide__attribute,
+.sample-deck-guide__label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: clamp(10px, 1.35cqh, 12px);
+  font-weight: 850;
+  line-height: 1;
+}
+
+.sample-deck-guide__attribute {
+  border: 1px solid color-mix(in srgb, var(--sample-accent) 72%, transparent);
+  background: color-mix(in srgb, var(--sample-accent) 18%, rgba(9, 12, 16, .9));
+  color: color-mix(in srgb, var(--sample-accent) 86%, white);
+}
+
+.sample-deck-guide__label {
+  color: #9fa5ad;
+  background: rgba(255, 255, 255, .045);
+}
+
+.sample-deck-guide__header h3 {
+  margin: 0 0 6px;
+  color: #fff4d1;
+  font-size: clamp(19px, 2.8cqh, 27px);
+  font-weight: 790;
+  line-height: 1.14;
+  letter-spacing: -.025em;
+}
+
+.sample-deck-guide__header p {
+  max-width: 72ch;
+  color: #d6d1c5;
+  font-size: clamp(11px, 1.55cqh, 14px);
+  line-height: 1.55;
+}
+
+.sample-deck-guide__body {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(220px, .9fr) minmax(0, 1.45fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: clamp(10px, 1.3cqh, 14px) clamp(14px, 1.25cqw, 22px);
+  overflow: hidden;
+}
+
+.sample-deck-guide__body section {
+  min-width: 0;
+  padding: clamp(11px, 1.45cqh, 15px);
+  border: 1px solid rgba(255, 255, 255, .075);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .024);
+}
+
+.sample-deck-guide__body h4 {
+  margin: 0 0 8px;
+  color: color-mix(in srgb, var(--sample-accent) 74%, #fff4ce);
+  font-size: clamp(11px, 1.5cqh, 13px);
+  font-weight: 850;
+  letter-spacing: .035em;
+}
+
+.sample-deck-guide__body h4 span {
+  margin-left: 5px;
+  color: #888f98;
+  font-size: .82em;
+  font-weight: 700;
+}
+
+.sample-deck-guide__body p {
+  color: #d4d0c6;
+  font-size: clamp(11px, 1.48cqh, 13px);
+  line-height: 1.65;
+}
+
+.sample-deck-guide__composition {
+  grid-row: 1 / 3;
+  overflow: hidden;
+}
+
+.sample-deck-guide__composition ul {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  list-style: none;
+}
+
+.sample-deck-guide__composition li {
+  min-width: 0;
+  min-height: 28px;
+  padding: 4px 7px 4px 9px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border-left: 2px solid color-mix(in srgb, var(--sample-accent) 55%, transparent);
+  background: rgba(255, 255, 255, .025);
+  color: #dcd8cd;
+  font-size: clamp(10px, 1.35cqh, 12px);
+  line-height: 1.25;
+}
+
+.sample-deck-guide__composition li span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sample-deck-guide__composition li strong {
+  color: #fff0bd;
+  font-variant-numeric: tabular-nums;
+}
+
+.sample-deck-guide__strategy {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.sample-deck-guide__mana {
+  border-color: color-mix(in srgb, var(--sample-accent) 25%, rgba(255, 255, 255, .07)) !important;
+  background: color-mix(in srgb, var(--sample-accent) 6%, rgba(255, 255, 255, .02)) !important;
+}
+
+.sample-deck-guide > footer {
+  color: #898f98;
+  font-size: clamp(9px, 1.2cqh, 11px);
+  line-height: 1.35;
+  text-align: right;
+}
+
+@media (max-aspect-ratio: 16 / 10) {
+  .sample-deck-guide {
+    gap: 9px;
+    padding-block: 13px;
+  }
+
+  .sample-deck-guide__header {
+    padding-bottom: 8px;
+  }
+
+  .sample-deck-guide__body {
+    grid-template-columns: minmax(190px, .82fr) minmax(0, 1.5fr);
+    gap: 9px 13px;
+  }
+
+  .sample-deck-guide__body section {
+    padding: 10px;
+  }
+
+  .sample-deck-guide__composition li {
+    min-height: 24px;
+  }
+}
