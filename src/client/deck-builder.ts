@@ -385,9 +385,19 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
   }
 
   function renderSampleDeckPanel(): string {
-    const decks = SAMPLE_DECK_LIST.map((sampleDeck) => `<button type="button" class="sample-deck-button" data-load-sample-deck="${sampleDeck.id}"><span>${escapeHtml(CARD_ATTRIBUTES[sampleDeck.attribute].shortName)}</span><strong>${escapeHtml(sampleDeck.archetype)}</strong></button>`).join('')
+    const decks = SAMPLE_DECK_LIST.map((sampleDeck) => {
+      const attribute = CARD_ATTRIBUTES[sampleDeck.attribute]
+      const tooltip = `${sampleDeck.archetype} — ${sampleDeck.goal}`
+      return `<button
+        type="button"
+        class="sample-deck-button sample-deck-button--${sampleDeck.attribute}"
+        data-load-sample-deck="${sampleDeck.id}"
+        data-tooltip="${escapeHtml(tooltip)}"
+        aria-label="${escapeHtml(attribute.name)} 견본 덱: ${escapeHtml(sampleDeck.archetype)}"
+      ><span>${escapeHtml(attribute.shortName)}</span></button>`
+    }).join('')
     return `<section class="sample-deck-panel" aria-labelledby="sample-deck-title">
-      <header><div><span class="sample-deck-panel__eyebrow">QUICK START</span><h3 id="sample-deck-title">견본 덱</h3></div><small>누르면 현재 편집 덱에 불러옵니다.</small></header>
+      <header><div><span class="sample-deck-panel__eyebrow">QUICK START</span><h3 id="sample-deck-title">견본 덱</h3></div><small>속성에 마우스를 올리면 덱 설명을 볼 수 있습니다.</small></header>
       <div class="sample-deck-grid">${decks}</div>
     </section>`
   }
@@ -499,7 +509,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
 
     appElement.innerHTML = `<main class="app-shell deck-builder-screen">
       <header class="builder-header">
-        <div class="builder-header__brand"><a class="button-link" href="./" aria-label="메인 화면으로">←</a><div><p class="eyebrow">DUEL SPIRITS</p><h1>덱 작업대</h1></div></div>
+        <div class="builder-header__brand"><a class="button-link" href="./" aria-label="메인 화면으로">←</a><div><p class="eyebrow">DUEL SPIRITS</p><h1>덱 빌더</h1></div></div>
         <div class="builder-header__editor">
           <label><span>저장 덱</span><select id="deck-select" aria-label="저장 덱">${deckOptions}</select></label>
           <label><span>덱 이름</span><input id="deck-name" value="${escapeHtml(state.name)}" maxlength="40" aria-label="덱 이름"></label>

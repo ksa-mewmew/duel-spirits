@@ -1877,3 +1877,257 @@ body.room-waiting-active { background: #030506; }
     justify-content: flex-end;
   }
 }
+
+/* 2026-07 v4 polish: compact elemental presets, one deck-builder entry point,
+   and a deliberately collapsed mana rail. */
+
+/* The back button no longer sits on top of a framed header line. */
+.builder-header {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding-inline: .25cqw;
+}
+
+.builder-header__brand > .button-link {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(216, 190, 120, .32);
+  border-radius: 10px;
+  background: rgba(16, 21, 28, .96);
+  font-size: 23px;
+  line-height: 1;
+}
+
+.builder-header__brand h1 {
+  font-size: 20px;
+}
+
+/* Five elemental preset buttons; the explanation temporarily covers the panel
+   instead of forcing truncated archetype names into tiny buttons. */
+.sample-deck-panel {
+  position: relative;
+  isolation: isolate;
+  padding: 9px;
+  overflow: hidden;
+}
+
+.sample-deck-panel header {
+  gap: 2px;
+}
+
+.sample-deck-panel small {
+  font-size: 8px;
+}
+
+.sample-deck-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.sample-deck-button {
+  position: relative;
+  min-width: 0;
+  min-height: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  overflow: visible;
+  border-width: 1px;
+  border-radius: 8px;
+  background: rgba(13, 17, 23, .9);
+}
+
+.sample-deck-button span {
+  width: auto;
+  height: auto;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 900;
+  text-shadow: 0 1px 5px rgba(0,0,0,.72);
+}
+
+.sample-deck-button::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  z-index: 20;
+  left: calc(-1 * var(--sample-index, 0) * (100% + 5px));
+  top: calc(100% + 8px);
+  width: calc(500% + 20px);
+  min-height: 72px;
+  padding: 10px 11px;
+  display: grid;
+  align-content: center;
+  border: 1px solid rgba(236, 211, 142, .52);
+  border-radius: 9px;
+  background: rgba(5, 8, 12, .98);
+  box-shadow: 0 14px 35px rgba(0,0,0,.52);
+  color: #eee9dc;
+  font-size: 10px;
+  line-height: 1.5;
+  text-align: left;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity .13s ease, transform .13s ease;
+}
+
+.sample-deck-button:hover::after,
+.sample-deck-button:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.sample-deck-button:nth-child(1) { --sample-index: 0; }
+.sample-deck-button:nth-child(2) { --sample-index: 1; }
+.sample-deck-button:nth-child(3) { --sample-index: 2; }
+.sample-deck-button:nth-child(4) { --sample-index: 3; }
+.sample-deck-button:nth-child(5) { --sample-index: 4; }
+
+.sample-deck-button--fire {
+  border-color: rgba(236, 99, 65, .72);
+  background: linear-gradient(180deg, rgba(154, 47, 27, .72), rgba(50, 20, 16, .94));
+  color: #ffd7c9;
+}
+.sample-deck-button--water {
+  border-color: rgba(76, 157, 230, .74);
+  background: linear-gradient(180deg, rgba(37, 95, 157, .74), rgba(15, 31, 53, .94));
+  color: #d7edff;
+}
+.sample-deck-button--earth {
+  border-color: rgba(170, 129, 66, .78);
+  background: linear-gradient(180deg, rgba(112, 76, 35, .78), rgba(43, 31, 18, .95));
+  color: #f1dfbc;
+}
+.sample-deck-button--dark {
+  border-color: rgba(154, 102, 190, .72);
+  background: linear-gradient(180deg, rgba(83, 45, 108, .78), rgba(28, 19, 35, .96));
+  color: #ead8f6;
+}
+.sample-deck-button--light {
+  border-color: rgba(235, 209, 116, .82);
+  background: linear-gradient(180deg, rgba(162, 136, 57, .78), rgba(57, 48, 24, .95));
+  color: #fff2bd;
+}
+
+.sample-deck-button:hover,
+.sample-deck-button:focus-visible {
+  filter: brightness(1.16);
+  transform: translateY(-1px);
+}
+
+.active-deck-summary__status {
+  align-self: center;
+  padding: 5px 8px;
+  border: 1px solid rgba(216,190,120,.22);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/* Mana rail is now an overview only. Card identity and mana-origin actions live
+   in the explicit drawer, so reading the battlefield can never collide with it. */
+.mana-zone.mana-zone--summary {
+  min-height: 0;
+  padding: .8cqh .55cqw;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: .7cqh;
+  align-content: stretch;
+  overflow: hidden;
+  border: 1px solid rgba(216, 190, 120, .21);
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 50% 15%, rgba(216,190,120,.08), transparent 46%),
+    rgba(7, 11, 16, .72);
+}
+
+.mana-summary {
+  min-height: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: .2cqh;
+}
+
+.mana-summary__label {
+  color: #d7c78f;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.mana-summary__count {
+  color: #fff3c9;
+  font-size: clamp(22px, 3.6cqh, 34px);
+  line-height: 1;
+}
+
+.mana-summary__count small {
+  color: #9da2aa;
+  font-size: .46em;
+  font-weight: 700;
+}
+
+.mana-summary__state {
+  color: #858b94;
+  font-size: 8px;
+}
+
+.mana-zone--summary .mana-open-button {
+  width: 100%;
+  min-height: 30px;
+  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid rgba(236, 209, 132, .58);
+  border-radius: 8px;
+  background: linear-gradient(110deg, rgba(120, 91, 37, .62), rgba(40, 34, 23, .92));
+  box-shadow: inset 0 0 0 1px rgba(255, 241, 189, .06);
+  color: #fff0bd;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+}
+
+.mana-zone--summary .mana-open-button b {
+  font-size: 14px;
+  transition: transform .14s ease;
+}
+
+.mana-zone--summary .mana-open-button:hover,
+.mana-zone--summary .mana-open-button:focus-visible {
+  border-color: #f0d98d;
+  background: linear-gradient(110deg, rgba(151, 115, 48, .76), rgba(55, 45, 27, .96));
+}
+
+.mana-zone--summary .mana-open-button:hover b,
+.mana-zone--summary .mana-open-button:focus-visible b {
+  transform: translateX(2px);
+}
+
+/* Tooltip is anchored to the whole preset panel, not to the tiny button. */
+.sample-deck-button { position: static; }
+.sample-deck-button::after {
+  inset: 0;
+  width: auto;
+  min-height: 0;
+  padding: 13px;
+  align-content: center;
+  border: 0;
+  border-radius: 9px;
+  background:
+    linear-gradient(145deg, rgba(13, 17, 23, .985), rgba(5, 8, 12, .995));
+  font-size: 11px;
+  line-height: 1.55;
+  transform: none;
+}
+.sample-deck-button:hover::after,
+.sample-deck-button:focus-visible::after { transform: none; }

@@ -61,7 +61,6 @@ export function renderLobby(appElement: HTMLDivElement): void {
     <header class="lobby-masthead">
       <div class="lobby-brand"><span class="lobby-brand__sigil" aria-hidden="true"></span><span>DUEL SPIRITS</span></div>
       <nav class="lobby-utility" aria-label="빠른 메뉴">
-        <a class="button-link" href="#decks">덱 빌더</a>
         <button type="button" id="lobby-rule-hint">게임 안내</button>
       </nav>
     </header>
@@ -78,13 +77,13 @@ export function renderLobby(appElement: HTMLDivElement): void {
 
       <section class="active-deck-summary" aria-label="활성 덱">
         <div><span class="eyebrow">ACTIVE DECK</span><h2>${escapeHtml(activeDeck.name)}</h2><p>${escapeHtml(getFormat(activeDeck.formatId).name)} · ${activeDeck.cardIds.length}장 · ${deckValidation.valid ? '사용 가능' : '수정 필요'}</p></div>
-        <a class="button-link" href="#decks">변경</a>
+        <span class="active-deck-summary__status">현재 사용 중</span>
       </section>
 
       <div id="lobby-action-menu" class="lobby-actions">
         <button class="lobby-action-button is-primary" type="button" data-lobby-mode="create"><span><strong>비공개 방 만들기</strong><br><span>포맷을 고르고 초대 링크를 생성합니다.</span></span><b>→</b></button>
         <button class="lobby-action-button" type="button" data-lobby-mode="join"><span><strong>초대 링크로 참가</strong><br><span>받은 링크를 붙여 넣어 바로 입장합니다.</span></span><b>→</b></button>
-        <a class="lobby-action-button button-link" href="#decks"><span><strong>덱 빌더 열기</strong><br><span>카드 풀을 살펴보고 사용할 덱을 구성합니다.</span></span><b>→</b></a>
+        <a class="lobby-action-button button-link" href="#decks"><span><strong>덱 빌더</strong><br><span>카드 풀을 살펴보고 사용할 덱을 구성합니다.</span></span><b>→</b></a>
       </div>
 
       <section id="lobby-create-panel" class="lobby-mode-panel" aria-labelledby="create-panel-title">

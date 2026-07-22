@@ -971,14 +971,15 @@ function renderPlayerBoard(playerId: PlayerId, position: 'self' | 'opponent'): s
     </section>
 
     <aside class="resource-rail">
-      <section class="mana-zone ${isSelf ? 'mana-zone--self' : ''}" aria-label="${playerId} 마나">
-        <div class="zone-heading">
-          <span>마나</span>
-          <strong>${readyMana}/${player.mana.length}</strong>
-          <button type="button" class="mana-open-button" data-action="open-mana-drawer" data-player-id="${playerId}">펼치기</button>
+      <section class="mana-zone mana-zone--summary ${isSelf ? 'mana-zone--self' : ''}" aria-label="${playerId} 마나">
+        <div class="mana-summary">
+          <span class="mana-summary__label">마나</span>
+          <strong class="mana-summary__count">${readyMana}<small> / ${player.mana.length}</small></strong>
+          <span class="mana-summary__state">준비 / 전체</span>
         </div>
-        <div class="mana-list ${player.mana.length > 12 ? 'is-very-dense' : player.mana.length > 8 ? 'is-dense' : ''}">${renderMana(player, isSelf)}</div>
-        ${renderManaAbilityButtons(player, isSelf)}
+        <button type="button" class="mana-open-button" data-action="open-mana-drawer" data-player-id="${playerId}">
+          <span>마나 자세히 보기</span><b aria-hidden="true">→</b>
+        </button>
       </section>
       <div class="pile-row">
         ${renderCardPile(playerId, 'deck')}
