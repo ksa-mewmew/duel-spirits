@@ -385,8 +385,11 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
   }
 
   function renderSampleDeckPanel(): string {
-    const decks = SAMPLE_DECK_LIST.map((sampleDeck) => `<button type="button" data-load-sample-deck="${sampleDeck.id}">${escapeHtml(CARD_ATTRIBUTES[sampleDeck.attribute].shortName)} · ${escapeHtml(sampleDeck.archetype)}</button>`).join('')
-    return `<details class="builder-tools-details"><summary>견본 덱 불러오기</summary><div class="builder-tools-details__body">${decks}</div></details>`
+    const decks = SAMPLE_DECK_LIST.map((sampleDeck) => `<button type="button" class="sample-deck-button" data-load-sample-deck="${sampleDeck.id}"><span>${escapeHtml(CARD_ATTRIBUTES[sampleDeck.attribute].shortName)}</span><strong>${escapeHtml(sampleDeck.archetype)}</strong></button>`).join('')
+    return `<section class="sample-deck-panel" aria-labelledby="sample-deck-title">
+      <header><div><span class="sample-deck-panel__eyebrow">QUICK START</span><h3 id="sample-deck-title">견본 덱</h3></div><small>누르면 현재 편집 덱에 불러옵니다.</small></header>
+      <div class="sample-deck-grid">${decks}</div>
+    </section>`
   }
 
   function renderDistribution(): string {
@@ -508,6 +511,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
       <section class="deck-builder-workspace">
         <aside class="panel deck-filters">
           <div class="section-heading"><h2>카드 찾기</h2><span>${filteredCards.length}종</span></div>
+          ${renderSampleDeckPanel()}
           <label>검색<input id="card-search" type="search" value="${escapeHtml(state.searchQuery)}" placeholder="이름 또는 능력"></label>
           <label>속성<select id="attribute-filter"><option value="all">전체 속성</option>${Object.values(CARD_ATTRIBUTES).map((attribute) => `<option value="${attribute.id}" ${state.attributeFilter === attribute.id ? 'selected' : ''}>${escapeHtml(attribute.name)}</option>`).join('')}</select></label>
           <label>종류<select id="type-filter"><option value="all">전체 종류</option><option value="unit" ${state.typeFilter === 'unit' ? 'selected' : ''}>몬스터</option><option value="spell" ${state.typeFilter === 'spell' ? 'selected' : ''}>주문</option></select></label>
@@ -515,7 +519,6 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
           <div class="deck-filter-divider"></div>
           <div class="deck-format-note"><strong>${escapeHtml(format.name)}</strong>${escapeHtml(format.description)}</div>
           ${setControls}${restrictionSummary}${draftControls}
-          ${renderSampleDeckPanel()}
           ${renderDistribution()}
         </aside>
 

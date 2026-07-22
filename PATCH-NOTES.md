@@ -48,3 +48,13 @@
 - `너무 무거운 씨앗` displays its current requirement and a direct `마나에서 소환` button.
 - Playing a card automatically opens a full mana tray for cost and effect selection.
 - The full mana tray separates ready/exhausted mana, uses full 5:7 cards, and only introduces internal scrolling at unusually high mana counts.
+
+## UI usability correction — readable deck, room, and combat surfaces
+
+- Restored a permanently visible `견본 덱` quick-start panel at the top of the deck-builder filter rail.
+- Reduced the card-pool grid from five columns to four at 1280×720 and expanded the right rail to reserve readable card-detail and current-deck space.
+- Increased deck-detail, deck-list, waiting-room deck selector, player HUD, turn ribbon, and action-button typography.
+- Replaced the combat card inspector overlay with a permanent dedicated right-hand column so it never covers mana.
+- Tightened field-card spacing aggressively while retaining four fixed battlefield slots.
+- Rebuilt the card-use selection panel as a compact horizontal step bar with non-shrinking buttons and no inherited overflow scrollbar.
+- Removed the upward translation from selected cards in the expanded mana tray.

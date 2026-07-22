@@ -1008,28 +1008,50 @@ function renderPlayDraftPanel(): string {
   const definition = CARDS[card.cardId]
   const cost = effectiveCost(card)
   const targetMode = unitTargetMode(card.cardId)
-  const sections: string[] = [
-    `<p><strong>${escapeHtml(definition.name)}</strong></p>`,
-    `<p>비용 마나: ${playDraft.manaIds.length}/${cost}</p>`,
+  const steps: Array<{ label: string; complete: boolean; attention?: boolean }> = [
+    {
+      label: `비용 마나 ${playDraft.manaIds.length}/${cost}`,
+      complete: playDraft.manaIds.length === cost,
+      attention: playDraft.manaIds.length !== cost,
+    },
   ]
 
   if (definition.type === 'unit') {
-    sections.push(`<p>소환 위치: ${playDraft.fieldSlot === undefined ? '전장의 빈 슬롯을 선택하세요.' : `${playDraft.fieldSlot + 1}번 슬롯`}</p>`)
+    steps.push({
+      label: playDraft.fieldSlot === undefined ? '소환 위치 선택' : `${playDraft.fieldSlot + 1}번 슬롯`,
+      complete: playDraft.fieldSlot !== undefined,
+      attention: playDraft.fieldSlot === undefined,
+    })
   }
-  if (targetMode) sections.push(`<p>대상 몬스터: ${playDraft.unitId ? '선택됨' : '선택 필요'}</p>`)
+  if (targetMode) {
+    steps.push({
+      label: playDraft.unitId ? '몬스터 대상 선택됨' : '몬스터 대상 선택',
+      complete: Boolean(playDraft.unitId),
+      attention: !playDraft.unitId,
+    })
+  }
   if (needsLifeTarget(card.cardId)) {
-    sections.push(`<p>대상 라이프: ${playDraft.lifeIndex === undefined ? '선택 필요' : `${playDraft.lifeIndex + 1}번째`}</p>`)
+    steps.push({
+      label: playDraft.lifeIndex === undefined ? '라이프 대상 선택' : `${playDraft.lifeIndex + 1}번째 라이프`,
+      complete: playDraft.lifeIndex !== undefined,
+      attention: playDraft.lifeIndex === undefined,
+    })
   }
   if (card.cardId === 'grave_digging') {
-    sections.push(`<p>묘지로 보낼 마나: ${playDraft.effectManaId ? '선택됨' : '선택 필요'}</p>`)
-    sections.push('<p>마나를 묘지로 보낸 뒤, 묘지에서 최대 2장을 고릅니다.</p>')
+    steps.push({
+      label: playDraft.effectManaId ? '묘지로 보낼 마나 선택됨' : '묘지로 보낼 마나 선택',
+      complete: Boolean(playDraft.effectManaId),
+      attention: !playDraft.effectManaId,
+    })
   }
 
-  sections.push('<div class="choice-actions">')
-  sections.push(actionButton('사용 확정', 'confirm-play-card'))
-  sections.push(actionButton('취소', 'cancel-play-card'))
-  sections.push('</div>')
-  return `<div class="selection-panel"><h3>카드 사용 선택</h3>${sections.join('')}</div>`
+  const stepMarkup = steps.map((step) => `<span class="selection-step ${step.complete ? 'is-complete' : ''} ${step.attention ? 'needs-attention' : ''}">${step.complete ? '✓' : '○'} ${escapeHtml(step.label)}</span>`).join('')
+
+  return `<div class="selection-panel selection-panel--play">
+    <div class="selection-panel__title"><span>카드 사용</span><h3>${escapeHtml(definition.name)}</h3></div>
+    <div class="selection-steps">${stepMarkup}</div>
+    <div class="choice-actions">${actionButton('사용 확정', 'confirm-play-card')}${actionButton('취소', 'cancel-play-card')}</div>
+  </div>`
 }
 
 function renderPendingChoicePanel(): string {
