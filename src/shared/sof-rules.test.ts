@@ -289,8 +289,10 @@ describe('SOF 땅·빛·어둠과 공명', () => {
 test('여러 폭탄쥐의 유언 중 뒤 효과는 피해 대상이 사라지면 정상적으로 끝난다', () => {
   const game = createTestGame()
   game.players.P1.field = [
-    unit('bomb-a', 'unexploded_bomb_mouse', 0, { temporaryHealthModifier: -1 }),
-    unit('bomb-b', 'unexploded_bomb_mouse', 1, { temporaryHealthModifier: -1 }),
+    // 기본 체력 1에 임시 체력 +1로 살아 있다가, 턴 종료 시 임시 효과가
+    // 사라지면 누적 피해 1 때문에 두 장이 동시에 묘지로 갑니다.
+    unit('bomb-a', 'unexploded_bomb_mouse', 0, { damage: 1, temporaryHealthModifier: 1 }),
+    unit('bomb-b', 'unexploded_bomb_mouse', 1, { damage: 1, temporaryHealthModifier: 1 }),
   ]
   setEnemyUnit(game, unit('target', 'living_flame', 0))
 
