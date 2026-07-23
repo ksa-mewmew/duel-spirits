@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'vitest'
 
-import { CARDS, DEFAULT_DECK } from './cards'
+import { ALL_CARD_IDS, CARDS, DEFAULT_DECK, SOF_CARD_IDS } from './cards'
 import { GAME_FORMATS } from '../content/formats'
 import {
+  createDefaultFormatSelection,
   createDraftPool,
   getFormatCardPool,
   validateDeck,
@@ -40,12 +41,26 @@ describe('콘텐츠와 포맷', () => {
     }
   })
 
-  test('모든 카드에 세트와 수집 번호가 있다', () => {
-    for (const card of Object.values(CARDS)) {
-      expect(card.setId).toBe('foundations-001')
-      expect(card.collectorNumber).toMatch(/^DSF-\d{3}$/)
+  test('모든 카드에 올바른 세트와 수집 번호가 있다', () => {
+    const sofIds = new Set(SOF_CARD_IDS)
+    for (const cardId of ALL_CARD_IDS) {
+      const card = CARDS[cardId]
+      expect(card.setId).toBe(sofIds.has(cardId) ? 'evolution-begins-001' : 'foundations-001')
+      expect(card.collectorNumber).toMatch(sofIds.has(cardId) ? /^SOF-\d{3}$/ : /^DSF-\d{3}$/)
       expect(card.contentVersion).toBeTruthy()
     }
+  })
+
+  test('전체 카드전 카드 풀에는 DSF 40종과 SOF 40종이 모두 보인다', () => {
+    const pool = getFormatCardPool({
+      formatId: 'open-v1',
+      selectedSetIds: [],
+      draftPool: null,
+    })
+
+    expect(pool).toHaveLength(80)
+    expect(pool.filter((cardId) => CARDS[cardId].setId === 'foundations-001')).toHaveLength(40)
+    expect(pool.filter((cardId) => CARDS[cardId].setId === 'evolution-begins-001')).toHaveLength(40)
   })
 
   test('세트 한정전은 선택한 세트 카드만 허용한다', () => {
@@ -66,6 +81,13 @@ describe('콘텐츠와 포맷', () => {
 
     expect(getFormatCardPool(emptyExpansionSelection)).toEqual([])
     expect(validateDeck(DEFAULT_DECK, emptyExpansionSelection).valid).toBe(false)
+  })
+
+  test('새 세트 한정 덱은 DSF와 SOF를 기본 카드 풀로 연다', () => {
+    expect(createDefaultFormatSelection('set-constructed-v1').selectedSetIds).toEqual([
+      'foundations-001',
+      'evolution-begins-001',
+    ])
   })
 
   test('금지·제한전은 제한 카드 수량을 검사한다', () => {

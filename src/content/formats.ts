@@ -37,7 +37,10 @@ export const GAME_FORMATS: Record<GameFormatId, GameFormat<CardId>> = {
     startingLife: 4,
     startingHand: 4,
     fieldSlots: 4,
-    cardPool: { type: 'selected-sets', defaultSetIds: ['foundations-001'] },
+    cardPool: {
+      type: 'selected-sets',
+      defaultSetIds: ['foundations-001', 'evolution-begins-001'],
+    },
     bannedCardIds: [],
     restrictedCardLimits: {},
     selectableInDeckBuilder: true,

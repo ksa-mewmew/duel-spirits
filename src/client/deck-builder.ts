@@ -54,6 +54,7 @@ interface BuilderState {
   attributeFilter: CardAttributeId | 'all'
   typeFilter: 'all' | 'unit' | 'spell'
   costFilter: number | 'all'
+  setFilter: SetId | 'all'
   message: string
   hoverPreviewCardId: CardId | null
   pinnedPreviewCardId: CardId | null
@@ -91,6 +92,7 @@ function getInitialState(): BuilderState {
     attributeFilter: 'all',
     typeFilter: 'all',
     costFilter: 'all',
+    setFilter: 'all',
     message: '',
     hoverPreviewCardId: null,
     pinnedPreviewCardId: null,
@@ -125,6 +127,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     const deck = state.decks.find((item) => item.id === deckId)
     if (!deck) return
     applyDeckToState(state, deck)
+    state.setFilter = 'all'
     state.message = ''
     render()
   }
@@ -137,6 +140,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     state.formatId = selection.formatId
     state.selectedSetIds = [...selection.selectedSetIds]
     state.draftPool = null
+    state.setFilter = 'all'
     state.message = '포맷을 고르고 카드 풀에서 덱을 구성하세요.'
     render()
   }
@@ -146,6 +150,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     state.formatId = formatId
     state.selectedSetIds = [...selection.selectedSetIds]
     state.draftPool = null
+    state.setFilter = 'all'
     state.cardIds = []
 
     if (getFormat(formatId).deckSource === 'draft') {
@@ -160,6 +165,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
   function generateDraft(): void {
     state.draftPool = createDraftPool()
     state.cardIds = []
+    state.setFilter = 'all'
     state.message = '새 드래프트 풀을 생성했습니다. 이 풀 안에서만 덱을 구성할 수 있습니다.'
     render()
   }
@@ -178,6 +184,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     state.attributeFilter = sampleDeck.attribute
     state.typeFilter = 'all'
     state.costFilter = 'all'
+    state.setFilter = 'all'
     state.hoverPreviewCardId = sampleDeck.cardIds[0] ?? null
     state.pinnedPreviewCardId = null
     state.message = `${sampleDeck.name}을 새 덱으로 불러왔습니다. 저장·사용을 누르면 내 덱으로 저장됩니다.`
@@ -467,6 +474,40 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     return `<section class="deck-stats"><h3>속성 분포</h3>${attributeRows}<h3>비용 분포</h3>${costRows}<p>평균 비용: <strong>${getAverageCost(state.cardIds).toFixed(2)}</strong></p></section>`
   }
 
+  function getVisibleCardSets(): Array<{ id: SetId; name: string; code: string; count: number }> {
+    return Object.values(CARD_SETS)
+      .map((set) => ({
+        id: set.id,
+        name: set.name,
+        code: set.code,
+        count: Object.values(CARDS).filter((card) => card.setId === set.id).length,
+      }))
+      .filter((set) => set.count > 0)
+  }
+
+  function renderCardSetTabs(poolIds: readonly CardId[]): string {
+    const format = getFormat(state.formatId)
+    const sets = getVisibleCardSets()
+    const allCount = poolIds.length
+    const buttons = [
+      `<button type="button" class="card-set-tab ${state.setFilter === 'all' ? 'is-active' : ''}" data-card-set-filter="all" aria-pressed="${state.setFilter === 'all'}"><strong>전체</strong><span>${allCount}</span></button>`,
+      ...sets.map((set) => {
+        const poolCount = poolIds.filter((cardId) => CARDS[cardId].setId === set.id).length
+        const isActive = state.setFilter === set.id
+        const isExcludedByFormat = format.cardPool.type === 'selected-sets'
+          && !state.selectedSetIds.includes(set.id)
+        return `<button type="button" class="card-set-tab card-set-tab--${escapeHtml(set.code.toLowerCase())} ${isActive ? 'is-active' : ''} ${isExcludedByFormat ? 'is-excluded' : ''}" data-card-set-filter="${set.id}" aria-pressed="${isActive}" title="${escapeHtml(set.name)}">
+          <strong>${escapeHtml(set.code)}</strong><span>${poolCount || set.count}</span>
+        </button>`
+      }),
+    ].join('')
+
+    return `<section class="card-set-tabs" aria-label="카드 세트 필터">
+      <div class="card-set-tabs__label"><strong>카드 세트</strong><span>SOF를 눌러 새 카드만 볼 수 있습니다.</span></div>
+      <div class="card-set-tabs__buttons">${buttons}</div>
+    </section>`
+  }
+
   function render(): void {
     const selection = getSelection()
     const format = getFormat(selection.formatId)
@@ -479,6 +520,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
         || card.name.toLocaleLowerCase('ko-KR').includes(normalizedQuery)
         || card.rulesText.toLocaleLowerCase('ko-KR').includes(normalizedQuery)
       return matchesQuery
+        && (state.setFilter === 'all' || card.setId === state.setFilter)
         && (state.attributeFilter === 'all' || card.attributes.includes(state.attributeFilter))
         && (state.typeFilter === 'all' || card.type === state.typeFilter)
         && (state.costFilter === 'all' || card.cost === state.costFilter)
@@ -577,6 +619,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
         <section class="panel card-pool-panel">
           <header class="section-heading"><div><h2>카드 풀</h2><p>클릭해 상세 고정 · 더블 클릭해 추가</p></div><span>전 카드 해금</span></header>
           <div class="card-pool-stage">
+            ${renderCardSetTabs(poolIds)}
             <div class="card-pool-grid">${poolMarkup || '<p class="empty-row">조건에 맞는 카드가 없습니다.</p>'}</div>
             ${renderSampleDeckGuideLayer()}
           </div>
@@ -662,6 +705,29 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     document.querySelector<HTMLSelectElement>('#attribute-filter')?.addEventListener('change', (event) => { const value = (event.currentTarget as HTMLSelectElement).value; state.attributeFilter = value === 'all' ? 'all' : value as CardAttributeId; render() })
     document.querySelector<HTMLSelectElement>('#type-filter')?.addEventListener('change', (event) => { const value = (event.currentTarget as HTMLSelectElement).value; state.typeFilter = value === 'unit' || value === 'spell' ? value : 'all'; render() })
     document.querySelector<HTMLSelectElement>('#cost-filter')?.addEventListener('change', (event) => { const value = (event.currentTarget as HTMLSelectElement).value; state.costFilter = value === 'all' ? 'all' : Number(value); render() })
+    for (const button of document.querySelectorAll<HTMLButtonElement>('[data-card-set-filter]')) {
+      button.addEventListener('click', () => {
+        const value = button.dataset.cardSetFilter
+        if (!value) return
+        if (value === 'all') {
+          state.setFilter = 'all'
+          render()
+          return
+        }
+
+        const setId = value as SetId
+        const currentFormat = getFormat(state.formatId)
+        if (
+          currentFormat.cardPool.type === 'selected-sets'
+          && !state.selectedSetIds.includes(setId)
+        ) {
+          state.selectedSetIds = [...state.selectedSetIds, setId]
+          state.message = `${CARD_SETS[setId].name}(${CARD_SETS[setId].code}) 카드를 카드 풀에 포함했습니다.`
+        }
+        state.setFilter = setId
+        render()
+      })
+    }
 
     bindPreviewClose()
 
