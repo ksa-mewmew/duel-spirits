@@ -25,7 +25,7 @@ const BALANCE = {
   rock_armor_knight: ['바위 갑옷 기사', 'unit', 3, 2, 4, ['earth']],
   desertification: ['사막화', 'spell', 5, null, null, ['earth']],
   overgrown_sprout: ['하늘까지 자라난 새싹', 'spell', 4, null, null, ['earth']],
-  floating_mountains: ['떠다니는 산맥', 'unit', 6, 5, 4, ['earth']],
+  floating_mountains: ['떠다니는 산맥', 'unit', 6, 5, 5, ['earth']],
   grave_digging: ['파묘', 'spell', 3, null, null, ['earth', 'dark']],
   carrion_crow: ['시체를 먹는 까마귀', 'unit', 2, 1, 1, ['dark']],
   corpse_cat: ['시체에 숨은 고양이', 'unit', 1, 1, 2, ['dark']],
@@ -46,8 +46,8 @@ const BALANCE = {
 } as const
 
 describe('카드군 1 개정 원고', () => {
-  test('40장 모두 개정된 이름·종류·비용·공체·속성과 일치한다', () => {
-    expect(Object.keys(CARDS)).toHaveLength(40)
+  test('카드군 1의 40장이 개정된 이름·종류·비용·공체·속성과 일치한다', () => {
+    expect(Object.keys(CARDS)).toHaveLength(80)
 
     for (const [cardId, expected] of Object.entries(BALANCE)) {
       const [name, type, cost, attack, health, attributes] = expected

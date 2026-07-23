@@ -34,6 +34,18 @@ export interface PlayerView {
 
 export type PendingChoiceView =
   | {
+      type: 'SOF_CHOICE'
+      effect: import('./types').SofChoiceEffect
+      playerId: PlayerId
+      sourcePlayerId: PlayerId
+      sourceUnitId?: string
+      candidateIds: string[]
+      revealedCards: CardInstance[]
+      maxChoices: number
+      minChoices: number
+      data: Record<string, string | number | boolean | null>
+    }
+  | {
       type: 'TEMPLE_PROSPECT_LIFE'
       playerId: PlayerId
     }
@@ -103,7 +115,10 @@ function cloneManaCard(card: ManaCardInstance): ManaCardInstance {
 }
 
 function cloneUnit(unit: UnitInstance): UnitInstance {
-  return { ...unit }
+  return {
+    ...unit,
+    evolutionStack: unit.evolutionStack?.map(cloneCard),
+  }
 }
 
 function createPlayerView(
@@ -140,6 +155,20 @@ function createPendingChoiceView(
   const isChooser = pending.playerId === viewer
 
   switch (pending.type) {
+    case 'SOF_CHOICE':
+      return {
+        type: pending.type,
+        effect: pending.effect,
+        playerId: pending.playerId,
+        sourcePlayerId: pending.sourcePlayerId,
+        sourceUnitId: pending.sourceUnitId,
+        candidateIds: isChooser ? [...(pending.candidateIds ?? [])] : [],
+        revealedCards: isChooser ? (pending.revealedCards ?? []).map(cloneCard) : [],
+        maxChoices: isChooser ? (pending.maxChoices ?? 0) : 0,
+        minChoices: isChooser ? (pending.minChoices ?? 0) : 0,
+        data: isChooser ? { ...(pending.data ?? {}) } : {},
+      }
+
     case 'TEMPLE_PROSPECT_LIFE':
     case 'TEMPLE_PROSPECT_HAND':
     case 'HOLY_MIRROR_LIFE':
@@ -222,5 +251,6 @@ export function countPlayerCardsInView(player: PlayerView): number {
     + player.lifeCount
     + player.mana.length
     + player.field.length
+    + player.field.reduce((count, unit) => count + (unit.evolutionStack?.length ?? 0), 0)
     + player.discard.length
 }

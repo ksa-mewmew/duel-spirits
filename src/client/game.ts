@@ -38,6 +38,7 @@ interface PlayDraft {
   effectManaId?: string
   discardId?: string
   fieldSlot?: number
+  evolutionUnitId?: string
 }
 
 const appQuery = document.querySelector<HTMLDivElement>('#app')
@@ -360,6 +361,7 @@ function unitTargetMode(cardId: CardId): 'any' | 'exhausted' | 'highest-health' 
   if (cardId === 'desertification') return 'any'
   if (cardId === 'ebb' || cardId === 'reverse_current') return 'exhausted'
   if (cardId === 'demon_breath') return 'highest-health'
+  if (cardId === 'lava_gardener' || cardId === 'crematory_smoke') return 'any'
   return null
 }
 
@@ -376,7 +378,7 @@ function hasRushView(unit: UnitInstance): boolean {
 function hasChargeView(player: PlayerView, unit: UnitInstance): boolean {
   const definition = CARDS[unit.cardId]
   if (definition.type !== 'unit') return false
-  if (definition.keywords?.includes('charge')) return true
+  if (definition.keywords?.includes('charge') || unit.temporaryCharge === true) return true
   return unit.cardId === 'last_ember' && player.field.length === 1
 }
 
@@ -396,7 +398,8 @@ function hasStealthView(player: PlayerView, unit: UnitInstance): boolean {
   const definition = CARDS[unit.cardId]
   if (definition.type !== 'unit') return false
   if (definition.keywords?.includes('stealth')) return true
-  return unit.cardId === 'corpse_cat' && player.field.length > 1
+  if (unit.cardId === 'corpse_cat' && player.field.length > 1) return true
+  return unit.cardId === 'funeral_inviter' && player.discard.length >= 4
 }
 
 function hasAssassinationView(player: PlayerView, unit: UnitInstance): boolean {
@@ -418,6 +421,50 @@ function attackValueView(player: PlayerView, unit: UnitInstance): number {
         ? 1
         : 0
     )
+    + (
+      unit.cardId === 'hard_seed_bug'
+      && player.mana.filter((mana) => CARDS[mana.cardId].attributes.includes('earth')).length >= 5
+        ? 1
+        : 0
+    )
+    + (unit.cardId === 'salvation_lancer' && player.lifeCount <= 2 ? 2 : 0)
+}
+
+function attackingUnitValueView(
+  player: PlayerView,
+  unit: UnitInstance,
+  targetKind: 'unit' | 'player',
+): number {
+  return attackValueView(player, unit)
+    + (unit.cardId === 'living_smoke' ? 2 : 0)
+    + (unit.cardId === 'spark_chasing_lizard' ? 3 : 0)
+    + (unit.cardId === 'cliff_hunter' && targetKind === 'unit' ? 2 : 0)
+}
+
+function healthValueView(player: PlayerView, unit: UnitInstance): number {
+  const definition = CARDS[unit.cardId]
+  if (definition.type !== 'unit') return 0
+  return definition.health
+    + unit.temporaryHealthModifier
+    + (
+      unit.cardId === 'hard_seed_bug'
+      && player.mana.filter((mana) => CARDS[mana.cardId].attributes.includes('earth')).length >= 5
+        ? 1
+        : 0
+    )
+}
+
+function battlefieldAttackLimitView(): number {
+  if (!game) return Number.POSITIVE_INFINITY
+  const units = game.players.P1.field.concat(game.players.P2.field)
+  if (units.some((unit) => unit.cardId === 'apostle_pigeon')) return 1
+  if (units.some((unit) => unit.cardId === 'spirit_agent')) return 2
+  return Number.POSITIVE_INFINITY
+}
+
+function cannotDirectAttackView(unit: UnitInstance): boolean {
+  return ['blue_black_hound', 'iron_horn_boar', 'boulder_carrier', 'weakened_giant']
+    .includes(unit.cardId)
 }
 
 function canUnitAttackView(
@@ -425,21 +472,18 @@ function canUnitAttackView(
   unit: UnitInstance,
   targetKind: 'unit' | 'player',
 ): boolean {
+  if (unit.cardId === 'silent_shield_soldier') return false
   if (unit.exhausted) return false
-  if (targetKind === 'player' && unit.cardId === 'blue_black_hound') return false
+  if (targetKind === 'player' && cannotDirectAttackView(unit)) return false
   if (
     unit.summonedThisTurn
+    && !unit.evolvedThisTurn
     && !hasRushView(unit)
     && !(targetKind === 'unit' && hasChargeView(player, unit))
   ) return false
   const maxAttacks = hasWindfuryView(player, unit) ? 2 : 1
   if (unit.attacksThisTurn >= maxAttacks) return false
-  if (
-    game
-    && game.players.P1.field.concat(game.players.P2.field)
-      .some((candidate) => candidate.cardId === 'apostle_pigeon')
-    && player.attacksThisTurn >= 1
-  ) return false
+  if (player.attacksThisTurn >= battlefieldAttackLimitView()) return false
   return true
 }
 
@@ -450,18 +494,68 @@ function selectedPlayCard(): CardInstance | null {
   ) ?? null
 }
 
+function selectedPaidAttributes(): Set<string> {
+  if (!game || !playDraft) return new Set()
+  const self = game.players[game.viewer]
+  return new Set(playDraft.manaIds.flatMap((id) => {
+    const mana = self.mana.find((card) => card.instanceId === id)
+    return mana ? CARDS[mana.cardId].attributes : []
+  }))
+}
+
+function playDraftNeedsUnitTarget(card: CardInstance): boolean {
+  if (!game || !playDraft) return false
+  const enemyId: PlayerId = game.viewer === 'P1' ? 'P2' : 'P1'
+  const enemy = game.players[enemyId]
+  if (['desertification', 'ebb', 'reverse_current', 'demon_breath'].includes(card.cardId)) return true
+  const attributes = selectedPaidAttributes()
+  if (card.cardId === 'lava_gardener') return attributes.has('fire') && enemy.field.length > 0
+  if (card.cardId === 'crematory_smoke') return attributes.has('fire') && !attributes.has('dark') && enemy.field.length > 0
+  return false
+}
+
+function playDraftNeedsEffectMana(card: CardInstance): boolean {
+  if (!game || !playDraft) return false
+  const self = game.players[game.viewer]
+  if (card.cardId === 'grave_digging' || card.cardId === 'rising_earth') return true
+  if (card.cardId === 'lava_gardener' && selectedPaidAttributes().has('earth')) {
+    return self.mana.some((mana) => mana.exhausted || playDraft!.manaIds.includes(mana.instanceId))
+  }
+  return false
+}
+
+function canAttackUnitView(
+  attackerPlayer: PlayerView,
+  attacker: UnitInstance,
+  defenderPlayer: PlayerView,
+  defender: UnitInstance,
+  ignoreSkyKnight = false,
+): boolean {
+  if (hasStealthView(defenderPlayer, defender)) return false
+  if (defender.cardId === 'scale_diver' && attackingUnitValueView(attackerPlayer, attacker, 'unit') >= 3) return false
+  if (defender.cardId === 'little_judge' && CARDS[attacker.cardId].cost <= 1) return false
+  if (!ignoreSkyKnight && defender.cardId !== 'sky_white_horse_knight') {
+    const sky = defenderPlayer.field.some((unit) => unit.cardId === 'sky_white_horse_knight'
+      && canAttackUnitView(attackerPlayer, attacker, defenderPlayer, unit, true))
+    if (sky) return false
+  }
+  return true
+}
+
 function canSelectedAttackerDirectAttack(opponentPlayer: PlayerView): boolean {
   if (!game || !selectedAttackerId) return false
   const self = game.players[game.viewer]
   const attacker = self.field.find((unit) => unit.instanceId === selectedAttackerId)
   if (!attacker || !canUnitAttackView(self, attacker, 'player')) return false
-  if (attacker.cardId === 'blue_black_hound') return false
   if (
     opponentPlayer.field.some((unit) => unit.cardId === 'cathedral_guard' && !unit.exhausted)
     && CARDS[attacker.cardId].cost <= 1
   ) return false
+  const attackableSky = opponentPlayer.field.some((unit) => unit.cardId === 'sky_white_horse_knight'
+    && canAttackUnitView(self, attacker, opponentPlayer, unit, true))
+  if (attackableSky) return false
   const attackableEnemy = opponentPlayer.field.some(
-    (unit) => !hasStealthView(opponentPlayer, unit),
+    (unit) => canAttackUnitView(self, attacker, opponentPlayer, unit),
   )
   return hasFlyingView(self, attacker) || !attackableEnemy
 }
@@ -471,7 +565,8 @@ function requiredAttackLifeCount(opponentPlayer: PlayerView): number {
   const self = game.players[game.viewer]
   const attacker = self.field.find((unit) => unit.instanceId === selectedAttackerId)
   if (!attacker) return 0
-  return Math.min(1, opponentPlayer.lifeCount)
+  const requested = attacker.cardId === 'exploding_mountain_dragon' && opponentPlayer.lifeCount >= 3 ? 2 : 1
+  return Math.min(requested, opponentPlayer.lifeCount)
 }
 
 function renderCardBacks(count: number, className: string): string {
@@ -487,7 +582,11 @@ function getOpenFieldSlotsView(player: PlayerView): number[] {
 function isSlotSelectionActive(isSelf: boolean): boolean {
   if (!game || !isSelf) return false
   const draftCard = selectedPlayCard()
-  if (draftCard && CARDS[draftCard.cardId].type === 'unit') return true
+  if (draftCard) {
+    const definition = CARDS[draftCard.cardId]
+    if (definition.type === 'unit' && !definition.evolutionAttribute) return true
+    if (draftCard.cardId === 'rising_earth') return true
+  }
   if (summonFromManaDraftId) return true
   return game.pendingChoice?.playerId === game.viewer
     && game.pendingChoice.type === 'AWAKEN_SUMMON_SLOT'
@@ -661,22 +760,40 @@ function renderMana(
     const ability = getManaAbilityPresentation(player, mana, isSelf)
     const actions: string[] = []
 
-    if (isSelf && playDraft && !mana.exhausted) {
+    if (isSelf && playDraft) {
       const draftCard = selectedPlayCard()
-      actions.push(actionButton(
-        selectedAsCost ? '비용 선택 해제' : '비용으로 선택',
-        'select-cost-mana',
-        'mana-id',
-        mana.instanceId,
-        selectedAsEffect,
-      ))
-      if (draftCard?.cardId === 'grave_digging') {
+      if (!mana.exhausted) {
         actions.push(actionButton(
-          selectedAsEffect ? '효과 선택 해제' : '묘지로 보낼 마나',
+          selectedAsCost ? '비용 선택 해제' : '비용으로 선택',
+          'select-cost-mana',
+          'mana-id',
+          mana.instanceId,
+          selectedAsEffect && draftCard?.cardId !== 'lava_gardener',
+        ))
+      }
+
+      const definition = CARDS[mana.cardId]
+      const canSelectForGrave = draftCard?.cardId === 'grave_digging' && !mana.exhausted && !selectedAsCost
+      const canSelectForRising = draftCard?.cardId === 'rising_earth'
+        && definition.type === 'unit'
+        && definition.cost <= 5
+        && !definition.evolutionAttribute
+        && !selectedAsCost
+      const canSelectForGardener = draftCard?.cardId === 'lava_gardener'
+        && selectedPaidAttributes().has('earth')
+        && (mana.exhausted || selectedAsCost)
+      if (canSelectForGrave || canSelectForRising || canSelectForGardener || selectedAsEffect) {
+        const label = draftCard?.cardId === 'grave_digging'
+          ? '묘지로 보낼 마나'
+          : draftCard?.cardId === 'rising_earth'
+            ? '효과로 소환'
+            : '효과로 준비'
+        actions.push(actionButton(
+          selectedAsEffect ? '효과 선택 해제' : label,
           'select-effect-mana',
           'mana-id',
           mana.instanceId,
-          selectedAsCost,
+          false,
         ))
       }
     } else if (expanded && ability) {
@@ -697,7 +814,7 @@ function renderMana(
       nameOnly: !expanded,
       exhausted: mana.exhausted,
       selected: selectedAsCost || selectedAsEffect || selectedForSummon,
-      targetable: isSelf && playDraft !== null && !mana.exhausted,
+      targetable: isSelf && playDraft !== null && (!mana.exhausted || selectedAsEffect),
       displayCost: effectiveCost(mana),
       classNames: [
         'mana-card',
@@ -722,10 +839,15 @@ function isPlayDraftReady(): boolean {
   if (!card) return false
   const definition = CARDS[card.cardId]
   if (playDraft.manaIds.length !== effectiveCost(card)) return false
-  if (definition.type === 'unit' && playDraft.fieldSlot === undefined) return false
-  if (unitTargetMode(card.cardId) && !playDraft.unitId) return false
+  if (definition.type === 'unit') {
+    if (definition.evolutionAttribute) {
+      if (!playDraft.evolutionUnitId) return false
+    } else if (playDraft.fieldSlot === undefined) return false
+  }
+  if (card.cardId === 'rising_earth' && playDraft.fieldSlot === undefined) return false
+  if (playDraftNeedsUnitTarget(card) && !playDraft.unitId) return false
   if (needsLifeTarget(card.cardId) && playDraft.lifeIndex === undefined) return false
-  if (card.cardId === 'grave_digging' && !playDraft.effectManaId) return false
+  if (playDraftNeedsEffectMana(card) && !playDraft.effectManaId) return false
   return true
 }
 
@@ -797,12 +919,24 @@ function renderManaDrawer(): string {
 }
 
 function hasLegalPlayTarget(card: CardInstance, self: PlayerView, enemy: PlayerView): boolean {
+  const definition = CARDS[card.cardId]
   const targetMode = unitTargetMode(card.cardId)
-  if (targetMode !== null && enemy.field.length === 0) return false
+  if (targetMode !== null && !['lava_gardener', 'crematory_smoke'].includes(card.cardId) && enemy.field.length === 0) return false
   if (targetMode === 'exhausted' && !enemy.field.some((unit) => unit.exhausted)) return false
   if (needsLifeTarget(card.cardId) && enemy.lifeCount === 0) return false
   if (card.cardId === 'grave_digging'
     && self.mana.filter((mana) => !mana.exhausted).length < effectiveCost(card) + 1) return false
+  if (card.cardId === 'rising_earth') {
+    const validMana = self.mana.some((mana) => {
+      const manaDefinition = CARDS[mana.cardId]
+      return manaDefinition.type === 'unit' && manaDefinition.cost <= 5 && !manaDefinition.evolutionAttribute
+    })
+    if (!validMana || getOpenFieldSlotsView(self).length === 0) return false
+  }
+  if (card.cardId === 'last_prayer' && self.lifeCount > 2) return false
+  if (definition.type === 'unit' && definition.evolutionAttribute) {
+    return self.field.some((unit) => CARDS[unit.cardId].attributes.includes(definition.evolutionAttribute!))
+  }
   return true
 }
 
@@ -846,7 +980,7 @@ function renderHand(player: PlayerView, isSelf: boolean): string {
         'card-instance-id',
         card.instanceId,
         readyMana < effectiveCost(card)
-          || (definition.type === 'unit' && player.field.length >= FIELD_LIMIT)
+          || (definition.type === 'unit' && !definition.evolutionAttribute && player.field.length >= FIELD_LIMIT)
           || !hasLegalPlayTarget(card, player, enemy),
       ))
     }
@@ -871,6 +1005,8 @@ function getUnitStatusBadges(
   const badges: Array<{ label: string; tone?: 'active' | 'inactive' | 'warning' }> = []
   const isolated = player.field.length === 1
 
+  if ((unit.evolutionStack?.length ?? 0) > 0) badges.push({ label: `진화 ${unit.evolutionStack!.length}`, tone: 'warning' })
+  if (unit.skipNextReady) badges.push({ label: '다음 준비 안 됨', tone: 'inactive' })
   if (unit.cardId === 'last_ember' || unit.cardId === 'carrion_crow') {
     badges.push({
       label: isolated ? '고립' : '고립 해제',
@@ -878,6 +1014,10 @@ function getUnitStatusBadges(
     })
   }
   if (unit.cardId === 'living_smoke') badges.push({ label: '전투 공격 +2' })
+  if (unit.cardId === 'spark_chasing_lizard') badges.push({ label: '공격 중 +3' })
+  if (unit.cardId === 'cliff_hunter') badges.push({ label: '대 몬스터 +2' })
+  if (unit.cardId === 'hard_seed_bug' && healthValueView(player, unit) > (CARDS[unit.cardId] as any).health) badges.push({ label: '+1/+1', tone: 'warning' })
+  if (unit.cardId === 'salvation_lancer' && player.lifeCount <= 2) badges.push({ label: '공격 +2', tone: 'warning' })
   if (
     unit.cardId === 'volcano_mouse'
     && player.mana.filter((mana) => CARDS[mana.cardId].attributes.includes('fire')).length >= 2
@@ -910,10 +1050,9 @@ function renderField(player: PlayerView, isSelf: boolean): string {
   )
   const unitsBySlot = new Map(player.field.map((unit) => [unit.slotIndex, unit]))
   const slotSelectionActive = isSlotSelectionActive(isSelf)
-  const maxRemainingHealth = Math.max(...player.field.map((candidate) => {
-    const definition = CARDS[candidate.cardId]
-    return definition.type === 'unit' ? definition.health + candidate.temporaryHealthModifier - candidate.damage : -1
-  }), -1)
+  const maxRemainingHealth = Math.max(...player.field.map((candidate) => (
+    healthValueView(player, candidate) - candidate.damage
+  )), -1)
 
   return Array.from({ length: FIELD_LIMIT }, (_, slotIndex) => {
     const unit = unitsBySlot.get(slotIndex)
@@ -929,6 +1068,7 @@ function renderField(player: PlayerView, isSelf: boolean): string {
     if (definition.type !== 'unit') return ''
     const selectedForAttack = unit.instanceId === selectedAttackerId
     const selectedForSpell = unit.instanceId === playDraft?.unitId
+    const selectedForEvolution = unit.instanceId === playDraft?.evolutionUnitId
     const normalAttackMode = playDraft === null && currentGame.pendingChoice === null && summonFromManaDraftId === null
     const canSelectAttacker = isSelf
       && isMyTurn
@@ -944,18 +1084,20 @@ function renderField(player: PlayerView, isSelf: boolean): string {
         canUnitAttackView(player, unit, 'player')
         || (
           canUnitAttackView(player, unit, 'unit')
-          && opponentPlayer.field.some((target) => !hasStealthView(opponentPlayer, target))
+          && opponentPlayer.field.some((target) => canAttackUnitView(player, unit, opponentPlayer, target))
         )
       )
     const canSpellTarget = !isSelf
       && isMyTurn
       && targetMode !== null
+      && draftCard !== null
+      && playDraftNeedsUnitTarget(draftCard)
       && currentGame.pendingChoice === null
       && !awaitingServer
       && (
         targetMode === 'any'
         || (targetMode === 'exhausted' && unit.exhausted)
-        || (targetMode === 'highest-health' && definition.health + unit.temporaryHealthModifier - unit.damage === maxRemainingHealth)
+        || (targetMode === 'highest-health' && healthValueView(player, unit) - unit.damage === maxRemainingHealth)
       )
     const canAttackTarget = !isSelf
       && isMyTurn
@@ -966,9 +1108,18 @@ function renderField(player: PlayerView, isSelf: boolean): string {
         player.field.some((guard) => guard.cardId === 'cathedral_guard' && !guard.exhausted)
         && CARDS[selectedAttacker.cardId].cost <= 1
       )
-      && !hasStealthView(player, unit)
+      && canAttackUnitView(currentGame.players[currentGame.viewer], selectedAttacker, player, unit)
       && roomPhase === 'playing'
       && !awaitingServer
+
+    const canEvolutionTarget = isSelf
+      && isMyTurn
+      && draftCard !== null
+      && CARDS[draftCard.cardId].type === 'unit'
+      && Boolean((CARDS[draftCard.cardId] as import('../shared/cards').UnitCard).evolutionAttribute)
+      && currentGame.pendingChoice === null
+      && !awaitingServer
+      && CARDS[unit.cardId].attributes.includes((CARDS[draftCard.cardId] as import('../shared/cards').UnitCard).evolutionAttribute!)
 
     const canPendingDemonBreathTarget = !isSelf
       && currentGame.pendingChoice?.playerId === currentGame.viewer
@@ -978,6 +1129,13 @@ function renderField(player: PlayerView, isSelf: boolean): string {
     let actions = ''
     if (canPendingDemonBreathTarget) {
       actions = actionButton('악마의 숨결 대상', 'resolve-simple-choice', 'choice-id', unit.instanceId)
+    } else if (canEvolutionTarget) {
+      actions = actionButton(
+        selectedForEvolution ? '진화 대상 취소' : '이 몬스터 위에 진화',
+        'select-evolution-unit',
+        'unit-id',
+        unit.instanceId,
+      )
     } else if (canSpellTarget) {
       actions = actionButton(
         selectedForSpell ? '대상 취소' : '주문 대상',
@@ -1003,15 +1161,16 @@ function renderField(player: PlayerView, isSelf: boolean): string {
 
     return `<div class="field-slot-frame" data-field-slot="${slotIndex}">${renderCard(unit.cardId, {
       instanceId: unit.instanceId,
-      selected: selectedForAttack || selectedForSpell,
-      targetable: canPendingDemonBreathTarget || canSpellTarget || canAttackTarget,
+      selected: selectedForAttack || selectedForSpell || selectedForEvolution,
+      targetable: canPendingDemonBreathTarget || canEvolutionTarget || canSpellTarget || canAttackTarget,
       exhausted: unit.exhausted,
       // 소환된 턴이라도 기습·돌진으로 실제 공격할 수 있다면
       // 공격 불가 필터를 씌우지 않습니다.
       summonedThisTurn: unit.summonedThisTurn
+        && !unit.evolvedThisTurn
         && !hasRushView(unit)
         && !hasChargeView(player, unit),
-      remainingHealth: definition.health + unit.temporaryHealthModifier - unit.damage,
+      remainingHealth: healthValueView(player, unit) - unit.damage,
       displayAttack: attackValueView(player, unit),
       classNames: ['field-card', 'game-card--center-name'],
       actionsHtml: actions,
@@ -1129,13 +1288,28 @@ function renderPlayDraftPanel(): string {
   ]
 
   if (definition.type === 'unit') {
+    if (definition.evolutionAttribute) {
+      steps.push({
+        label: playDraft.evolutionUnitId ? '진화할 몬스터 선택됨' : `${CARD_ATTRIBUTES[definition.evolutionAttribute].name} 몬스터 선택`,
+        complete: Boolean(playDraft.evolutionUnitId),
+        attention: !playDraft.evolutionUnitId,
+      })
+    } else {
+      steps.push({
+        label: playDraft.fieldSlot === undefined ? '소환 위치 선택' : `${playDraft.fieldSlot + 1}번 슬롯`,
+        complete: playDraft.fieldSlot !== undefined,
+        attention: playDraft.fieldSlot === undefined,
+      })
+    }
+  }
+  if (card.cardId === 'rising_earth') {
     steps.push({
       label: playDraft.fieldSlot === undefined ? '소환 위치 선택' : `${playDraft.fieldSlot + 1}번 슬롯`,
       complete: playDraft.fieldSlot !== undefined,
       attention: playDraft.fieldSlot === undefined,
     })
   }
-  if (targetMode) {
+  if (targetMode && playDraftNeedsUnitTarget(card)) {
     steps.push({
       label: playDraft.unitId ? '몬스터 대상 선택됨' : '몬스터 대상 선택',
       complete: Boolean(playDraft.unitId),
@@ -1149,9 +1323,14 @@ function renderPlayDraftPanel(): string {
       attention: playDraft.lifeIndex === undefined,
     })
   }
-  if (card.cardId === 'grave_digging') {
+  if (playDraftNeedsEffectMana(card)) {
+    const label = card.cardId === 'grave_digging'
+      ? '묘지로 보낼 마나'
+      : card.cardId === 'rising_earth'
+        ? '효과로 소환할 마나'
+        : '효과로 준비할 마나'
     steps.push({
-      label: playDraft.effectManaId ? '묘지로 보낼 마나 선택됨' : '묘지로 보낼 마나 선택',
+      label: playDraft.effectManaId ? `${label} 선택됨` : `${label} 선택`,
       complete: Boolean(playDraft.effectManaId),
       attention: !playDraft.effectManaId,
     })
@@ -1166,6 +1345,144 @@ function renderPlayDraftPanel(): string {
   </div>`
 }
 
+function renderSofCandidateCard(
+  instanceId: string,
+  action = 'resolve-simple-choice',
+  actionLabel = '선택',
+): string {
+  const card = findVisibleCardInstance(instanceId)
+  if (!card) {
+    return `<button type="button" class="choice-life-card" data-action="${action}" data-choice-id="${escapeHtml(instanceId)}">${renderCardBack(['choice-card'])}<span>${escapeHtml(actionLabel)}</span></button>`
+  }
+  return renderCard(card.cardId, {
+    instanceId: card.instanceId,
+    compact: true,
+    selected: pendingChoiceIds.includes(instanceId),
+    classNames: ['choice-card'],
+    actionsHtml: actionButton(actionLabel, action, 'choice-id', instanceId),
+  })
+}
+
+function renderSofCandidateGrid(
+  candidateIds: readonly string[],
+  actionLabel = '선택',
+): string {
+  return `<div class="choice-card-grid">${candidateIds.map((id) => renderSofCandidateCard(id, 'resolve-simple-choice', actionLabel)).join('')}</div>`
+}
+
+function sofChoicePanel(
+  title: string,
+  description: string,
+  content: string,
+  actions = '',
+): string {
+  return `<div class="selection-panel selection-panel--urgent selection-panel--sof"><h3>${escapeHtml(title)}</h3><p>${escapeHtml(description)}</p>${content}${actions ? `<div class="choice-actions">${actions}</div>` : ''}</div>`
+}
+
+function renderSofChoicePanel(pending: Extract<NonNullable<GameView['pendingChoice']>, { type: 'SOF_CHOICE' }>): string {
+  const candidates = pending.candidateIds
+  const openSlots = game ? getOpenFieldSlotsView(game.players[game.viewer]) : []
+  const optionalSkip = actionButton('건너뛰기', 'resolve-sof-empty')
+
+  switch (pending.effect) {
+    case 'BOMB_MOUSE_DAMAGE':
+      return sofChoicePanel('터지지 않은 폭탄쥐', '피해 2를 줄 상대 몬스터를 선택하세요.', renderSofCandidateGrid(candidates, '피해 2'))
+    case 'UNDERWATER_OBSERVER_TOP': {
+      const cards = pending.revealedCards
+      const content = `<div class="choice-card-grid">${cards.map((card) => renderCard(card.cardId, { compact: true, classNames: ['choice-card'] })).join('')}</div>`
+      const actions = [
+        actionButton('현재 순서로 위에 둔다', 'resolve-simple-choice', 'choice-id', 'keep:normal'),
+        actionButton('순서를 뒤집어 위에 둔다', 'resolve-simple-choice', 'choice-id', 'keep:reverse', cards.length < 2),
+        ...cards.map((card) => actionButton(`${CARDS[card.cardId].name} 묘지`, 'resolve-simple-choice', 'choice-id', `discard:${card.instanceId}`)),
+      ].join('')
+      return sofChoicePanel('물밑을 살피는 자', '확인한 카드의 순서를 정하거나 한 장을 묘지로 보냅니다.', content, actions)
+    }
+    case 'ICE_MIRROR_FREEZE':
+      return sofChoicePanel('얼음거울 정령', '다음 준비 단계에 준비되지 않을 비용 2 이하 상대 몬스터를 선택하세요.', renderSofCandidateGrid(candidates, '준비 봉인'))
+    case 'WAVE_FIN_BOUNCE':
+      return sofChoicePanel('파도의 등지느러미', '손으로 되돌릴 소진된 비용 2 이하 상대 몬스터를 선택할 수 있습니다.', renderSofCandidateGrid(candidates, '손으로'), optionalSkip)
+    case 'CRYSTAL_TSUNAMI_BOUNCE':
+      return sofChoicePanel('수정 해일', '손으로 되돌릴 소진된 상대 몬스터를 선택할 수 있습니다.', renderSofCandidateGrid(candidates, '손으로'), optionalSkip)
+    case 'WAVE_FIN_DRAW':
+      return sofChoicePanel('파도의 등지느러미', '카드 1장을 뽑은 뒤 손 카드 한 장을 덱 맨 아래에 놓겠습니까?', '', actionButton('카드를 뽑는다', 'resolve-simple-choice', 'choice-id', 'draw') + actionButton('건너뛴다', 'resolve-simple-choice', 'choice-id', 'skip'))
+    case 'WAVE_FIN_BOTTOM':
+      return sofChoicePanel('파도의 등지느러미', '덱 맨 아래에 놓을 손 카드 한 장을 선택하세요.', renderSofCandidateGrid(candidates, '덱 아래'))
+    case 'MANA_FLIP_RETURN':
+      return sofChoicePanel('마나를 뒤집는 요정', '손으로 가져올 자신의 마나 한 장을 선택할 수 있습니다.', renderSofCandidateGrid(candidates, '손으로'), optionalSkip)
+    case 'MANA_FLIP_PLACE':
+      return sofChoicePanel('마나를 뒤집는 요정', '소진된 상태로 마나에 놓을 손 카드 한 장을 선택하세요.', renderSofCandidateGrid(candidates, '마나로'))
+    case 'EARTH_GUARDIAN_SUMMON': {
+      const cards = candidates.map((id) => {
+        const card = findVisibleCardInstance(id)
+        if (!card) return ''
+        const current = pendingChoiceIds.find((choice) => choice.startsWith(`${id}@`))
+        const slots = openSlots.map((slot) => {
+          const choiceId = `${id}@${slot}`
+          const slotTaken = pendingChoiceIds.some((choice) => choice.endsWith(`@${slot}`) && choice !== current)
+          return actionButton(`${slot + 1}번`, 'toggle-sof-slot-choice', 'choice-id', choiceId, slotTaken)
+        }).join('')
+        return `<div class="choice-card-with-slots">${renderCard(card.cardId, { compact: true, selected: Boolean(current), classNames: ['choice-card'] })}<div class="slot-choice-row">${slots}</div></div>`
+      }).join('')
+      return sofChoicePanel('대지의 수호자', `마나에서 최대 ${pending.maxChoices}장까지 출현 없이 소환할 수 있습니다.`, `<div class="choice-card-grid">${cards}</div>`, actionButton(`확정 (${pendingChoiceIds.length})`, 'confirm-sof-choices'))
+    }
+    case 'GRAVE_MERCHANT_RETURN':
+      return sofChoicePanel('무덤 안의 상인', '손으로 가져올 비용 1 이하 몬스터를 선택하세요.', renderSofCandidateGrid(candidates, '손으로'))
+    case 'BLACKWING_RETURN':
+      return sofChoicePanel('검은날개 포식자', '손으로 가져올 비용 1 이하 어둠 몬스터를 선택할 수 있습니다.', renderSofCandidateGrid(candidates, '손으로'), optionalSkip)
+    case 'MASS_BURIAL_ENEMY_FIRST':
+      return sofChoicePanel('집단 매장', '자신의 전장에서 묘지로 보낼 몬스터 한 장을 선택하세요.', renderSofCandidateGrid(candidates, '묘지로'))
+    case 'MASS_BURIAL_SELF':
+      return sofChoicePanel('집단 매장', '내 몬스터를 한 장 더 묻으면 상대도 몬스터를 한 장 더 묻습니다.', renderSofCandidateGrid(candidates, '희생'), optionalSkip)
+    case 'MASS_BURIAL_ENEMY_SECOND':
+      return sofChoicePanel('집단 매장', '추가로 묘지로 보낼 자신의 몬스터 한 장을 선택하세요.', renderSofCandidateGrid(candidates, '묘지로'))
+    case 'MOURNER_SACRIFICE':
+      return sofChoicePanel('장송하는 자', '다른 내 몬스터를 묘지로 보내고 상대 몬스터를 제거할 수 있습니다.', renderSofCandidateGrid(candidates, '희생'), optionalSkip)
+    case 'MOURNER_DESTROY':
+      return sofChoicePanel('장송하는 자', '묘지로 보낼 상대 몬스터를 선택하세요.', renderSofCandidateGrid(candidates, '묘지로'))
+    case 'MOURNER_LAST_WORDS': {
+      const cards = candidates.map((id) => {
+        const card = findVisibleCardInstance(id)
+        if (!card) return ''
+        const slots = openSlots.map((slot) => actionButton(`${slot + 1}번`, 'resolve-simple-choice', 'choice-id', `${id}@${slot}`)).join('')
+        return `<div class="choice-card-with-slots">${renderCard(card.cardId, { compact: true, classNames: ['choice-card'] })}<div class="slot-choice-row">${slots}</div></div>`
+      }).join('')
+      return sofChoicePanel('장송하는 자', '묘지의 비용 2 이하 어둠 몬스터를 출현 없이 소환할 수 있습니다.', `<div class="choice-card-grid">${cards}</div>`, optionalSkip)
+    }
+    case 'SKY_KNIGHT_READY':
+      return sofChoicePanel('천공의 백마기사', '준비할 다른 소진 몬스터를 선택할 수 있습니다.', renderSofCandidateGrid(candidates, '준비'), optionalSkip)
+    case 'STONE_PRIEST_HAND_MANA':
+      return sofChoicePanel('돌기둥의 성직자', '소진된 상태로 마나에 놓을 손 카드 한 장을 선택할 수 있습니다.', renderSofCandidateGrid(candidates, '마나로'), optionalSkip)
+    case 'STONE_PRIEST_LIFE': {
+      const stage = String(pending.data.stage ?? 'choose')
+      if (stage === 'revealed') {
+        const card = pending.revealedCards[0]
+        const content = card ? renderCard(card.cardId, { compact: true, classNames: ['choice-card'] }) : ''
+        const canAwaken = Boolean(pending.data.canAwaken)
+        return sofChoicePanel('돌기둥의 성직자', canAwaken ? '각성 카드입니다. 손으로 가져와 각성을 발동할 수 있습니다.' : '확인한 카드는 각성 카드가 아닙니다.', content, actionButton('그대로 둔다', 'resolve-simple-choice', 'choice-id', 'keep') + actionButton('손으로 가져와 각성', 'resolve-simple-choice', 'choice-id', 'take', !canAwaken))
+      }
+      return sofChoicePanel('돌기둥의 성직자', '확인할 자신의 라이프 카드 한 장을 선택할 수 있습니다.', `<div class="choice-card-grid">${candidates.map((id, index) => `<button type="button" class="choice-life-card" data-action="resolve-simple-choice" data-choice-id="${escapeHtml(id)}">${renderCardBack(['choice-card'])}<span>라이프 ${index + 1}</span></button>`).join('')}</div>`, optionalSkip)
+    }
+    case 'MIRROR_LAKE_RESOLVE': {
+      const stage = String(pending.data.stage ?? '')
+      if (stage === 'choose-life') {
+        return sofChoicePanel('거울 호수의 예언자', '확인할 자신의 라이프 카드 한 장을 선택하세요.', `<div class="choice-card-grid">${candidates.map((id, index) => `<button type="button" class="choice-life-card" data-action="resolve-simple-choice" data-choice-id="${escapeHtml(id)}">${renderCardBack(['choice-card'])}<span>라이프 ${index + 1}</span></button>`).join('')}</div>`)
+      }
+      const content = `<div class="choice-card-grid">${pending.revealedCards.map((card) => renderCard(card.cardId, { compact: true, classNames: ['choice-card'] })).join('')}</div>`
+      if (stage === 'light-only') return sofChoicePanel('거울 호수의 예언자', '자신의 라이프 카드를 확인했습니다.', content, actionButton('확인 완료', 'resolve-simple-choice', 'choice-id', 'close'))
+      const actions = actionButton('그대로 둔다', 'resolve-simple-choice', 'choice-id', 'keep')
+        + actionButton('덱 위를 묘지로', 'resolve-simple-choice', 'choice-id', 'discard')
+        + (stage === 'both' ? actionButton('두 카드를 교환', 'resolve-simple-choice', 'choice-id', 'swap') : '')
+      return sofChoicePanel('거울 호수의 예언자', stage === 'both' ? '확인한 라이프와 덱 위 카드를 처리하세요.' : '덱 위 카드를 처리하세요.', content, actions)
+    }
+    case 'COFFIN_KEEPER_BOTTOM':
+      return sofChoicePanel('가라앉은 관지기', '덱 맨 아래에 놓을 묘지 카드 한 장을 선택할 수 있습니다.', renderSofCandidateGrid(candidates, '덱 아래'), optionalSkip)
+    case 'COFFIN_KEEPER_TOP': {
+      const card = pending.revealedCards[0]
+      return sofChoicePanel('가라앉은 관지기', '덱 맨 위 카드를 묘지로 보낼 수 있습니다.', card ? renderCard(card.cardId, { compact: true, classNames: ['choice-card'] }) : '', actionButton('덱 위에 둔다', 'resolve-simple-choice', 'choice-id', 'keep') + actionButton('묘지로 보낸다', 'resolve-simple-choice', 'choice-id', 'discard'))
+    }
+  }
+}
+
 function renderPendingChoicePanel(): string {
   if (!game?.pendingChoice) return ''
   const pending = game.pendingChoice
@@ -1175,6 +1492,8 @@ function renderPendingChoicePanel(): string {
 
   const openSlots = getOpenFieldSlotsView(game.players[game.viewer])
   switch (pending.type) {
+    case 'SOF_CHOICE':
+      return renderSofChoicePanel(pending)
     case 'TEMPLE_PROSPECT_LIFE':
       return '<div class="selection-panel selection-panel--urgent"><h3>신전의 유망주</h3><p>손으로 가져올 자신의 라이프를 선택하세요.</p></div>'
     case 'TEMPLE_PROSPECT_HAND':
@@ -1393,7 +1712,7 @@ function renderTurnRibbon(): string {
   const detail = needsMyChoice
     ? game.currentPlayer === game.viewer
       ? '카드 효과를 선택해야 턴을 계속할 수 있습니다.'
-      : '상대 턴 중 각성이 발동했습니다. 선택을 완료해 주세요.'
+      : '상대 턴 중 효과가 발동했습니다. 선택을 완료해 주세요.'
     : message
 
   return `<section class="turn-ribbon ${stateClass}" aria-live="assertive">
@@ -1557,12 +1876,24 @@ function confirmPlayDraft(): void {
     render()
     return
   }
-  if (definition.type === 'unit' && playDraft.fieldSlot === undefined) {
-    message = '소환할 전장 슬롯을 선택해 주세요.'
+  if (definition.type === 'unit') {
+    if (definition.evolutionAttribute && !playDraft.evolutionUnitId) {
+      message = '진화시킬 내 몬스터를 선택해 주세요.'
+      render()
+      return
+    }
+    if (!definition.evolutionAttribute && playDraft.fieldSlot === undefined) {
+      message = '소환할 전장 슬롯을 선택해 주세요.'
+      render()
+      return
+    }
+  }
+  if (card.cardId === 'rising_earth' && playDraft.fieldSlot === undefined) {
+    message = '효과로 소환할 전장 슬롯을 선택해 주세요.'
     render()
     return
   }
-  if (unitTargetMode(card.cardId) && !playDraft.unitId) {
+  if (playDraftNeedsUnitTarget(card) && !playDraft.unitId) {
     message = '대상 몬스터를 선택해 주세요.'
     render()
     return
@@ -1572,8 +1903,8 @@ function confirmPlayDraft(): void {
     render()
     return
   }
-  if (card.cardId === 'grave_digging' && !playDraft.effectManaId) {
-    message = '묘지로 보낼 준비된 마나를 선택해 주세요.'
+  if (playDraftNeedsEffectMana(card) && !playDraft.effectManaId) {
+    message = '카드 효과에 사용할 마나를 선택해 주세요.'
     render()
     return
   }
@@ -1584,6 +1915,7 @@ function confirmPlayDraft(): void {
     effectManaId: playDraft.effectManaId,
     discardId: playDraft.discardId,
     fieldSlot: playDraft.fieldSlot,
+    evolutionUnitId: playDraft.evolutionUnitId,
   }
   openDiscardPlayerId = null
   openManaPlayerId = null
@@ -1822,7 +2154,7 @@ function bindEvents(): void {
       const manaId = button.dataset.manaId
       const card = selectedPlayCard()
       if (!manaId || !card) return
-      if (playDraft.effectManaId === manaId) return
+      if (playDraft.effectManaId === manaId && card.cardId !== 'lava_gardener') return
       const cost = effectiveCost(card)
       const next = toggleString(playDraft.manaIds, manaId, cost)
       if (next.length === playDraft.manaIds.length && !playDraft.manaIds.includes(manaId)) {
@@ -1837,7 +2169,8 @@ function bindEvents(): void {
       if (!playDraft) return
       const manaId = button.dataset.manaId
       if (!manaId) return
-      if (playDraft.manaIds.includes(manaId)) return
+      const draftCard = selectedPlayCard()
+      if (playDraft.manaIds.includes(manaId) && draftCard?.cardId !== 'lava_gardener') return
       playDraft.effectManaId = playDraft.effectManaId === manaId ? undefined : manaId
       render()
     })
@@ -1848,6 +2181,15 @@ function bindEvents(): void {
       const unitId = button.dataset.unitId
       if (!unitId) return
       playDraft.unitId = playDraft.unitId === unitId ? undefined : unitId
+      render()
+    })
+  }
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="select-evolution-unit"]')) {
+    button.addEventListener('click', () => {
+      if (!playDraft) return
+      const unitId = button.dataset.unitId
+      if (!unitId) return
+      playDraft.evolutionUnitId = playDraft.evolutionUnitId === unitId ? undefined : unitId
       render()
     })
   }
@@ -2003,6 +2345,24 @@ function bindEvents(): void {
     })
   }
   document.querySelector<HTMLButtonElement>('[data-action="confirm-pending-cards"]')?.addEventListener('click', () => sendAction({ type: 'RESOLVE_CHOICE', choiceIds: [...pendingChoiceIds] }))
+
+  document.querySelector<HTMLButtonElement>('[data-action="resolve-sof-empty"]')?.addEventListener('click', () => sendAction({ type: 'RESOLVE_CHOICE', choiceIds: [] }))
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="toggle-sof-slot-choice"]')) {
+    button.addEventListener('click', () => {
+      if (!game?.pendingChoice || game.pendingChoice.type !== 'SOF_CHOICE') return
+      const choiceId = button.dataset.choiceId
+      if (!choiceId) return
+      const [cardId] = choiceId.split('@')
+      const current = pendingChoiceIds.find((choice) => choice.startsWith(`${cardId}@`))
+      const withoutCard = pendingChoiceIds.filter((choice) => !choice.startsWith(`${cardId}@`))
+      const withoutSlot = withoutCard.filter((choice) => choice.split('@').at(-1) !== choiceId.split('@').at(-1))
+      pendingChoiceIds = current === choiceId
+        ? withoutCard
+        : [...withoutSlot, choiceId].slice(0, game.pendingChoice.maxChoices)
+      render()
+    })
+  }
+  document.querySelector<HTMLButtonElement>('[data-action="confirm-sof-choices"]')?.addEventListener('click', () => sendAction({ type: 'RESOLVE_CHOICE', choiceIds: [...pendingChoiceIds] }))
 
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="toggle-burning-choice"]')) {
     button.addEventListener('click', () => {

@@ -25,7 +25,7 @@ describe('종합 규칙 문서', () => {
     expect(new Set(ids).size).toBe(ids.length)
     expect(ids).toContain('rules-life')
     expect(ids).toContain('rules-damage')
-    for (const keyword of ['출현', '각성', '공명', '고립', '기습', '돌진', '질풍', '비행', '잠행', '암살', '유언']) {
+    for (const keyword of ['출현', '각성', '공명', '진화', '고립', '기습', '돌진', '질풍', '비행', '잠행', '암살', '유언']) {
       expect(text).toContain(keyword)
     }
   })

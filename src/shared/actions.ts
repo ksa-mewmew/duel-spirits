@@ -5,6 +5,8 @@ export interface CardPlaySelection {
   discardId?: string
   discardIds?: string[]
   fieldSlot?: number
+  /** 진화 몬스터를 겹쳐 놓을 내 전장 몬스터입니다. */
+  evolutionUnitId?: string
 }
 
 export interface PlaceManaAction {
