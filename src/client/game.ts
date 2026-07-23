@@ -534,23 +534,24 @@ function renderLife(playerId: PlayerId, owner: 'self' | 'opponent'): string {
       selected = selectedAttackLifeSlotIndices.includes(slotIndex)
     }
 
+    const directAttackTarget = action === 'select-attack-life'
     const cardBack = renderCardBack([
       'life-card',
       `life-card--${owner}`,
       action ? 'is-targetable' : '',
+      directAttackTarget ? 'is-direct-attack-target' : '',
       selected ? 'is-selected' : '',
     ].filter(Boolean))
-    const targetLabel = action === 'select-attack-life'
-      ? '<span class="life-target-label">직접 공격</span>'
-      : action
-        ? '<span class="life-target-label">선택</span>'
-        : ''
+    const targetLabel = action && action !== 'select-attack-life'
+      ? '<span class="life-target-label">선택</span>'
+      : ''
     const content = action
       ? `<button type="button" class="life-choice-button" data-action="${action}" data-life-index="${lifeIndex}" data-life-slot="${slotIndex}">${cardBack}${targetLabel}</button>`
       : cardBack
     const frameClasses = [
       'life-card-frame',
       action ? 'is-targetable' : '',
+      directAttackTarget ? 'is-direct-attack-target' : '',
       selected ? 'is-selected' : '',
     ].filter(Boolean).join(' ')
     return `<div class="${frameClasses}" data-life-slot="${slotIndex}" aria-label="라이프 카드"><div class="life-card-rotator">${content}</div></div>`
@@ -1005,7 +1006,11 @@ function renderField(player: PlayerView, isSelf: boolean): string {
       selected: selectedForAttack || selectedForSpell,
       targetable: canPendingDemonBreathTarget || canSpellTarget || canAttackTarget,
       exhausted: unit.exhausted,
-      summonedThisTurn: unit.summonedThisTurn,
+      // 소환된 턴이라도 기습·돌진으로 실제 공격할 수 있다면
+      // 공격 불가 필터를 씌우지 않습니다.
+      summonedThisTurn: unit.summonedThisTurn
+        && !hasRushView(unit)
+        && !hasChargeView(player, unit),
       remainingHealth: definition.health + unit.temporaryHealthModifier - unit.damage,
       displayAttack: attackValueView(player, unit),
       classNames: ['field-card', 'game-card--center-name'],
