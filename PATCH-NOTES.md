@@ -68,3 +68,13 @@
 - Updated dynamic costs, conditional field badges, card inspector details, sample-deck guidance, rulebook entries, and choice interfaces.
 - Raised content/rules versions to `2026.07.4` / `2026.07.7`.
 - Added source-lock, revised-card, and rulebook regression coverage plus focused runtime verification.
+
+# Card Group 2 — Evolution Begins (SOF) — 2026-07-23
+
+- Added the 40-card `evolution-begins-001` set, named `진화의 시작` with set code `SOF` and collector numbers `SOF-001` through `SOF-040`.
+- Added the Evolution mechanic: matching-attribute stacking, same-turn attacks, preserved battlefield slots, and automatic discard of all underlying materials when the evolved monster leaves the field.
+- Implemented all supplied Fire, Water, Earth, Dark, Light, and five rainbow card mechanics, including pre/post-combat triggers, delayed ready prevention, bounce immunity, mana summons, sacrifices, forced targets, life/deck inspection, and dual resonance branches.
+- Added evolution target selection and stack badges to the combat UI, plus all required SOF pending-choice panels.
+- Added source-lock and focused rules tests for SOF and updated the rulebook with the complete Evolution timing rules.
+- Preserved the current card-group-1 adjustments: Floating Mountains is 6-cost 5/5, and generic pending-effect messages do not refer only to Awakening.
+- Raised content/rules versions to `2026.07.7` / `2026.07.10`.
