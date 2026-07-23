@@ -29,6 +29,7 @@ export interface PlayerView {
   manaPlacedThisTurn: boolean
   extraLifeLossOnDirectAttack: boolean
   attacksThisTurn: number
+  darkCardsDiscardedThisTurn: number
 }
 
 export type PendingChoiceView =
@@ -127,6 +128,7 @@ function createPlayerView(
     manaPlacedThisTurn: player.manaPlacedThisTurn,
     extraLifeLossOnDirectAttack: player.extraLifeLossOnDirectAttack,
     attacksThisTurn: player.attacksThisTurn,
+    darkCardsDiscardedThisTurn: player.darkCardsDiscardedThisTurn ?? 0,
   }
 }
 

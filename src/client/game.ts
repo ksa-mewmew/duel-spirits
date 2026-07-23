@@ -330,7 +330,15 @@ function actionButton(
 }
 
 function effectiveCost(card: CardInstance): number {
-  return Math.max(0, CARDS[card.cardId].cost - (card.costReduction ?? 0))
+  const definition = CARDS[card.cardId]
+  const self = game?.players[game.viewer]
+  const isInCurrentHand = self?.hand.some((candidate) => candidate.instanceId === card.instanceId) ?? false
+  if (
+    card.cardId === 'coffin_warrior'
+    && isInCurrentHand
+    && (self?.darkCardsDiscardedThisTurn ?? 0) >= 2
+  ) return 0
+  return Math.max(0, definition.cost - (card.costReduction ?? 0))
 }
 
 function findVisibleCardInstance(instanceId: string | null): CardInstance | undefined {
@@ -369,27 +377,33 @@ function hasChargeView(player: PlayerView, unit: UnitInstance): boolean {
   const definition = CARDS[unit.cardId]
   if (definition.type !== 'unit') return false
   if (definition.keywords?.includes('charge')) return true
-  if (unit.cardId === 'volcano_mouse' && player.mana.filter((mana) => CARDS[mana.cardId].attributes.includes('fire')).length >= 2) return true
   return unit.cardId === 'last_ember' && player.field.length === 1
 }
 
-function hasWindfuryView(player: PlayerView, unit: UnitInstance): boolean {
+function hasWindfuryView(_player: PlayerView, unit: UnitInstance): boolean {
   const definition = CARDS[unit.cardId]
-  if (definition.type !== 'unit') return false
-  if (definition.keywords?.includes('windfury')) return true
-    if (unit.cardId === 'carrion_crow' && player.discard.length >= 3) return true
-  return false
+  return definition.type === 'unit' && definition.keywords?.includes('windfury') === true
 }
 
-function hasFlyingView(unit: UnitInstance): boolean {
+function hasFlyingView(player: PlayerView, unit: UnitInstance): boolean {
   const definition = CARDS[unit.cardId]
-  return definition.type === 'unit'
-    && (definition.keywords?.includes('flying') === true || unit.temporaryFlying === true)
+  if (definition.type !== 'unit') return false
+  if (definition.keywords?.includes('flying') || unit.temporaryFlying === true) return true
+  return unit.cardId === 'carrion_crow' && player.field.length === 1
 }
 
 function hasStealthView(player: PlayerView, unit: UnitInstance): boolean {
-  if (unit.cardId === 'corpse_cat' && player.field.length > 1) return true
-  return unit.cardId === 'nameless_shadow' && player.field.length === 1
+  const definition = CARDS[unit.cardId]
+  if (definition.type !== 'unit') return false
+  if (definition.keywords?.includes('stealth')) return true
+  return unit.cardId === 'corpse_cat' && player.field.length > 1
+}
+
+function hasAssassinationView(player: PlayerView, unit: UnitInstance): boolean {
+  const definition = CARDS[unit.cardId]
+  if (definition.type !== 'unit') return false
+  if (definition.keywords?.includes('assassination')) return true
+  return unit.cardId === 'nameless_shadow' && player.discard.length >= 3
 }
 
 function attackValueView(player: PlayerView, unit: UnitInstance): number {
@@ -398,6 +412,12 @@ function attackValueView(player: PlayerView, unit: UnitInstance): number {
   return definition.attack
     + unit.temporaryAttackModifier
     + (unit.cardId === 'last_ember' && player.field.length === 1 ? 1 : 0)
+    + (
+      unit.cardId === 'volcano_mouse'
+      && player.mana.filter((mana) => CARDS[mana.cardId].attributes.includes('fire')).length >= 2
+        ? 1
+        : 0
+    )
 }
 
 function canUnitAttackView(
@@ -406,6 +426,7 @@ function canUnitAttackView(
   targetKind: 'unit' | 'player',
 ): boolean {
   if (unit.exhausted) return false
+  if (targetKind === 'player' && unit.cardId === 'blue_black_hound') return false
   if (
     unit.summonedThisTurn
     && !hasRushView(unit)
@@ -434,6 +455,7 @@ function canSelectedAttackerDirectAttack(opponentPlayer: PlayerView): boolean {
   const self = game.players[game.viewer]
   const attacker = self.field.find((unit) => unit.instanceId === selectedAttackerId)
   if (!attacker || !canUnitAttackView(self, attacker, 'player')) return false
+  if (attacker.cardId === 'blue_black_hound') return false
   if (
     opponentPlayer.field.some((unit) => unit.cardId === 'cathedral_guard' && !unit.exhausted)
     && CARDS[attacker.cardId].cost <= 1
@@ -441,7 +463,7 @@ function canSelectedAttackerDirectAttack(opponentPlayer: PlayerView): boolean {
   const attackableEnemy = opponentPlayer.field.some(
     (unit) => !hasStealthView(opponentPlayer, unit),
   )
-  return hasFlyingView(attacker) || !attackableEnemy
+  return hasFlyingView(self, attacker) || !attackableEnemy
 }
 
 function requiredAttackLifeCount(opponentPlayer: PlayerView): number {
@@ -848,17 +870,29 @@ function getUnitStatusBadges(
   const badges: Array<{ label: string; tone?: 'active' | 'inactive' | 'warning' }> = []
   const isolated = player.field.length === 1
 
-  if (unit.cardId === 'last_ember' || unit.cardId === 'nameless_shadow') {
+  if (unit.cardId === 'last_ember' || unit.cardId === 'carrion_crow') {
     badges.push({
       label: isolated ? '고립' : '고립 해제',
       tone: isolated ? 'active' : 'inactive',
     })
   }
+  if (unit.cardId === 'living_smoke') badges.push({ label: '전투 공격 +2' })
+  if (
+    unit.cardId === 'volcano_mouse'
+    && player.mana.filter((mana) => CARDS[mana.cardId].attributes.includes('fire')).length >= 2
+  ) badges.push({ label: '공격 +1', tone: 'warning' })
   if (hasRushView(unit)) badges.push({ label: '기습' })
   if (hasChargeView(player, unit)) badges.push({ label: '돌진', tone: 'warning' })
   if (hasWindfuryView(player, unit)) badges.push({ label: '질풍' })
-  if (hasFlyingView(unit)) badges.push({ label: '비행' })
+  if (hasFlyingView(player, unit)) badges.push({ label: '비행' })
   if (hasStealthView(player, unit)) badges.push({ label: '잠행' })
+  if (unit.cardId === 'nameless_shadow') {
+    const discardCount = Math.min(3, player.discard.length)
+    badges.push({
+      label: discardCount >= 3 ? '암살' : `암살 ${discardCount}/3`,
+      tone: discardCount >= 3 ? 'warning' : 'inactive',
+    })
+  } else if (hasAssassinationView(player, unit)) badges.push({ label: '암살', tone: 'warning' })
   return badges
 }
 
@@ -931,7 +965,6 @@ function renderField(player: PlayerView, isSelf: boolean): string {
         player.field.some((guard) => guard.cardId === 'cathedral_guard' && !guard.exhausted)
         && CARDS[selectedAttacker.cardId].cost <= 1
       )
-      && !(selectedAttacker.cardId === 'blue_black_hound' && !unit.exhausted)
       && !hasStealthView(player, unit)
       && roomPhase === 'playing'
       && !awaitingServer
@@ -1149,13 +1182,24 @@ function renderPendingChoicePanel(): string {
       return `<div class="selection-panel selection-panel--urgent"><h3>물결을 읽는 자</h3>${pending.revealedCard ? renderCard(pending.revealedCard.cardId, { compact: true, classNames: ['choice-card'] }) : ''}<div class="choice-actions">${actionButton('덱 위에 둔다', 'resolve-simple-choice', 'choice-id', 'keep')}${actionButton('묘지로 보낸다', 'resolve-simple-choice', 'choice-id', 'discard')}</div></div>`
     case 'SURGING_WAVE_TOP': {
       const cards = pending.revealedCards
-      const takeButtons = cards.map((card) => {
+      const summonOptions = cards.map((card) => {
         const definition = CARDS[card.cardId]
-        const canTake = definition.type === 'unit' && definition.attributes.includes('water')
-        return `<div class="choice-card-with-actions">${renderCard(card.cardId, { compact: true, classNames: ['choice-card'] })}${actionButton('손으로 가져오기', 'resolve-simple-choice', 'choice-id', `take:${card.instanceId}`, !canTake)}</div>`
+        const canSummon = definition.type === 'unit'
+          && definition.cost <= 2
+          && definition.attributes.includes('water')
+          && openSlots.length > 0
+        const slotButtons = openSlots.map((slot) => actionButton(
+          `${slot + 1}번 슬롯`,
+          'resolve-simple-choice',
+          'choice-id',
+          `summon:${card.instanceId}@${slot}`,
+          !canSummon,
+        )).join('')
+        return `<div class="choice-card-with-slots">${renderCard(card.cardId, { compact: true, classNames: ['choice-card'] })}<div class="slot-choice-row">${slotButtons || '<span>빈 전장 슬롯 없음</span>'}</div></div>`
       }).join('')
-      return `<div class="selection-panel selection-panel--urgent"><h3>몰아치는 파도</h3><p>물 몬스터 한 장을 손으로 가져오거나, 모두 덱 맨 아래에 놓습니다.</p><div class="choice-card-grid">${takeButtons}</div><div class="choice-actions">${actionButton('모두 아래 · 현재 순서', 'resolve-simple-choice', 'choice-id', 'bottom:normal')}${actionButton('모두 아래 · 순서 뒤집기', 'resolve-simple-choice', 'choice-id', 'bottom:reverse', cards.length < 2)}</div></div>`
+      return `<div class="selection-panel selection-panel--urgent"><h3>몰아치는 파도</h3><p>비용 2 이하의 물 몬스터 한 장을 출현 없이 소환하거나, 확인한 카드를 모두 덱 맨 아래에 놓습니다.</p><div class="choice-card-grid">${summonOptions}</div><div class="choice-actions">${actionButton('모두 아래 · 현재 순서', 'resolve-simple-choice', 'choice-id', 'bottom:normal')}${actionButton('모두 아래 · 순서 뒤집기', 'resolve-simple-choice', 'choice-id', 'bottom:reverse', cards.length < 2)}</div></div>`
     }
+
     case 'GRAVE_DIGGING_RETURN': {
       const discardCards = game.players[game.viewer].discard
       return `<div class="selection-panel selection-panel--urgent"><h3>파묘</h3><p>묘지에서 최대 ${pending.maxCards}장을 손으로 가져옵니다. 선택하지 않고 끝낼 수도 있습니다.</p><div class="choice-card-grid">${discardCards.map((card) => renderCard(card.cardId, { compact: true, selected: pendingChoiceIds.includes(card.instanceId), classNames: ['choice-card'], actionsHtml: actionButton(pendingChoiceIds.includes(card.instanceId) ? '선택 취소' : '선택', 'toggle-pending-card', 'card-instance-id', card.instanceId) })).join('')}</div><div class="choice-actions">${actionButton(`확정 (${pendingChoiceIds.length})`, 'confirm-pending-cards')}</div></div>`
@@ -1221,10 +1265,11 @@ function renderCardInspectorContent(cardId: CardId, instanceId: string | null = 
   const instance = findVisibleCardInstance(instanceId)
   const currentCost = instance?.cardId === cardId ? effectiveCost(instance) : card.cost
   const costReduced = currentCost < card.cost
+  const coffinFree = cardId === 'coffin_warrior' && currentCost === 0 && card.cost > 0
   const attributes = card.attributes.map((attributeId) => CARD_ATTRIBUTES[attributeId].name).join(' · ')
   const families = card.families.length > 0 ? card.families.join(' · ') : '없음'
   const keywordNames: Record<string, string> = {
-    rush: '기습', charge: '돌진', windfury: '질풍', flying: '비행', stealth: '잠행', last_words: '유언',
+    rush: '기습', charge: '돌진', windfury: '질풍', flying: '비행', stealth: '잠행', last_words: '유언', assassination: '암살',
   }
   const keywords = card.type === 'unit'
     ? (card.keywords ?? []).map((keyword) => keywordNames[keyword]).filter(Boolean)
@@ -1237,7 +1282,7 @@ function renderCardInspectorContent(cardId: CardId, instanceId: string | null = 
       <h2>${escapeHtml(card.name)}</h2>
       ${card.type === 'unit' ? `<p class="card-inspector__stats">공격력 ${card.attack} · 체력 ${card.health}</p>` : ''}
       ${keywords.length > 0 ? `<div class="card-inspector__keywords">${keywords.map((keyword) => `<span>${escapeHtml(keyword)}</span>`).join('')}</div>` : ''}
-      ${costReduced ? `<p class="card-inspector__cost-notice"><strong>비용 감소 적용 중</strong><span>${card.cost} → ${currentCost}</span></p>` : ''}
+      ${costReduced ? `<p class="card-inspector__cost-notice"><strong>${coffinFree ? '무료 사용 조건 충족' : '비용 감소 적용 중'}</strong><span>${card.cost} → ${currentCost}</span></p>` : ''}
       <p class="card-inspector__rules">${escapeHtml(card.rulesText || '능력 없음')}</p>
       <p class="card-inspector__hint">마우스를 떼면 닫히며, 카드를 클릭하면 고정됩니다.</p>
     </div>

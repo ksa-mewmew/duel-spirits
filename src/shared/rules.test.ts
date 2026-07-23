@@ -295,7 +295,9 @@ describe('카드 상호작용 보강', () => {
       slotIndex: 0,
       battlefieldEntrySeq: 2,
       exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
-      temporaryAttackModifier: 0, temporaryHealthModifier: 10,
+      // 마지막 불씨의 개정 체력은 1이므로, 이 검사는 생존 여부가 아니라
+      // 고립 공격력의 즉시 반영만 검증하도록 수비 측 공격력을 0으로 둡니다.
+      temporaryAttackModifier: -1, temporaryHealthModifier: 10,
     }]
 
     const isolatedAttack = applyAction(game, 'P1', {

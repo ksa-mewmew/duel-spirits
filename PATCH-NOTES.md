@@ -58,3 +58,13 @@
 - Tightened field-card spacing aggressively while retaining four fixed battlefield slots.
 - Rebuilt the card-use selection panel as a compact horizontal step bar with non-shrinking buttons and no inherited overflow scrollbar.
 - Removed the upward translation from selected cards in the expanded mana tray.
+
+# Card Group 1 rules and content overhaul — 2026-07-23
+
+- Rebuilt all 40 `foundations-001` card definitions from the supplied revised manuscript.
+- Added the Assassination keyword and its post-combat resolution.
+- Added per-turn Dark-card discard tracking and replaced Coffin Warrior's old incremental discount with its revised free-play condition.
+- Implemented revised Volcano Mouse, Living Smoke, Ripple Spirit, Surging Wave, Tree Fairy, Nameless Shadow, Carrion Crow, and Blue-Black Hound mechanics.
+- Updated dynamic costs, conditional field badges, card inspector details, sample-deck guidance, rulebook entries, and choice interfaces.
+- Raised content/rules versions to `2026.07.4` / `2026.07.7`.
+- Added source-lock, revised-card, and rulebook regression coverage plus focused runtime verification.

@@ -42,6 +42,8 @@ export interface PlayerState {
   manaPlacedThisTurn: boolean
   attacksThisTurn: number
   extraLifeLossOnDirectAttack: boolean
+  /** 현재 턴에 이 플레이어의 어둠 카드가 묘지로 보내진 횟수입니다. */
+  darkCardsDiscardedThisTurn?: number
 }
 
 export type PendingChoice =

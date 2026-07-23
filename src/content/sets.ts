@@ -1,7 +1,7 @@
 import type { CardSet, SetId } from './schema'
 
-export const CONTENT_VERSION = '2026.07.3'
-export const RULES_VERSION = '2026.07.6'
+export const CONTENT_VERSION = '2026.07.4'
+export const RULES_VERSION = '2026.07.7'
 
 export const CARD_SETS: Record<SetId, CardSet> = {
   'foundations-001': {
