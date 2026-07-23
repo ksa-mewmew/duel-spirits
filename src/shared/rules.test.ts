@@ -77,7 +77,7 @@ describe('기본 행동', () => {
     expect(countPlayerCards(next.players.P1)).toBe(DECK_SIZE)
   })
 
-  test('턴 종료 시 상대가 한 장 뽑는다', () => {
+  test('턴 종료 시 상대의 턴이 시작되며 카드 두 장을 뽑는다', () => {
     const game = createGame({
       random: () => 0.5,
       idSource: createIdSource(),
@@ -85,30 +85,30 @@ describe('기본 행동', () => {
     const next = applyAction(game, 'P1', { type: 'END_TURN' })
 
     expect(next.currentPlayer).toBe('P2')
-    expect(next.players.P2.hand).toHaveLength(5)
-    expect(next.players.P2.deck).toHaveLength(11)
+    expect(next.players.P2.hand).toHaveLength(6)
+    expect(next.players.P2.deck).toHaveLength(10)
   })
 
-  test('덱이 비어 있으면 묘지를 섞은 뒤 같은 드로우에서 한 장을 뽑는다', () => {
+  test('턴 시작에 두 장을 뽑는 동안 덱이 비면 묘지를 섞어 계속 뽑는다', () => {
     const game = createGame({
       random: () => 0.5,
       idSource: createIdSource(),
       startingPlayer: 'P1',
     })
     game.players.P2.deck = []
-    game.players.P2.discard = [{
-      instanceId: 'recycled-draw',
-      cardId: 'wave_reader',
-    }]
+    game.players.P2.discard = [
+      { instanceId: 'recycled-draw-a', cardId: 'wave_reader' },
+      { instanceId: 'recycled-draw-b', cardId: 'living_flame' },
+    ]
     const handSizeBefore = game.players.P2.hand.length
 
     const next = applyAction(game, 'P1', { type: 'END_TURN' })
 
-    expect(next.players.P2.hand).toHaveLength(handSizeBefore + 1)
-    expect(next.players.P2.hand.at(-1)).toMatchObject({
-      instanceId: 'recycled-draw',
-      cardId: 'wave_reader',
-    })
+    expect(next.players.P2.hand).toHaveLength(handSizeBefore + 2)
+    expect(next.players.P2.hand.slice(-2).map((card) => card.instanceId).sort()).toEqual([
+      'recycled-draw-a',
+      'recycled-draw-b',
+    ])
     expect(next.players.P2.deck).toHaveLength(0)
     expect(next.players.P2.discard).toHaveLength(0)
   })

@@ -2,9 +2,12 @@ import { describe, expect, test } from 'vitest'
 
 import { ALL_CARD_IDS, CARDS, DEFAULT_DECK, SOF_CARD_IDS } from './cards'
 import { GAME_FORMATS } from '../content/formats'
+import { CARD_SETS } from '../content/sets'
+import { SET_IDS } from '../content/schema'
 import {
   createDefaultFormatSelection,
   createDraftPool,
+  normalizeDeckFormatSelection,
   getFormatCardPool,
   validateDeck,
 } from './decks'
@@ -42,7 +45,7 @@ describe('콘텐츠와 포맷', () => {
   })
 
   test('모든 카드에 올바른 세트와 수집 번호가 있다', () => {
-    const sofIds = new Set(SOF_CARD_IDS)
+    const sofIds = new Set<string>(SOF_CARD_IDS)
     for (const cardId of ALL_CARD_IDS) {
       const card = CARDS[cardId]
       expect(card.setId).toBe(sofIds.has(cardId) ? 'evolution-begins-001' : 'foundations-001')
@@ -69,9 +72,9 @@ describe('콘텐츠와 포맷', () => {
       selectedSetIds: ['foundations-001' as const],
       draftPool: null,
     }
-    const emptyExpansionSelection = {
+    const evolutionSelection = {
       formatId: 'set-constructed-v1' as const,
-      selectedSetIds: ['confluence-001' as const],
+      selectedSetIds: ['evolution-begins-001' as const],
       draftPool: null,
     }
 
@@ -79,12 +82,39 @@ describe('콘텐츠와 포맷', () => {
     expect(getFormatCardPool(foundationsSelection)).toContain('battle_campfire')
     expect(validateDeck(DEFAULT_DECK, foundationsSelection).valid).toBe(true)
 
-    expect(getFormatCardPool(emptyExpansionSelection)).toEqual([])
-    expect(validateDeck(DEFAULT_DECK, emptyExpansionSelection).valid).toBe(false)
+    expect(getFormatCardPool(evolutionSelection)).toHaveLength(40)
+    expect(getFormatCardPool(evolutionSelection).every(
+      (cardId) => CARDS[cardId].setId === 'evolution-begins-001',
+    )).toBe(true)
+    expect(validateDeck(DEFAULT_DECK, evolutionSelection).valid).toBe(false)
+  })
+
+  test('공개 카드 세트는 DSF와 SOF 두 종류뿐이다', () => {
+    expect(SET_IDS).toEqual(['foundations-001', 'evolution-begins-001'])
+    expect(Object.keys(CARD_SETS)).toEqual(['foundations-001', 'evolution-begins-001'])
+  })
+
+  test('모든 포맷의 턴 시작 드로우는 2장이다', () => {
+    for (const format of Object.values(GAME_FORMATS)) {
+      expect(format.turnDrawCount).toBe(2)
+    }
   })
 
   test('새 세트 한정 덱은 DSF와 SOF를 기본 카드 풀로 연다', () => {
     expect(createDefaultFormatSelection('set-constructed-v1').selectedSetIds).toEqual([
+      'foundations-001',
+      'evolution-begins-001',
+    ])
+  })
+
+  test('삭제된 더미 세트가 저장 덱에 남아 있어도 DSF와 SOF로 복구한다', () => {
+    const normalized = normalizeDeckFormatSelection({
+      formatId: 'set-constructed-v1',
+      selectedSetIds: ['confluence-001'] as never[],
+      draftPool: null,
+    })
+
+    expect(normalized.selectedSetIds).toEqual([
       'foundations-001',
       'evolution-begins-001',
     ])

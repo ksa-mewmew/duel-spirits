@@ -1,4 +1,5 @@
 import type { CardId } from './cards'
+import { DEFAULT_TURN_DRAW_COUNT } from './schema'
 import type { GameFormat, GameFormatId } from './schema'
 
 export const DEFAULT_FORMAT_ID: GameFormatId = 'open-v1'
@@ -16,6 +17,7 @@ export const GAME_FORMATS: Record<GameFormatId, GameFormat<CardId>> = {
     maxCopiesPerCard: 3,
     startingLife: 4,
     startingHand: 4,
+    turnDrawCount: DEFAULT_TURN_DRAW_COUNT,
     fieldSlots: 4,
     cardPool: { type: 'all' },
     bannedCardIds: [],
@@ -36,6 +38,7 @@ export const GAME_FORMATS: Record<GameFormatId, GameFormat<CardId>> = {
     maxCopiesPerCard: 3,
     startingLife: 4,
     startingHand: 4,
+    turnDrawCount: DEFAULT_TURN_DRAW_COUNT,
     fieldSlots: 4,
     cardPool: {
       type: 'selected-sets',
@@ -58,6 +61,7 @@ export const GAME_FORMATS: Record<GameFormatId, GameFormat<CardId>> = {
     maxCopiesPerCard: 3,
     startingLife: 4,
     startingHand: 4,
+    turnDrawCount: DEFAULT_TURN_DRAW_COUNT,
     fieldSlots: 4,
     cardPool: { type: 'all' },
     bannedCardIds: [],
@@ -77,6 +81,7 @@ export const GAME_FORMATS: Record<GameFormatId, GameFormat<CardId>> = {
     maxCopiesPerCard: 3,
     startingLife: 4,
     startingHand: 4,
+    turnDrawCount: DEFAULT_TURN_DRAW_COUNT,
     fieldSlots: 4,
     cardPool: { type: 'draft-pool' },
     bannedCardIds: [],
@@ -102,6 +107,7 @@ export const GAME_FORMATS: Record<GameFormatId, GameFormat<CardId>> = {
     maxCopiesPerCard: 3,
     startingLife: 4,
     startingHand: 4,
+    turnDrawCount: DEFAULT_TURN_DRAW_COUNT,
     fieldSlots: 4,
     cardPool: { type: 'all' },
     bannedCardIds: [],

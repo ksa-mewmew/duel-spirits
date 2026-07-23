@@ -1,10 +1,11 @@
 export const SET_IDS = [
   'foundations-001',
   'evolution-begins-001',
-  'confluence-001',
 ] as const
 
 export type SetId = typeof SET_IDS[number]
+
+export const DEFAULT_TURN_DRAW_COUNT = 2
 
 export const FORMAT_IDS = [
   'campaign-prologue-v1',
@@ -55,6 +56,7 @@ export interface GameFormat<CardKey extends string = string> {
   maxCopiesPerCard: number
   startingLife: number
   startingHand: number
+  turnDrawCount: number
   fieldSlots: number
   cardPool: CardPoolRule
   bannedCardIds: CardKey[]

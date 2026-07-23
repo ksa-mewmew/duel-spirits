@@ -50,7 +50,7 @@ export function createRulebookDocument(format: GameFormat<CardId>): RulebookDocu
     subtitle: '처음 하는 사람을 위한 기본 규칙',
     rulesVersion: RULES_VERSION,
     formatName: format.name,
-    formatSummary: `${format.description} 덱 ${format.deckSize}장 · 시작 라이프 ${format.startingLife}장 · 시작 손 ${format.startingHand}장 · 시작 덱 ${drawDeckSize}장 · 전장 ${format.fieldSlots}슬롯`,
+    formatSummary: `${format.description} 덱 ${format.deckSize}장 · 시작 라이프 ${format.startingLife}장 · 시작 손 ${format.startingHand}장 · 턴 시작 드로우 ${format.turnDrawCount}장 · 시작 덱 ${drawDeckSize}장 · 전장 ${format.fieldSlots}슬롯`,
     sections: [
       {
         id: 'rules-goal',
@@ -104,7 +104,7 @@ export function createRulebookDocument(format: GameFormat<CardId>): RulebookDocu
             ordered: true,
             items: [
               '내 마나와 몬스터를 모두 준비 상태로 돌립니다.',
-              '카드 1장을 뽑습니다. 단, 경기의 첫 턴에는 뽑지 않습니다.',
+              `카드 ${format.turnDrawCount}장을 한 장씩 차례로 뽑습니다. 단, 경기의 첫 턴에는 뽑지 않습니다.`,
               '원하는 순서로 카드를 사용하거나 공격합니다.',
               '할 일을 마쳤으면 턴을 종료합니다.',
             ],
@@ -246,6 +246,7 @@ export function createRulebookDocument(format: GameFormat<CardId>): RulebookDocu
           {
             type: 'list',
             items: [
+              `턴 시작에는 카드 ${format.turnDrawCount}장을 한 장씩 차례로 뽑습니다. 경기의 첫 턴은 예외입니다.`,
               '카드를 뽑을 때는 덱 맨 위 카드를 손으로 가져옵니다.',
               '덱이 비어 있고 묘지에 카드가 있다면 묘지를 섞어 새 덱으로 만든 뒤 뽑습니다.',
               '덱과 묘지가 모두 비어 있으면 아무것도 뽑지 않습니다. 덱이 비었다는 이유로 패배하지는 않습니다.',

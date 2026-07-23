@@ -12,9 +12,11 @@ describe('종합 규칙 문서', () => {
     expect(document.formatSummary).toContain('덱 20장')
     expect(document.formatSummary).toContain('시작 라이프 4장')
     expect(document.formatSummary).toContain('시작 손 4장')
+    expect(document.formatSummary).toContain('턴 시작 드로우 2장')
     expect(document.formatSummary).toContain('시작 덱 12장')
     expect(document.formatSummary).toContain('전장 4슬롯')
     expect(JSON.stringify(document)).toContain('같은 카드는 최대 3장')
+    expect(JSON.stringify(document)).toContain('카드 2장을 한 장씩 차례로 뽑습니다')
   })
 
   test('목차 id와 핵심 키워드가 빠짐없이 존재한다', () => {
