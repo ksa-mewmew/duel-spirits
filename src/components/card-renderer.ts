@@ -22,7 +22,7 @@ export interface RenderCardOptions {
   actionsHtml?: string
   dataAttributes?: Record<string, string>
   interactive?: boolean
-  /** 인게임 카드 상세보기처럼 이름을 하단에 두는 예외 레이아웃입니다. */
+  /** 상세 보기에서도 공통 아트 중심 카드 면을 사용합니다. */
   detailLayout?: boolean
 }
 
@@ -52,6 +52,15 @@ function renderDataAttributes(
   return Object.entries(values)
     .map(([key, value]) => `data-${key}="${escapeHtml(value)}"`)
     .join(' ')
+}
+
+function getCardNameLengthClass(name: string): string {
+  const length = Array.from(name.replaceAll(' ', '')).length
+  if (length <= 6) return 'game-card--name-short'
+  if (length <= 8) return 'game-card--name-medium'
+  if (length <= 10) return 'game-card--name-long'
+  if (length <= 12) return 'game-card--name-xlong'
+  return 'game-card--name-xxlong'
 }
 
 export function renderCardBack(
@@ -85,7 +94,8 @@ export function renderCard(
     options.nameOnly ? 'game-card--name-only' : '',
     !options.nameOnly && !options.detailLayout ? 'game-card--center-name' : '',
     options.detailLayout ? 'game-card--detail-layout' : '',
-    card.name.length >= 11 ? 'game-card--name-xlong' : card.name.length >= 8 ? 'game-card--name-long' : '',
+    card.artUrl ? 'game-card--art-ready' : 'game-card--no-art',
+    getCardNameLengthClass(card.name),
     options.exhausted ? 'is-exhausted' : '',
     options.selected ? 'is-selected' : '',
     options.targetable ? 'is-targetable' : '',
@@ -94,7 +104,7 @@ export function renderCard(
   ].filter(Boolean)
 
   const style = card.artUrl
-    ? `style="--card-art: url('${escapeHtml(card.artUrl)}')"`
+    ? `style="--card-art: url('${escapeHtml(card.artUrl)}'); --card-art-position: ${escapeHtml(card.artPosition ?? '50% 42%')}; --card-art-scale: ${Number.isFinite(card.artScale) ? card.artScale : 1}"`
     : ''
   const interactive = options.interactive !== false
   const displayCost = options.displayCost ?? card.cost
@@ -119,6 +129,7 @@ export function renderCard(
     >
       <div class="game-card__art" aria-hidden="true"></div>
       <div class="game-card__overlay" aria-hidden="true"></div>
+      <div class="game-card__frame" aria-hidden="true"></div>
 
       ${options.nameOnly ? `
         <div class="game-card__name-only">
@@ -130,8 +141,8 @@ export function renderCard(
             <span class="game-card__cost">${displayCost}</span>
             ${costReduction > 0 ? `<span class="game-card__cost-reduction" aria-hidden="true">−${costReduction}</span>` : ''}
           </span>
-          <span class="game-card__attribute" title="${escapeHtml(card.attributes.map((attributeId) => CARD_ATTRIBUTES[attributeId].name).join(', '))}">
-            ${escapeHtml(attributeLabel)}
+          <span class="game-card__attributes" title="${escapeHtml(card.attributes.map((attributeId) => CARD_ATTRIBUTES[attributeId].name).join(', '))}">
+            ${card.attributes.map((attributeId) => `<span class="game-card__attribute">${escapeHtml(CARD_ATTRIBUTES[attributeId].shortName)}</span>`).join('')}
           </span>
         </header>
 

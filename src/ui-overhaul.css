@@ -5531,3 +5531,81 @@ button.player-counter--discard {
     margin-left: -11px;
   }
 }
+
+/* 2026-07 external visual asset slots ---------------------------------------
+   Replace the two files below without touching TypeScript or layout CSS:
+     public/ui/card-frames/card-frame.png
+     public/ui/battlefield/battlefield.webp
+
+   The card frame must be a transparent 5:7 PNG. The battlefield image should
+   be a clean 16:9 WebP without baked-in cards, labels, buttons or slot text. */
+:root {
+  --card-frame-image: url('/ui/card-frames/card-frame.png');
+  --card-frame-inset: 0px;
+  --card-frame-opacity: 1;
+  --card-frame-size: 100% 100%;
+
+  --battlefield-image: url('/ui/battlefield/battlefield.webp');
+  --battlefield-position: 50% 50%;
+  --battlefield-size: cover;
+  --battlefield-dim: rgba(2, 7, 11, .42);
+  --battlefield-saturation: 1;
+}
+
+/* The illustration and fallback tint remain below the transparent frame.
+   Text, number discs, selections and action buttons remain above it. */
+.game-card__frame {
+  position: absolute;
+  inset: var(--card-frame-inset);
+  z-index: 1;
+  pointer-events: none;
+  border-radius: inherit;
+  background-image: var(--card-frame-image);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: var(--card-frame-size);
+  opacity: var(--card-frame-opacity);
+}
+
+.game-card__header,
+.game-card__footer,
+.game-card__code,
+.game-card__name-only {
+  z-index: 4;
+}
+
+/* Smaller mana cards use the same undistorted 5:7 asset, but slightly reduce
+   frame contrast so their compact information remains readable. */
+.mana-card .game-card__frame {
+  opacity: calc(var(--card-frame-opacity) * .82);
+}
+
+/* Full battlefield artwork slot. Existing gradients stay above and below the
+   image to preserve card readability before and after the final art arrives. */
+@media (min-width: 1080px) and (min-height: 640px) {
+  .battle-board {
+    background-color: #071017 !important;
+    background-image:
+      linear-gradient(var(--battlefield-dim), var(--battlefield-dim)),
+      var(--battlefield-image),
+      linear-gradient(90deg, transparent 49.85%, rgba(112, 221, 235, .08) 50%, transparent 50.15%),
+      linear-gradient(180deg, rgba(15, 22, 28, .05), rgba(3, 8, 13, .22)) !important;
+    background-position:
+      center,
+      var(--battlefield-position),
+      center,
+      center !important;
+    background-size:
+      100% 100%,
+      var(--battlefield-size),
+      100% 100%,
+      100% 100% !important;
+    background-repeat: no-repeat !important;
+  }
+
+  /* The old procedural arena markings become a subtle optional overlay rather
+     than competing with the supplied battlefield illustration. */
+  .battle-board::before {
+    opacity: .28;
+  }
+}
