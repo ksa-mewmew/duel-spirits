@@ -3123,3 +3123,41 @@ body.room-waiting-active { background: #030506; }
   .card-set-tabs__label span { display: none; }
   .card-set-tab { min-width: 48px; padding-inline: 6px; }
 }
+
+/* 2026-07 sample-deck refresh: three play styles replace the five mono-attribute presets. */
+.sample-deck-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.sample-deck-button--aggro {
+  border-color: rgba(231, 104, 70, .76);
+  background: linear-gradient(180deg, rgba(142, 48, 29, .76), rgba(48, 20, 16, .95));
+  color: #ffded2;
+}
+
+.sample-deck-button--control {
+  border-color: rgba(88, 153, 213, .78);
+  background: linear-gradient(180deg, rgba(39, 89, 139, .78), rgba(16, 31, 49, .95));
+  color: #dceeff;
+}
+
+.sample-deck-button--cycle {
+  border-color: rgba(139, 150, 100, .78);
+  background: linear-gradient(180deg, rgba(72, 91, 58, .82), rgba(27, 35, 25, .96));
+  color: #e8f1d5;
+}
+
+.sample-deck-guide--aggro {
+  --sample-accent: #ef7655;
+  --sample-glow: rgba(239, 92, 55, .17);
+}
+
+.sample-deck-guide--control {
+  --sample-accent: #62aaf0;
+  --sample-glow: rgba(64, 142, 224, .17);
+}
+
+.sample-deck-guide--cycle {
+  --sample-accent: #a8b978;
+  --sample-glow: rgba(124, 151, 79, .18);
+}

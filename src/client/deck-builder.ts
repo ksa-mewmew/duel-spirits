@@ -181,7 +181,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     state.selectedSetIds = [...selection.selectedSetIds]
     state.draftPool = null
     state.searchQuery = ''
-    state.attributeFilter = sampleDeck.attribute
+    state.attributeFilter = 'all'
     state.typeFilter = 'all'
     state.costFilter = 'all'
     state.setFilter = 'all'
@@ -196,7 +196,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     const format = getFormat(selection.formatId)
     if (state.cardIds.length >= format.deckSize) {
       state.message = `덱은 ${format.deckSize}장을 넘을 수 없습니다.`
-      render()
+      render(true)
       return
     }
 
@@ -208,20 +208,20 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
 
     if (currentCount >= effectiveLimit) {
       state.message = `${CARDS[cardId].name}은 이 포맷에서 최대 ${effectiveLimit}장까지 넣을 수 있습니다.`
-      render()
+      render(true)
       return
     }
 
     state.cardIds.push(cardId)
     state.message = ''
-    render()
+    render(true)
   }
 
   function removeCard(cardId: CardId): void {
     const index = state.cardIds.lastIndexOf(cardId)
     if (index !== -1) state.cardIds.splice(index, 1)
     state.message = ''
-    render()
+    render(true)
   }
 
   function saveCurrentDeck(): void {
@@ -393,20 +393,19 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
 
   function renderSampleDeckPanel(): string {
     const decks = SAMPLE_DECK_LIST.map((sampleDeck) => {
-      const attribute = CARD_ATTRIBUTES[sampleDeck.attribute]
       const guideId = `sample-deck-guide-${sampleDeck.id}`
       return `<button
         type="button"
-        class="sample-deck-button sample-deck-button--${sampleDeck.attribute}"
+        class="sample-deck-button sample-deck-button--${sampleDeck.style}"
         data-load-sample-deck="${sampleDeck.id}"
         data-preview-sample-deck="${sampleDeck.id}"
-        aria-label="${escapeHtml(attribute.name)} 견본 덱: ${escapeHtml(sampleDeck.archetype)}"
+        aria-label="${escapeHtml(sampleDeck.styleLabel)} 견본 덱: ${escapeHtml(sampleDeck.name)}"
         aria-controls="${guideId}"
         aria-expanded="false"
-      ><span>${escapeHtml(attribute.shortName)}</span></button>`
+      ><span>${escapeHtml(sampleDeck.buttonLabel)}</span></button>`
     }).join('')
     return `<section class="sample-deck-panel" aria-labelledby="sample-deck-title">
-      <header><div><span class="sample-deck-panel__eyebrow">QUICK START</span><h3 id="sample-deck-title">견본 덱</h3></div><small>마우스를 올려 설명을 보고, 클릭해 불러옵니다.</small></header>
+      <header><div><span class="sample-deck-panel__eyebrow">QUICK START</span><h3 id="sample-deck-title">견본 덱</h3></div><small>공격·통제·순환 중 하나를 골라 설명을 보고 불러옵니다.</small></header>
       <div class="sample-deck-grid">${decks}</div>
     </section>`
   }
@@ -418,16 +417,18 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
       const composition = [...counts.entries()]
         .map(([cardId, count]) => `<li><span>${escapeHtml(CARDS[cardId].name)}</span><strong>×${count}</strong></li>`)
         .join('')
-      const attribute = CARD_ATTRIBUTES[sampleDeck.attribute]
+      const attributeLabel = sampleDeck.attributes
+        .map((attributeId) => CARD_ATTRIBUTES[attributeId].name)
+        .join(' · ')
       return `<article
-        class="sample-deck-guide sample-deck-guide--${sampleDeck.attribute}"
+        class="sample-deck-guide sample-deck-guide--${sampleDeck.style}"
         id="sample-deck-guide-${sampleDeck.id}"
         data-sample-deck-guide="${sampleDeck.id}"
         hidden
       >
         <header class="sample-deck-guide__header">
-          <div><span class="sample-deck-guide__attribute">${escapeHtml(attribute.name)}</span><span class="sample-deck-guide__label">견본 덱</span></div>
-          <h3>${escapeHtml(sampleDeck.archetype)}</h3>
+          <div><span class="sample-deck-guide__attribute">${escapeHtml(attributeLabel)}</span><span class="sample-deck-guide__label">${escapeHtml(sampleDeck.styleLabel)} · ${escapeHtml(sampleDeck.difficulty)}</span></div>
+          <h3>${escapeHtml(sampleDeck.name)}</h3>
           <p>${escapeHtml(sampleDeck.goal)}</p>
         </header>
         <div class="sample-deck-guide__body">
@@ -436,7 +437,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
             <ul>${composition}</ul>
           </section>
           <section class="sample-deck-guide__strategy">
-            <h4>운영 전략</h4>
+            <h4>${escapeHtml(sampleDeck.archetype)}</h4>
             <p>${escapeHtml(sampleDeck.playGuide)}</p>
           </section>
           <section class="sample-deck-guide__mana">
@@ -508,7 +509,57 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     </section>`
   }
 
-  function render(): void {
+  interface BuilderViewSnapshot {
+    pageX: number
+    pageY: number
+    cardPoolTop: number
+    deckListTop: number
+    filterTop: number
+    focusSelector: string | null
+  }
+
+  function captureBuilderView(): BuilderViewSnapshot {
+    const active = document.activeElement as HTMLElement | null
+    let focusSelector: string | null = null
+    const focusScope = active?.closest('.deck-list')
+      ? '.deck-list '
+      : active?.closest('.card-pool-grid')
+        ? '.card-pool-grid '
+        : ''
+    if (active?.dataset.addCard) focusSelector = `${focusScope}[data-add-card="${active.dataset.addCard}"]`
+    else if (active?.dataset.removeCard) focusSelector = `${focusScope}[data-remove-card="${active.dataset.removeCard}"]`
+    else if (active?.dataset.selectCard) focusSelector = `${focusScope}[data-select-card="${active.dataset.selectCard}"]`
+
+    return {
+      pageX: window.scrollX,
+      pageY: window.scrollY,
+      cardPoolTop: appElement.querySelector<HTMLElement>('.card-pool-grid')?.scrollTop ?? 0,
+      deckListTop: appElement.querySelector<HTMLElement>('.deck-list')?.scrollTop ?? 0,
+      filterTop: appElement.querySelector<HTMLElement>('.deck-filters')?.scrollTop ?? 0,
+      focusSelector,
+    }
+  }
+
+  function restoreBuilderView(snapshot: BuilderViewSnapshot): void {
+    const restoreScroll = (): void => {
+      const cardPool = appElement.querySelector<HTMLElement>('.card-pool-grid')
+      const deckList = appElement.querySelector<HTMLElement>('.deck-list')
+      const filters = appElement.querySelector<HTMLElement>('.deck-filters')
+      if (cardPool) cardPool.scrollTop = snapshot.cardPoolTop
+      if (deckList) deckList.scrollTop = snapshot.deckListTop
+      if (filters) filters.scrollTop = snapshot.filterTop
+      window.scrollTo(snapshot.pageX, snapshot.pageY)
+    }
+
+    restoreScroll()
+    if (snapshot.focusSelector) {
+      appElement.querySelector<HTMLElement>(snapshot.focusSelector)?.focus({ preventScroll: true })
+    }
+    requestAnimationFrame(restoreScroll)
+  }
+
+  function render(preserveView = false): void {
+    const viewSnapshot = preserveView ? captureBuilderView() : null
     const selection = getSelection()
     const format = getFormat(selection.formatId)
     const counts = getCardCounts(state.cardIds)
@@ -765,6 +816,8 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     }
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-add-card]')) button.addEventListener('click', () => { const id = button.dataset.addCard as CardId | undefined; if (id) addCard(id) })
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-remove-card]')) button.addEventListener('click', () => { const id = button.dataset.removeCard as CardId | undefined; if (id) removeCard(id) })
+
+    if (viewSnapshot) restoreBuilderView(viewSnapshot)
   }
 
 
