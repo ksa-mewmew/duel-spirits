@@ -3343,3 +3343,274 @@ body.room-waiting-active { background: #030506; }
 .deck-list-row__art--earth { --deck-card-accent: #7b8f45; }
 .deck-list-row__art--dark { --deck-card-accent: #76598b; }
 .deck-list-row__art--light { --deck-card-accent: #d1a93f; }
+
+/* 2026-07 art-first card face pass -----------------------------------------
+   Card faces follow the digital-card-game hierarchy used by the reference:
+   fixed circular information anchors, one single-line name ribbon directly
+   below them, and the rest of the surface reserved for illustration. */
+.game-card__header {
+  inset: 6px 6px auto;
+  z-index: 5;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+.game-card__attributes {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+}
+
+.game-card__cost-cluster {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+}
+
+.game-card__cost,
+.game-card__attribute,
+.game-card__attack,
+.game-card__health {
+  box-sizing: border-box;
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  text-indent: 0;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.game-card__attribute {
+  font-size: 10px;
+}
+
+/* A reduced cost is indicated on the cost circle without stealing a row from
+   the name ribbon. */
+.game-card__cost-reduction {
+  top: auto;
+  right: -8px;
+  bottom: -4px;
+  left: auto;
+  transform: none;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 999px;
+  font-size: 7px;
+  line-height: 1;
+}
+
+.game-card--art-ready .game-card__overlay {
+  background:
+    linear-gradient(180deg, rgba(2, 4, 7, .46) 0%, rgba(2, 4, 7, .08) 17%, transparent 31%, transparent 75%, rgba(1, 2, 4, .16) 88%, rgba(0, 0, 0, .48) 100%),
+    linear-gradient(90deg, rgba(0, 0, 0, .12), transparent 17%, transparent 83%, rgba(0, 0, 0, .12)),
+    linear-gradient(180deg, rgba(255, 255, 255, .055), transparent 10%);
+}
+
+/* One fixed ribbon for every name. It never wraps or shows an ellipsis: the
+   length classes below reduce the type size instead. */
+.game-card--art-ready.game-card--center-name .game-card__code,
+.game-card--art-ready.game-card--detail-layout .game-card__code {
+  inset: 37px 6px auto;
+  width: auto;
+  max-width: none;
+  min-height: 0;
+  height: 20px;
+  padding: 0 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 44%, rgba(255, 255, 255, .12));
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(15, 17, 21, .76), rgba(4, 6, 9, .9));
+  color: #fff8e8;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -.035em;
+  text-align: center;
+  text-wrap: nowrap;
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  text-overflow: clip;
+  text-shadow: 0 1px 4px #000, 0 0 10px rgba(0, 0, 0, .72);
+  -webkit-box-orient: initial;
+  -webkit-line-clamp: unset;
+}
+
+.game-card--art-ready.game-card--name-short .game-card__code { font-size: 11px; }
+.game-card--art-ready.game-card--name-medium .game-card__code { font-size: 10px; }
+.game-card--art-ready.game-card--name-long .game-card__code { font-size: 9px; letter-spacing: -.055em; }
+.game-card--art-ready.game-card--name-xlong .game-card__code { font-size: 8px; letter-spacing: -.07em; }
+.game-card--art-ready.game-card--name-xxlong .game-card__code { font-size: 7px; letter-spacing: -.085em; }
+
+/* Hand and field cards keep the same visual grammar at their smaller sizes. */
+.hand-card.game-card--art-ready .game-card__code {
+  inset: 38px 6px auto;
+  height: 21px;
+}
+
+.field-card.game-card--art-ready .game-card__code {
+  inset: 35px 5px auto;
+  height: 18px;
+  padding-inline: 3px;
+}
+
+.field-card.game-card--art-ready.game-card--name-short .game-card__code { font-size: 9px; }
+.field-card.game-card--art-ready.game-card--name-medium .game-card__code { font-size: 8px; }
+.field-card.game-card--art-ready.game-card--name-long .game-card__code { font-size: 7px; }
+.field-card.game-card--art-ready.game-card--name-xlong .game-card__code,
+.field-card.game-card--art-ready.game-card--name-xxlong .game-card__code { font-size: 6px; }
+
+/* The builder is the art-browsing surface: larger cards, no oversized empty
+   selected cell, and a footer aligned exactly to the card width. */
+.card-pool-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px 10px;
+  padding-inline: 8px;
+}
+
+.card-pool-item {
+  justify-items: center;
+  gap: 8px;
+  padding: 6px 3px;
+  border-color: transparent !important;
+  background: transparent !important;
+}
+
+.card-pool-item:hover,
+.card-pool-item:focus-within,
+.card-pool-item.is-preview-pinned {
+  border-color: transparent !important;
+  background: transparent !important;
+}
+
+.card-pool-card {
+  width: min(100%, 164px);
+  border-radius: 13px;
+}
+
+.card-pool-item:hover .card-pool-card,
+.card-pool-item:focus-within .card-pool-card {
+  transform: translateY(-2px);
+}
+
+.card-pool-item.is-preview-pinned .card-pool-card {
+  outline: 2px solid #d9bd69;
+  outline-offset: 4px;
+  box-shadow: 0 0 0 6px rgba(217, 189, 105, .09);
+}
+
+.builder-pool-card {
+  width: 100%;
+  border-radius: 13px;
+}
+
+.card-pool-item__footer {
+  width: min(100%, 164px);
+  margin-top: 0;
+}
+
+.builder-pool-card .game-card__cost,
+.builder-pool-card .game-card__attribute,
+.builder-pool-card .game-card__attack,
+.builder-pool-card .game-card__health {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  font-size: 12px;
+}
+
+.builder-pool-card .game-card__attribute { font-size: 11px; }
+.builder-pool-card .game-card__cost-cluster { width: 28px; height: 28px; flex-basis: 28px; }
+.builder-pool-card .game-card__header { inset: 7px 7px auto; }
+
+.builder-pool-card.game-card--art-ready .game-card__code {
+  inset: 41px 7px auto;
+  height: 22px;
+  padding-inline: 6px;
+}
+
+.builder-pool-card.game-card--art-ready.game-card--name-short .game-card__code { font-size: 12px; }
+.builder-pool-card.game-card--art-ready.game-card--name-medium .game-card__code { font-size: 11px; }
+.builder-pool-card.game-card--art-ready.game-card--name-long .game-card__code { font-size: 10px; }
+.builder-pool-card.game-card--art-ready.game-card--name-xlong .game-card__code { font-size: 9px; }
+.builder-pool-card.game-card--art-ready.game-card--name-xxlong .game-card__code { font-size: 8px; }
+
+/* The inspector uses the same card face at a larger, legible scale. */
+.builder-hover-preview {
+  grid-template-columns: minmax(152px, 44%) minmax(0, 1fr);
+}
+
+.builder-hover-preview-card {
+  width: min(100%, 176px) !important;
+}
+
+.card-preview-card.game-card--art-ready .game-card__code,
+.builder-hover-preview-card.game-card--art-ready .game-card__code {
+  inset: 43px 8px auto;
+  height: 24px;
+  padding-inline: 7px;
+}
+
+.card-preview-card.game-card--art-ready.game-card--name-short .game-card__code,
+.builder-hover-preview-card.game-card--art-ready.game-card--name-short .game-card__code { font-size: 13px; }
+.card-preview-card.game-card--art-ready.game-card--name-medium .game-card__code,
+.builder-hover-preview-card.game-card--art-ready.game-card--name-medium .game-card__code { font-size: 12px; }
+.card-preview-card.game-card--art-ready.game-card--name-long .game-card__code,
+.builder-hover-preview-card.game-card--art-ready.game-card--name-long .game-card__code { font-size: 11px; }
+.card-preview-card.game-card--art-ready.game-card--name-xlong .game-card__code,
+.builder-hover-preview-card.game-card--art-ready.game-card--name-xlong .game-card__code { font-size: 10px; }
+.card-preview-card.game-card--art-ready.game-card--name-xxlong .game-card__code,
+.builder-hover-preview-card.game-card--art-ready.game-card--name-xxlong .game-card__code { font-size: 9px; }
+
+@media (max-width: 1320px) {
+  .card-pool-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .card-pool-card,
+  .card-pool-item__footer { width: min(100%, 156px); }
+}
+
+/* Small combat cards still support two attributes without colliding with the
+   cost anchor. Builder and inspector cards retain the larger circles above. */
+.hand-card.game-card--multi-attribute .game-card__attributes,
+.field-card.game-card--multi-attribute .game-card__attributes {
+  gap: 2px;
+}
+
+.hand-card.game-card--multi-attribute .game-card__attribute {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  font-size: 8px;
+}
+
+.field-card.game-card--multi-attribute .game-card__attribute {
+  width: 19px;
+  min-width: 19px;
+  height: 19px;
+  font-size: 7px;
+}
+
+.hand-card.has-reduced-cost::after {
+  content: none !important;
+  display: none !important;
+}
+
+.hand-card.game-card--art-ready.game-card--center-name:has(.game-card__actions):hover .game-card__code,
+.hand-card.game-card--art-ready.game-card--center-name:has(.game-card__actions):focus-within .game-card__code,
+.hand-card.game-card--art-ready.game-card--center-name.is-selected .game-card__code {
+  inset: 38px 6px auto;
+  height: 21px;
+}
