@@ -1538,8 +1538,8 @@ function assertCanAttack(
   unit: UnitInstance,
   targetKind: 'unit' | 'player',
 ): void {
-  if (unit.cardId === 'silent_shield_soldier') {
-    throw new GameRuleError('침묵하는 방패병은 공격할 수 없습니다.')
+  if (unit.cardId === 'silent_shield_soldier' || unit.cardId === 'boulder_carrier') {
+    throw new GameRuleError(`${unitDefinition(unit).name}은 공격할 수 없습니다.`)
   }
   if (unit.exhausted) {
     throw new GameRuleError('소진된 몬스터는 공격할 수 없습니다.')
@@ -1573,7 +1573,6 @@ function cannotDirectAttack(unit: UnitInstance): boolean {
   return [
     'blue_black_hound',
     'iron_horn_boar',
-    'boulder_carrier',
     'weakened_giant',
   ].includes(unit.cardId)
 }

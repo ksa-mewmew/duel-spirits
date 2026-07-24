@@ -405,7 +405,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
   ),
   boulder_carrier: u(
     'boulder_carrier', '돌덩이 운반꾼', 2, 2, 4, ['earth'],
-    '이 몬스터는 직접 공격할 수 없다.',
+    '이 몬스터는 공격할 수 없다.',
   ),
   mana_flipping_fairy: u(
     'mana_flipping_fairy', '땅을 가는 요정', 2, 1, 3, ['earth'],

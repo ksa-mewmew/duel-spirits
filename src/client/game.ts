@@ -472,7 +472,7 @@ function battlefieldAttackLimitView(): number {
 }
 
 function cannotDirectAttackView(unit: UnitInstance): boolean {
-  return ['blue_black_hound', 'iron_horn_boar', 'boulder_carrier', 'weakened_giant']
+  return ['blue_black_hound', 'iron_horn_boar', 'weakened_giant']
     .includes(unit.cardId)
 }
 
@@ -481,7 +481,7 @@ function canUnitAttackView(
   unit: UnitInstance,
   targetKind: 'unit' | 'player',
 ): boolean {
-  if (unit.cardId === 'silent_shield_soldier') return false
+  if (unit.cardId === 'silent_shield_soldier' || unit.cardId === 'boulder_carrier') return false
   if (unit.exhausted) return false
   if (targetKind === 'player' && cannotDirectAttackView(unit)) return false
   if (

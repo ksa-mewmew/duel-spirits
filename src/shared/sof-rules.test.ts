@@ -338,11 +338,17 @@ describe('SOF 땅·빛·어둠과 공명', () => {
     expect(survived.players.P1.field).toContainEqual(expect.objectContaining({ instanceId: 'safe-giant' }))
   })
 
-  test('침묵하는 방패병은 공격할 수 없고 작은 심판관은 비용 1 공격을 막는다', () => {
+  test('침묵하는 방패병과 돌덩이 운반꾼은 공격할 수 없고 작은 심판관은 비용 1 공격을 막는다', () => {
     const shieldGame = createTestGame()
     shieldGame.players.P1.field = [unit('shield', 'silent_shield_soldier')]
     setEnemyUnit(shieldGame, unit('target', 'living_flame'))
     expect(() => applyAction(shieldGame, 'P1', { type: 'ATTACK_UNIT', attackerId: 'shield', defenderId: 'target' })).toThrow('공격할 수 없습니다')
+
+    const carrierGame = createTestGame()
+    carrierGame.players.P1.field = [unit('carrier', 'boulder_carrier')]
+    setEnemyUnit(carrierGame, unit('carrier-target', 'living_flame'))
+    expect(() => applyAction(carrierGame, 'P1', { type: 'ATTACK_UNIT', attackerId: 'carrier', defenderId: 'carrier-target' })).toThrow('공격할 수 없습니다')
+    expect(() => applyAction(carrierGame, 'P1', { type: 'ATTACK_PLAYER', attackerId: 'carrier' })).toThrow('공격할 수 없습니다')
 
     const judgeGame = createTestGame()
     judgeGame.players.P1.field = [unit('small', 'living_flame')]
