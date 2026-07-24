@@ -48,6 +48,35 @@ export interface CardSimulationHints {
   playSelectionFields?: CardPlaySelectionField[]
 }
 
+export type CardDeckHintRole =
+  | 'early_unit'
+  | 'pressure'
+  | 'defender'
+  | 'tempo'
+  | 'removal'
+  | 'board_clear'
+  | 'draw'
+  | 'ramp'
+  | 'mana_payoff'
+  | 'graveyard_enabler'
+  | 'graveyard_payoff'
+  | 'recursion'
+  | 'life_control'
+  | 'awakening'
+  | 'evolution'
+  | 'resonance'
+  | 'finisher'
+  | 'utility'
+
+export interface CardDeckHints {
+  /** 자동 역할 추정이 부족한 새 카드에만 선택적으로 덧붙입니다. */
+  roles?: CardDeckHintRole[]
+  /** 같은 엔진이나 콤보에 속하는 카드를 함께 탐색하도록 유도합니다. */
+  packageIds?: string[]
+  /** 강제가 아니라 초기 매수와 변이 방향에 쓰이는 선호입니다. */
+  copyClass?: 'core' | 'support' | 'tech' | 'finisher'
+}
+
 export type CardKeyword =
   | 'rush'
   | 'charge'
@@ -58,12 +87,7 @@ export type CardKeyword =
   | 'assassination'
 
 export interface CardBase {
-  /** public/card-art/<card id>.webp 경로의 카드 일러스트입니다. */
   artUrl?: string
-  /** 카드 면에서 일러스트의 초점 위치입니다. CSS object-position 형식입니다. */
-  artPosition?: string
-  /** 전장처럼 좁은 카드에서 사용할 선택적 확대 배율입니다. */
-  artScale?: number
   id: CardId
   name: string
   cost: number
@@ -76,6 +100,8 @@ export interface CardBase {
   contentVersion: string
   /** 카드 풀이 바뀌어도 시뮬레이터가 대상 선택을 자동 생성하기 위한 최소 메타데이터입니다. */
   simulationHints?: CardSimulationHints
+  /** 카드 풀이 바뀌어도 덱 생성기가 역할·패키지를 이해하기 위한 선택적 힌트입니다. */
+  deckHints?: CardDeckHints
 }
 
 export interface UnitCard extends CardBase {
@@ -92,29 +118,6 @@ export interface SpellCard extends CardBase {
 }
 
 export type CardDefinition = UnitCard | SpellCard
-
-
-export interface CardArtPresentation {
-  position?: string
-  scale?: number
-}
-
-/**
- * 카드 이미지는 public/card-art/<card id>.webp 에 넣으면 자동으로 연결됩니다.
- * 개별 그림의 얼굴이나 핵심 피사체가 잘릴 때만 아래 표에 초점/확대를 추가합니다.
- */
-export const CARD_ART_PRESENTATION: Partial<Record<CardId, CardArtPresentation>> = {
-  // volcano_mouse: { position: '50% 38%', scale: 1.04 },
-}
-
-function getCardArtMetadata(id: CardId): Pick<CardBase, 'artUrl' | 'artPosition' | 'artScale'> {
-  const presentation = CARD_ART_PRESENTATION[id]
-  return {
-    artUrl: `./card-art/${id}.webp`,
-    artPosition: presentation?.position ?? '50% 42%',
-    artScale: presentation?.scale ?? 1,
-  }
-}
 
 export const SOF_CARD_IDS = [
   'spark_chasing_lizard', 'unexploded_bomb_mouse', 'iron_horn_boar', 'flame_javelin_soldier', 'volcanic_eruption', 'flame_mane_captain', 'exploding_mountain_dragon',
@@ -165,7 +168,6 @@ const u = (
   visualKey,
   evolutionAttribute,
   ...getMetadata(id),
-  ...getCardArtMetadata(id),
 })
 
 const s = (
@@ -186,7 +188,6 @@ const s = (
   rulesText,
   visualKey,
   ...getMetadata(id),
-  ...getCardArtMetadata(id),
 })
 
 export const CARDS: Record<CardId, CardDefinition> = {

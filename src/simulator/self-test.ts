@@ -1,5 +1,6 @@
 import { normalizeMetaSimulationConfig } from './config'
 import { runMetaSimulation } from './experiment'
+import { analyzeDeckProfile } from './deck-intelligence'
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`SELF TEST FAILED: ${message}`)
@@ -54,6 +55,12 @@ assert(report.finalBehaviorStandings.every((standing) => standing.games > 0), '�
 assert(report.finalBehaviors.every((bot) => bot.generation === 1), '최종 행동 봇이 다음 세대에서 선택되지 않았습니다.')
 assert(report.finalBehaviors.some((bot) => bot.parentIds.length > 0), '행동 가중치 계보가 기록되지 않았습니다.')
 assert(report.finalDecks.length === 4, '덱 네 개가 생성되지 않았습니다.')
+const humanDeckProfiles = report.finalDecks
+  .filter((deck) => deck.source !== 'exploratory')
+  .map((deck) => analyzeDeckProfile(deck.cardIds))
+assert(humanDeckProfiles.every((profile) => profile.distinctCards <= config.deckGeneration.maxDistinctCards), '인간형 덱의 카드 종류 수가 상한을 넘었습니다.')
+assert(humanDeckProfiles.every((profile) => profile.singletonCount <= config.deckGeneration.maxSingletonCards), '인간형 덱에 1장 카드가 지나치게 많습니다.')
+assert(humanDeckProfiles.every((profile) => profile.doubletonCount + profile.tripletonCount >= 3), '2장·3장 채용이 충분히 생성되지 않았습니다.')
 assert(matches.length === 12, '라운드로빈 경기 수가 예상과 다릅니다.')
 assert(matches.every((match) => match.termination !== 'no-legal-actions'), '합법 행동을 찾지 못한 경기가 있습니다.')
 assert(report.finalStandings.every((standing) => standing.games === 6), '각 덱의 경기 수가 맞지 않습니다.')

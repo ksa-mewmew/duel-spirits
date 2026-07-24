@@ -14,7 +14,15 @@
     "mutationsPerChild": 2,
     "minUnits": 10,
     "maxUnits": 17,
-    "maxAttemptsPerDeck": 300
+    "maxAttemptsPerDeck": 300,
+    "humanDeckRatio": 0.85,
+    "minDistinctCards": 8,
+    "maxDistinctCards": 11,
+    "maxSingletonCards": 3,
+    "crossoverChance": 0.28,
+    "compressionChance": 0.38,
+    "packageMutationChance": 0.34,
+    "immigrantCount": 1
   },
   "behaviorEvolution": {
     "enabled": true,

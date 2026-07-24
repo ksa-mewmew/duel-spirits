@@ -27,6 +27,14 @@ export const DEFAULT_META_SIMULATION_CONFIG: MetaSimulationConfig = {
     minUnits: 10,
     maxUnits: 17,
     maxAttemptsPerDeck: 300,
+    humanDeckRatio: 0.85,
+    minDistinctCards: 8,
+    maxDistinctCards: 11,
+    maxSingletonCards: 3,
+    crossoverChance: 0.28,
+    compressionChance: 0.38,
+    packageMutationChance: 0.34,
+    immigrantCount: 1,
   },
   behaviorEvolution: {
     enabled: true,
@@ -154,6 +162,25 @@ export function normalizeMetaSimulationConfig(value: unknown): MetaSimulationCon
       positiveInteger(rawGeneration.maxUnits, defaults.deckGeneration.maxUnits, 0),
     ),
   )
+  const minDistinctCards = Math.min(
+    format.deckSize,
+    positiveInteger(
+      rawGeneration.minDistinctCards,
+      defaults.deckGeneration.minDistinctCards,
+      2,
+    ),
+  )
+  const maxDistinctCards = Math.max(
+    minDistinctCards,
+    Math.min(
+      format.deckSize,
+      positiveInteger(
+        rawGeneration.maxDistinctCards,
+        defaults.deckGeneration.maxDistinctCards,
+        2,
+      ),
+    ),
+  )
   const populationSize = positiveInteger(
     rawGeneration.populationSize,
     defaults.deckGeneration.populationSize,
@@ -201,6 +228,48 @@ export function normalizeMetaSimulationConfig(value: unknown): MetaSimulationCon
       maxAttemptsPerDeck: positiveInteger(
         rawGeneration.maxAttemptsPerDeck,
         defaults.deckGeneration.maxAttemptsPerDeck,
+      ),
+      humanDeckRatio: finiteNumber(
+        rawGeneration.humanDeckRatio,
+        defaults.deckGeneration.humanDeckRatio,
+        0,
+        1,
+      ),
+      minDistinctCards,
+      maxDistinctCards,
+      maxSingletonCards: Math.min(
+        maxDistinctCards,
+        positiveInteger(
+          rawGeneration.maxSingletonCards,
+          defaults.deckGeneration.maxSingletonCards,
+          0,
+        ),
+      ),
+      crossoverChance: finiteNumber(
+        rawGeneration.crossoverChance,
+        defaults.deckGeneration.crossoverChance,
+        0,
+        1,
+      ),
+      compressionChance: finiteNumber(
+        rawGeneration.compressionChance,
+        defaults.deckGeneration.compressionChance,
+        0,
+        1,
+      ),
+      packageMutationChance: finiteNumber(
+        rawGeneration.packageMutationChance,
+        defaults.deckGeneration.packageMutationChance,
+        0,
+        1,
+      ),
+      immigrantCount: Math.min(
+        Math.max(0, populationSize - eliteCount),
+        positiveInteger(
+          rawGeneration.immigrantCount,
+          defaults.deckGeneration.immigrantCount,
+          0,
+        ),
       ),
     },
     behaviorEvolution: {

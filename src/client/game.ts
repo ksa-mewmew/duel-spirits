@@ -1352,11 +1352,15 @@ function renderPlayDraftPanel(): string {
   }
 
   const stepMarkup = steps.map((step) => `<span class="selection-step ${step.complete ? 'is-complete' : ''} ${step.attention ? 'needs-attention' : ''}">${step.complete ? '✓' : '○'} ${escapeHtml(step.label)}</span>`).join('')
+  const ready = isPlayDraftReady()
+  const confirmLabel = definition.type === 'unit'
+    ? definition.evolutionAttribute ? '진화 소환 확정' : '소환 확정'
+    : '주문 사용 확정'
 
-  return `<div class="selection-panel selection-panel--play">
-    <div class="selection-panel__title"><span>카드 사용</span><h3>${escapeHtml(definition.name)}</h3></div>
+  return `<div class="selection-panel selection-panel--play ${ready ? 'is-ready' : ''}">
+    <div class="selection-panel__title"><span>${definition.type === 'unit' ? '몬스터 소환' : '주문 사용'}</span><h3>${escapeHtml(definition.name)}</h3></div>
     <div class="selection-steps">${stepMarkup}</div>
-    <div class="choice-actions">${actionButton(isPlayDraftReady() ? '카드 사용' : '선택 미완료', 'confirm-play-card', undefined, undefined, !isPlayDraftReady())}${actionButton('사용 취소', 'cancel-play-card')}</div>
+    <div class="choice-actions">${actionButton(confirmLabel, 'confirm-play-card', undefined, undefined, !ready)}${actionButton('취소', 'cancel-play-card')}</div>
   </div>`
 }
 
@@ -1699,10 +1703,10 @@ function renderDecisionDock(opponentId: PlayerId): string {
 
   return `<aside class="decision-dock ${activePanel ? 'has-selection' : ''}" aria-live="polite">
     ${activePanel}
-    <div class="primary-actions">
+    ${activePanel ? '' : `<div class="primary-actions">
       <button id="end-turn-button" class="end-turn-button" type="button" ${canEndTurn && !awaitingServer ? '' : 'disabled'}><span>턴</span><strong>종료</strong></button>
       ${game.status === 'finished' ? `<button id="rematch-button" type="button">${rematchReadyPlayers.includes(game.viewer) ? '재대전 취소' : '재대전 요청'}</button>` : ''}
-    </div>
+    </div>`}
   </aside>`
 }
 

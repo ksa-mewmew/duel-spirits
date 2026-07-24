@@ -1,5 +1,6 @@
 import { CARDS } from '../shared/cards'
 import { HEURISTIC_WEIGHT_KEYS } from './behavior-evolution'
+import { analyzeDeckProfile } from './deck-intelligence'
 
 import type { CardId } from '../shared/cards'
 import type { DeckCandidate, MetaSimulationReport } from './types'
@@ -69,13 +70,22 @@ export function createBotsCsv(report: MetaSimulationReport): string {
 export function createDecksCsv(report: MetaSimulationReport): string {
   const deckById = new Map(report.finalDecks.map((deck) => [deck.id, deck]))
   return toCsv([
-    ['rank', 'deck_id', 'deck_name', 'games', 'wins', 'losses', 'draws', 'win_rate', 'first_win_rate', 'second_win_rate', 'avg_turns', 'confidence_low', 'confidence_high', 'cards'],
+    [
+      'rank', 'deck_id', 'deck_name', 'archetype', 'strategy', 'source',
+      'games', 'wins', 'losses', 'draws', 'win_rate', 'first_win_rate', 'second_win_rate',
+      'avg_turns', 'confidence_low', 'confidence_high',
+      'distinct_cards', 'singletons', 'doubletons', 'tripletons', 'units', 'spells', 'average_cost', 'top_packages', 'cards',
+    ],
     ...report.finalStandings.map((standing, index) => {
       const deck = deckById.get(standing.deckId)!
+      const profile = analyzeDeckProfile(deck.cardIds)
       return [
         index + 1,
         standing.deckId,
         standing.deckName,
+        deck.archetypeName ?? '',
+        deck.strategy ?? profile.strategy,
+        deck.source ?? '',
         standing.games,
         standing.wins,
         standing.losses,
@@ -86,6 +96,14 @@ export function createDecksCsv(report: MetaSimulationReport): string {
         standing.averageTurns.toFixed(3),
         standing.confidenceLow.toFixed(6),
         standing.confidenceHigh.toFixed(6),
+        profile.distinctCards,
+        profile.singletonCount,
+        profile.doubletonCount,
+        profile.tripletonCount,
+        profile.unitCount,
+        profile.spellCount,
+        profile.averageCost.toFixed(3),
+        profile.topPackages.join(' / '),
         deckList(deck),
       ]
     }),
@@ -144,6 +162,7 @@ export function createSummaryMarkdown(report: MetaSimulationReport): string {
     `- 포맷: \`${report.selection.formatId}\``,
     `- 카드 풀: ${report.cardPool.length}종`,
     `- 세대: ${report.generations.length}`,
+    `- 덱 생성: 아키타입 기반 ${Math.round(report.config.deckGeneration.humanDeckRatio * 100)}%, 카드 종류 ${report.config.deckGeneration.minDistinctCards}~${report.config.deckGeneration.maxDistinctCards}종 유도`,
     `- 최종 세대 경기: ${finalMatches.length}회`,
     `- 정상 종료: ${completed}회 / 제한 종료: ${stalled}회`,
     `- 행동 가중치 진화: ${report.config.behaviorEvolution.enabled ? `${report.behaviorGenerations.length}세대` : '사용 안 함'}`,
@@ -174,7 +193,17 @@ export function createSummaryMarkdown(report: MetaSimulationReport): string {
   for (const standing of topDecks.slice(0, 5)) {
     const deck = deckById.get(standing.deckId)
     if (!deck) continue
-    lines.push(`### ${standing.deckName}`, '', deckList(deck), '')
+    const profile = analyzeDeckProfile(deck.cardIds)
+    lines.push(
+      `### ${standing.deckName}`,
+      '',
+      `- 원형: ${deck.archetypeName ?? '자동 추정'} / 전략: ${deck.strategy ?? profile.strategy} / 생성: ${deck.source ?? 'unknown'}`,
+      `- 구성: ${profile.distinctCards}종 · 1장 ${profile.singletonCount}종 · 2장 ${profile.doubletonCount}종 · 3장 ${profile.tripletonCount}종 · 평균 비용 ${profile.averageCost.toFixed(2)}`,
+      `- 역할 패키지: ${profile.topPackages.join(', ') || '없음'}`,
+      '',
+      deckList(deck),
+      '',
+    )
   }
 
   lines.push(
@@ -194,6 +223,7 @@ export function createSummaryMarkdown(report: MetaSimulationReport): string {
     '- `inclusion_win_rate`는 카드 자체의 순수 영향이 아니라 그 카드를 채용한 덱의 성적입니다.',
     '- 표본이 적은 카드의 승률은 크게 흔들릴 수 있습니다. `games`, `seen_games`, `played_games`를 함께 보십시오.',
     '- 행동 진화의 적합도는 승리 점수에서 제한 종료 비율을 감점한 값입니다. 한 번의 실행에서 나온 최종 봇 하나만 절대 기준으로 보지 말고 여러 시드의 결과를 비교하십시오.',
+    '- 덱의 3·2·1장 매수 구조와 역할 패키지는 후보 생성과 변이 방향만 유도합니다. 최종 생존 점수에는 ‘인간다운 모양’ 보너스를 넣지 않았습니다.',
     '- 제한 종료가 많으면 봇 평가 함수나 최대 턴 수를 조정한 뒤 다시 실행하는 편이 좋습니다.',
     '',
   )

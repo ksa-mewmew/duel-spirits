@@ -4478,3 +4478,452 @@ body.room-waiting-active { background: #030506; }
   .end-turn-button strong { font-size: 18px; }
   .end-turn-button span { font-size: 12px; }
 }
+
+/* 2026-07 arena stability pass ------------------------------------------------
+   Fixes discovered in the first full-arena playtest: life cards now keep a
+   compact native silhouette, the central action flow owns a predictable HUD
+   lane, selected cards never move their title, and the inspector uses the
+   available screen area instead of presenting a small card in a large panel. */
+
+/* Card captions are positionally invariant even before final art is present.
+   Older game-board rules moved no-art hand-card names upward on hover/selection. */
+.game-card.game-card--center-name .game-card__code,
+.game-card.game-card--detail-layout .game-card__code,
+.hand-card.game-card--center-name:has(.game-card__actions):hover .game-card__code,
+.hand-card.game-card--center-name:has(.game-card__actions):focus-within .game-card__code,
+.hand-card.game-card--center-name.is-selected .game-card__code {
+  inset: auto 6px calc(var(--card-orb-bottom, 6px) + var(--card-orb-size, 22px) + var(--card-name-gap, 4px)) !important;
+  width: auto !important;
+  height: var(--card-name-height, 20px) !important;
+  min-height: 0 !important;
+  padding: 0 5px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-wrap: nowrap !important;
+  word-break: keep-all !important;
+  text-overflow: clip !important;
+  -webkit-line-clamp: unset !important;
+}
+
+@media (min-width: 1080px) and (min-height: 640px) {
+  /* Reserve calm edge lanes and keep the actual play field centred. */
+  .combat-row {
+    grid-template-columns: clamp(122px, 9vw, 150px) minmax(520px, 1fr) clamp(132px, 9.5vw, 156px);
+    gap: clamp(12px, 1.25vw, 22px);
+  }
+
+  /* Life is a compact, readable mini-hand rather than rotated full-size cards. */
+  .life-zone--rail {
+    justify-content: flex-start;
+    min-width: 0;
+    padding-inline: 6px 0;
+  }
+
+  .life-stack {
+    --arena-life-w: clamp(48px, 3.55vw, 58px);
+    --arena-life-h: calc(var(--arena-life-w) * 1.4);
+    width: max-content;
+    max-width: 100%;
+    height: var(--arena-life-h);
+    min-height: var(--arena-life-h);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .life-stack > * + * {
+    margin: 0 0 0 calc(var(--arena-life-w) * -.52) !important;
+  }
+
+  .life-card-frame,
+  .life-card-frame:nth-child(n) {
+    width: var(--arena-life-w) !important;
+    height: var(--arena-life-h) !important;
+    flex: 0 0 var(--arena-life-w);
+    display: grid;
+    place-items: stretch;
+    transform: none !important;
+    transform-origin: center !important;
+    filter: drop-shadow(0 8px 7px rgba(0,0,0,.42));
+  }
+
+  .life-card-frame:nth-child(1) { translate: 0 4px; rotate: -5deg; }
+  .life-card-frame:nth-child(2) { translate: 0 1px; rotate: -2deg; }
+  .life-card-frame:nth-child(3) { translate: 0 1px; rotate: 2deg; }
+  .life-card-frame:nth-child(4) { translate: 0 4px; rotate: 5deg; }
+  .life-card-frame:nth-child(n+5) { translate: 0 5px; rotate: 6deg; }
+
+  .life-card-rotator,
+  .life-choice-button,
+  .life-card-frame .life-card,
+  .life-card-frame .life-slot,
+  .life-card-frame .life-choice-button,
+  .life-card-frame .life-choice-button .life-card {
+    box-sizing: border-box;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    aspect-ratio: 5 / 7 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+    border-radius: 8px !important;
+  }
+
+  .life-choice-button {
+    display: block;
+    border: 0;
+    background: transparent;
+  }
+
+  .life-card-frame.is-selected,
+  .life-card-frame.is-targetable {
+    z-index: 12;
+  }
+
+  .life-card-frame.is-selected .life-card-rotator,
+  .life-card-frame.is-targetable .life-card-rotator {
+    transform: translateY(-6px) scale(1.06) !important;
+  }
+
+  /* Give the two resource rails breathing room around the centre action lane. */
+  .resource-rail {
+    min-width: 0;
+    grid-template-rows: auto 58px;
+    align-content: center;
+  }
+
+  .combat-row--opponent .resource-rail {
+    align-self: stretch;
+    padding-bottom: clamp(42px, 6vh, 62px);
+  }
+
+  .combat-row--self .resource-rail {
+    align-self: stretch;
+    padding-top: clamp(42px, 6vh, 62px);
+  }
+
+  .mana-zone.mana-zone--summary {
+    width: 100%;
+    min-height: clamp(104px, 14vh, 132px);
+    padding: 10px 9px 8px;
+  }
+
+  .mana-summary__count {
+    font-size: clamp(27px, 3.9vh, 39px);
+  }
+
+  .pile-row {
+    align-self: end;
+  }
+
+  /* A transformed ancestor made the fixed play-confirmation bar position itself
+     inside the turn-button dock. Keep the dock untransformed and reserve it only
+     for the turn button when no card/attack decision is active. */
+  .decision-dock,
+  .decision-dock.has-selection {
+    position: absolute;
+    inset: calc(50% - 48px) 28px auto auto;
+    width: 96px;
+    min-height: 96px;
+    padding: 0;
+    display: block;
+    overflow: visible;
+    transform: none !important;
+    border: 0;
+    background: transparent;
+    pointer-events: none;
+  }
+
+  .decision-dock.has-selection {
+    width: 0;
+    min-height: 0;
+  }
+
+  .decision-dock > * {
+    pointer-events: auto;
+  }
+
+  .end-turn-button {
+    width: 92px;
+    min-width: 92px;
+    height: 92px;
+    min-height: 92px;
+  }
+
+  /* Selection always appears in the same bottom command lane. The hand lifts
+     out of the way while that lane is active, so the final confirmation button
+     is never hidden behind cards or resource panels. */
+  .selection-panel,
+  .selection-panel--play,
+  .selection-panel--attack {
+    position: fixed !important;
+    inset: auto auto 16px 50% !important;
+    z-index: 160 !important;
+    width: min(900px, calc(100vw - 320px)) !important;
+    min-height: 72px;
+    max-height: 150px;
+    padding: 10px 12px !important;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    overflow: auto;
+    transform: translateX(-50%) !important;
+    border: 1px solid rgba(229, 204, 121, .52) !important;
+    border-radius: 14px !important;
+    background: linear-gradient(180deg, rgba(16, 23, 29, .985), rgba(3, 8, 13, .985)) !important;
+    box-shadow: 0 18px 52px rgba(0,0,0,.68), inset 0 1px 0 rgba(255,255,255,.07) !important;
+    backdrop-filter: blur(16px);
+  }
+
+  .selection-panel--play.is-ready {
+    border-color: rgba(114, 220, 192, .72) !important;
+    box-shadow: 0 0 0 2px rgba(114, 220, 192, .09), 0 18px 52px rgba(0,0,0,.68) !important;
+  }
+
+  .selection-panel__title {
+    min-width: 132px;
+  }
+
+  .selection-panel__title h3 {
+    max-width: 190px;
+    overflow: hidden;
+    font-size: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .selection-steps {
+    flex-wrap: wrap;
+  }
+
+  .selection-panel .choice-actions {
+    display: grid;
+    grid-template-columns: minmax(128px, auto) minmax(72px, auto);
+    gap: 8px;
+  }
+
+  .selection-panel .action-button {
+    min-height: 46px;
+    padding-inline: 15px;
+    font-size: 13px;
+    font-weight: 900;
+  }
+
+  .selection-panel .action-button--primary {
+    min-width: 150px;
+    border-color: rgba(126, 229, 198, .72);
+    background: linear-gradient(180deg, rgba(35, 135, 111, .96), rgba(13, 73, 64, .98));
+    color: #effff8;
+    box-shadow: 0 0 18px rgba(87, 222, 180, .18), inset 0 1px 0 rgba(255,255,255,.12);
+  }
+
+  .selection-panel .action-button--primary:disabled {
+    border-color: rgba(150, 159, 159, .22);
+    background: rgba(48, 57, 60, .72);
+    color: rgba(226, 233, 232, .38);
+    box-shadow: none;
+  }
+
+  .battle-board:has(.decision-dock.has-selection) .hand-zone--self {
+    transform: translateY(-86px) scale(.94);
+    transform-origin: 50% 100%;
+    transition: transform .18s ease;
+  }
+
+  .battle-board:has(.decision-dock.has-selection) .hand-zone--self .hand-card:hover,
+  .battle-board:has(.decision-dock.has-selection) .hand-zone--self .hand-card:focus-within,
+  .battle-board:has(.decision-dock.has-selection) .hand-zone--self .hand-card.is-selected {
+    transform: translateY(-10px) scale(1.06);
+  }
+
+  /* Use the full inspector footprint: larger art, larger rules and a balanced
+     two-column reading layout. It is intentionally an overlay only while a
+     card is being inspected. */
+  .card-inspector,
+  .card-inspector.is-visible,
+  .card-inspector.is-visible:not(.is-empty),
+  .card-inspector.is-pinned {
+    inset: 66px auto 24px 22px !important;
+    width: min(620px, 44vw) !important;
+    max-height: calc(100% - 90px) !important;
+    padding: 18px !important;
+  }
+
+  .card-inspector__inner {
+    grid-template-columns: minmax(210px, 46%) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+
+  .card-inspector__visual {
+    position: sticky;
+    top: 0;
+    place-items: start center;
+  }
+
+  .card-inspector__visual .card-preview-card,
+  .card-preview-card {
+    width: min(100%, 250px) !important;
+    max-width: 250px !important;
+  }
+
+  .card-inspector__copy {
+    gap: 12px;
+  }
+
+  .card-inspector__copy h2 {
+    font-size: clamp(21px, 1.7vw, 27px);
+    line-height: 1.18;
+  }
+
+  .card-inspector__meta {
+    gap: 5px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .card-inspector__stats {
+    font-size: 16px;
+  }
+
+  .card-inspector__keywords span {
+    min-height: 27px;
+    padding: 5px 9px;
+    font-size: 11px;
+  }
+
+  .card-inspector__rules {
+    padding: 14px 15px;
+    font-size: 14px;
+    line-height: 1.68;
+  }
+}
+
+@media (min-width: 1080px) and (min-height: 640px) and (max-width: 1380px) {
+  .selection-panel,
+  .selection-panel--play,
+  .selection-panel--attack {
+    width: min(760px, calc(100vw - 250px)) !important;
+  }
+
+  .card-inspector,
+  .card-inspector.is-visible,
+  .card-inspector.is-visible:not(.is-empty),
+  .card-inspector.is-pinned {
+    width: min(540px, 46vw) !important;
+  }
+
+  .card-inspector__visual .card-preview-card,
+  .card-preview-card {
+    max-width: 220px !important;
+  }
+}
+
+@media (min-width: 1080px) and (min-height: 640px) {
+  /* Card-heavy compulsory choices remain centred modals rather than being
+     squeezed into the compact bottom confirmation lane. */
+  .selection-panel--urgent:has(.choice-card-grid) {
+    inset: 50% auto auto 50% !important;
+    width: min(920px, 78vw) !important;
+    max-height: min(680px, 78vh) !important;
+    padding: 16px !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-content: start;
+    justify-items: stretch;
+    transform: translate(-50%, -50%) !important;
+    overflow: auto !important;
+  }
+
+  .selection-panel--urgent:has(.choice-card-grid) h3 {
+    font-size: 18px;
+  }
+
+  .selection-panel--urgent:has(.choice-card-grid) p {
+    font-size: 12px;
+    white-space: normal;
+  }
+
+  .selection-panel--urgent:has(.choice-card-grid) .choice-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
+/* Name-length scaling also applies to placeholder/no-art cards, so adding an
+   illustration later never changes the card's typographic geometry. */
+.game-card--no-art.game-card--name-short .game-card__code { font-size: 11px; }
+.game-card--no-art.game-card--name-medium .game-card__code { font-size: 10px; }
+.game-card--no-art.game-card--name-long .game-card__code { font-size: 9px; letter-spacing: -.05em; }
+.game-card--no-art.game-card--name-xlong .game-card__code { font-size: 8px; letter-spacing: -.065em; }
+.game-card--no-art.game-card--name-xxlong .game-card__code { font-size: 7px; letter-spacing: -.08em; }
+
+.builder-pool-card.game-card--no-art.game-card--name-short .game-card__code { font-size: 12px; }
+.builder-pool-card.game-card--no-art.game-card--name-medium .game-card__code { font-size: 11px; }
+.builder-pool-card.game-card--no-art.game-card--name-long .game-card__code { font-size: 10px; }
+.builder-pool-card.game-card--no-art.game-card--name-xlong .game-card__code { font-size: 9px; }
+.builder-pool-card.game-card--no-art.game-card--name-xxlong .game-card__code { font-size: 8px; }
+
+.card-preview-card.game-card--no-art.game-card--name-short .game-card__code { font-size: 13px; }
+.card-preview-card.game-card--no-art.game-card--name-medium .game-card__code { font-size: 12px; }
+.card-preview-card.game-card--no-art.game-card--name-long .game-card__code { font-size: 11px; }
+.card-preview-card.game-card--no-art.game-card--name-xlong .game-card__code { font-size: 10px; }
+.card-preview-card.game-card--no-art.game-card--name-xxlong .game-card__code { font-size: 9px; }
+
+/* The confirmation HUD belongs to its own layout row. Keeping it in document
+   flow is more reliable than lifting the hand and layering a fixed bar over it. */
+@media (min-width: 1080px) and (min-height: 640px) {
+  .battle-board {
+    grid-template-rows: minmax(0, .88fr) 38px minmax(0, 1.25fr) auto;
+  }
+
+  .decision-dock.has-selection {
+    position: relative;
+    inset: auto;
+    grid-row: 4;
+    width: 100%;
+    min-height: 82px;
+    padding: 6px clamp(120px, 10vw, 180px);
+    display: grid;
+    place-items: center;
+    overflow: visible;
+    pointer-events: auto;
+  }
+
+  .decision-dock.has-selection > .selection-panel {
+    position: relative !important;
+    inset: auto !important;
+    width: min(940px, 100%) !important;
+    margin: 0 auto;
+    transform: none !important;
+  }
+
+  .battle-board:has(.decision-dock.has-selection) .hand-zone--self {
+    transform: none;
+  }
+
+  .battle-board:has(.decision-dock.has-selection) .hand-zone--self .hand-card:hover,
+  .battle-board:has(.decision-dock.has-selection) .hand-zone--self .hand-card:focus-within,
+  .battle-board:has(.decision-dock.has-selection) .hand-zone--self .hand-card.is-selected {
+    transform: translateY(-16px) scale(1.09);
+  }
+
+  .decision-dock.has-selection > .selection-panel--urgent:has(.choice-card-grid) {
+    position: fixed !important;
+    inset: 50% auto auto 50% !important;
+    width: min(920px, 78vw) !important;
+    max-height: min(680px, 78vh) !important;
+    margin: 0;
+    transform: translate(-50%, -50%) !important;
+  }
+}

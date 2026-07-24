@@ -44,6 +44,18 @@ function leastCommonMultiple(left: number, right: number): number {
 function main(): void {
   const config = loadConfig()
   console.log(`[meta] 카드 풀과 덱을 준비합니다. seed=${config.seed}`)
+  console.log(
+    `[meta] 덱 탐색: ${config.deckGeneration.populationSize}개 × ${config.deckGeneration.generations}세대, `
+    + `아키타입 기반 ${Math.round(config.deckGeneration.humanDeckRatio * 100)}%, `
+    + `${config.deckGeneration.minDistinctCards}~${config.deckGeneration.maxDistinctCards}종, `
+    + `1장 카드 최대 ${config.deckGeneration.maxSingletonCards}종`,
+  )
+  if (config.behaviorEvolution.enabled) {
+    console.log(
+      `[meta] 행동 진화: ${config.behaviorEvolution.populationSize}개 정책 × `
+      + `${config.behaviorEvolution.generations}세대, 훈련 덱 ${config.behaviorEvolution.trainingDeckCount}개`,
+    )
+  }
   const finalBotCount = config.behaviorEvolution.enabled
     ? config.behaviorEvolution.finalBotCount
     : config.matches.botProfiles.length

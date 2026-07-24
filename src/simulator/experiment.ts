@@ -2,6 +2,7 @@ import { CARD_ATTRIBUTES, CARDS } from '../shared/cards'
 import { normalizeDeckFormatSelection, validateDeck } from '../shared/decks'
 import { createBaselineBotContestant, createEvolvedBotContestant } from './bots'
 import { evolveBehaviors } from './behavior-evolution'
+import { analyzeDeckProfile } from './deck-intelligence'
 import { createNextGeneration, generateDeckPopulation } from './deck-generator'
 import { resolveCardPool } from './card-pool'
 import { runGenerationTournament } from './tournament'
@@ -40,27 +41,27 @@ function selectDiverseElites(
   const ranked = standings
     .map((standing) => deckById.get(standing.deckId))
     .filter((deck): deck is DeckCandidate => deck !== undefined)
+  const target = Math.max(1, Math.min(requestedCount, Math.max(1, decks.length - 1)))
   const output: DeckCandidate[] = []
   const selected = new Set<string>()
+  const coveredAttributes = new Set<CardAttributeId>()
+  const coveredStrategies = new Set<string>()
 
-  // 각 속성의 가장 높은 순위 대표를 먼저 한 번씩 남겨, 초기 통계 노이즈만으로
-  // 한 속성이 다음 세대에서 완전히 사라지는 일을 막습니다.
-  for (const attribute of ATTRIBUTE_IDS) {
-    const representative = ranked.find((deck) => primaryAttributes(deck).includes(attribute))
-    if (!representative || selected.has(representative.id)) continue
-    selected.add(representative.id)
-    output.push(representative)
+  while (output.length < target) {
+    const remaining = ranked.filter((deck) => !selected.has(deck.id))
+    if (remaining.length === 0) break
+    const novel = remaining.find((deck) => (
+      primaryAttributes(deck).some((attribute) => !coveredAttributes.has(attribute))
+      || (deck.strategy !== undefined && !coveredStrategies.has(deck.strategy))
+    ))
+    const chosen = novel ?? remaining[0]!
+    selected.add(chosen.id)
+    output.push(chosen)
+    for (const attribute of primaryAttributes(chosen)) coveredAttributes.add(attribute)
+    if (chosen.strategy) coveredStrategies.add(chosen.strategy)
   }
 
-  for (const deck of ranked) {
-    if (output.length >= Math.max(requestedCount, 1) && output.length >= Math.min(ATTRIBUTE_IDS.length, decks.length)) break
-    if (selected.has(deck.id)) continue
-    selected.add(deck.id)
-    output.push(deck)
-  }
-
-  // population 전체가 부모로 고정되면 변이를 만들 수 없으므로 최소 한 자리는 비웁니다.
-  return output.slice(0, Math.max(1, decks.length - 1))
+  return output
 }
 
 interface BehaviorSetup {
@@ -102,6 +103,11 @@ function prepareBehaviorBots(
     seedDecks.slice(0, config.behaviorEvolution.trainingDeckCount),
     0,
   ).slice(0, config.behaviorEvolution.trainingDeckCount)
+
+  onProgress(`행동 훈련 원형: ${trainingDecks.map((deck) => {
+    const profile = analyzeDeckProfile(deck.cardIds)
+    return `${deck.archetypeName ?? deck.name}(${profile.distinctCards}종)`
+  }).join(', ')}`)
 
   const evolved = evolveBehaviors(
     trainingDecks,
@@ -150,6 +156,8 @@ export function runMetaSimulation(
       generation: 0,
       parentId: null,
       tags: ['입력'],
+      source: 'seed',
+      parentIds: [],
     }
   })
 
@@ -169,6 +177,10 @@ export function runMetaSimulation(
     seedDecks,
     0,
   )
+  onProgress(`초기 덱 원형: ${decks.map((deck) => {
+    const profile = analyzeDeckProfile(deck.cardIds)
+    return `${deck.archetypeName ?? deck.name}(${profile.distinctCards}종, 3장 ${profile.tripletonCount}종)`
+  }).join(', ')}`)
   const generations: MetaSimulationReport['generations'] = []
 
   for (let generation = 0; generation < config.deckGeneration.generations; generation += 1) {
@@ -199,6 +211,9 @@ export function runMetaSimulation(
       config.seed,
       generation + 1,
     )
+    const sourceCounts = new Map<string, number>()
+    for (const deck of decks) sourceCounts.set(deck.source ?? 'unknown', (sourceCounts.get(deck.source ?? 'unknown') ?? 0) + 1)
+    onProgress(`다음 덱 세대 구성: ${[...sourceCounts.entries()].map(([source, count]) => `${source} ${count}`).join(', ')}`)
   }
 
   const finalGeneration = generations[generations.length - 1]

@@ -7,6 +7,42 @@ import type { GameView } from '../shared/views'
 export type BotProfileId = 'random' | 'aggressive' | 'value' | 'control'
 export type HeuristicBotProfileId = Exclude<BotProfileId, 'random'>
 
+export type DeckStrategy = 'aggro' | 'value' | 'control' | 'ramp' | 'graveyard' | 'life' | 'evolution' | 'midrange'
+
+export type DeckRole =
+  | 'early_unit'
+  | 'pressure'
+  | 'defender'
+  | 'tempo'
+  | 'removal'
+  | 'board_clear'
+  | 'draw'
+  | 'ramp'
+  | 'mana_payoff'
+  | 'graveyard_enabler'
+  | 'graveyard_payoff'
+  | 'recursion'
+  | 'life_control'
+  | 'awakening'
+  | 'evolution'
+  | 'resonance'
+  | 'finisher'
+  | 'utility'
+
+export interface DeckProfileSummary {
+  distinctCards: number
+  singletonCount: number
+  doubletonCount: number
+  tripletonCount: number
+  unitCount: number
+  spellCount: number
+  averageCost: number
+  strategy: DeckStrategy
+  attributes: import('../shared/cards').CardAttributeId[]
+  roleCounts: Partial<Record<DeckRole, number>>
+  topPackages: string[]
+}
+
 export interface HeuristicWeights {
   directAttack: number
   unitAttack: number
@@ -116,7 +152,12 @@ export interface DeckCandidate {
   cardIds: CardId[]
   generation: number
   parentId: string | null
+  parentIds?: string[]
   tags: string[]
+  archetypeId?: string
+  archetypeName?: string
+  strategy?: DeckStrategy
+  source?: 'seed' | 'archetype' | 'exploratory' | 'elite' | 'mutation' | 'crossover'
 }
 
 export interface DeckGenerationConfig {
@@ -127,6 +168,21 @@ export interface DeckGenerationConfig {
   minUnits: number
   maxUnits: number
   maxAttemptsPerDeck: number
+  /** 초기 집단 중 아키타입·역할·매수 골격을 따르는 비율입니다. */
+  humanDeckRatio: number
+  /** 20장 덱에서 보통 8~11종처럼 일관성 있는 카드 종류 수를 유도합니다. */
+  minDistinctCards: number
+  maxDistinctCards: number
+  /** 인간형 원형에서 상황 대응용 1장 카드의 최대 종류 수입니다. */
+  maxSingletonCards: number
+  /** 엘리트 둘의 카드 선호를 섞어 새 덱을 만드는 확률입니다. */
+  crossoverChance: number
+  /** 싱글톤을 줄이고 핵심 카드 매수를 늘리는 변이 확률입니다. */
+  compressionChance: number
+  /** 같은 역할·시너지 패키지를 묶어 교체하는 변이 확률입니다. */
+  packageMutationChance: number
+  /** 각 세대에 새 아키타입 원형을 다시 투입해 조기 수렴을 막는 수입니다. */
+  immigrantCount: number
 }
 
 export interface MatchSimulationConfig {

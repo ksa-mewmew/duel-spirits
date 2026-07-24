@@ -16,8 +16,7 @@
     "check": "npm run test:run && npm run build",
     "server:deploy": "wrangler deploy",
     "server:tail": "wrangler tail",
-    "server:whoami": "wrangler whoami",
-    "art:check": "node scripts/check-card-art.mjs"
+    "server:whoami": "wrangler whoami"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "4.20260625.1",

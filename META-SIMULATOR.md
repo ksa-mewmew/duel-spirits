@@ -259,3 +259,7 @@ const CARD_SIMULATION_HINTS: Partial<Record<CardId, CardSimulationHints>> = {
 ## 11. 행동 가중치 진화
 
 행동 정책 진화의 평가 방식, 세대별 경기 수, 설정값과 해석법은 `META-SIMULATOR-BEHAVIOR-EVOLUTION.md`에 정리되어 있습니다. 행동 진화를 끄려면 `behaviorEvolution.enabled`를 `false`로 두십시오.
+
+## v5 인간형 덱 생성과 진화
+
+아키타입·역할·3/2/1장 매수 구조·패키지 변이·교차·신규 원형 유입은 `META-SIMULATOR-HUMAN-DECK-EVOLUTION.md`를 참고하십시오.
