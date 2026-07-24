@@ -27,6 +27,165 @@
   --ui-accent: var(--gold);
 }
 
+/* Every server-side card-effect choice uses one explicit overlay surface.
+   This final rule intentionally supersedes older bottom-dock and :has layouts,
+   which could compress revealed cards into a thin horizontal strip. */
+.arena-center__main > .decision-dock.has-selection.is-effect-choice {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 170 !important;
+  box-sizing: border-box;
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 0 !important;
+  padding: clamp(10px, 3vh, 28px) clamp(10px, 3vw, 34px) !important;
+  display: grid !important;
+  place-items: center !important;
+  overflow: hidden !important;
+  transform: none !important;
+  background: rgba(2, 6, 10, .32) !important;
+  pointer-events: auto !important;
+}
+
+.effect-choice-overlay {
+  box-sizing: border-box;
+  width: min(920px, 100%);
+  max-height: min(82dvh, 760px);
+  min-height: 0;
+  padding: 14px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(229, 204, 121, .55);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 50% 0, rgba(207, 174, 82, .1), transparent 34%),
+    linear-gradient(180deg, rgba(15, 22, 28, .995), rgba(3, 8, 13, .995));
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .76), inset 0 1px 0 rgba(255, 255, 255, .07);
+}
+
+.effect-choice-overlay__header {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid rgba(255, 255, 255, .09);
+}
+
+.effect-choice-overlay__header > span {
+  color: #f4dda0;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.effect-choice-overlay__content {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.arena-center__main > .decision-dock.is-effect-choice .effect-choice-overlay__content > .selection-panel,
+.arena-center__main > .decision-dock.is-effect-choice .effect-choice-overlay__content > .selection-panel--urgent,
+.arena-center__main > .decision-dock.is-effect-choice .effect-choice-overlay__content > .selection-panel--sof {
+  position: relative !important;
+  inset: auto !important;
+  box-sizing: border-box;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  margin: 0 !important;
+  padding: 8px 4px 4px !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-content: start !important;
+  justify-items: stretch !important;
+  gap: 10px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  transform: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.arena-center__main > .decision-dock.is-effect-choice .selection-panel h3 {
+  margin: 0 !important;
+  color: #fff1c4;
+  font-size: clamp(17px, 2.2vh, 22px) !important;
+  white-space: normal !important;
+}
+
+.arena-center__main > .decision-dock.is-effect-choice .selection-panel p {
+  margin: 0 !important;
+  color: #c9c6bd;
+  font-size: clamp(11px, 1.45vh, 14px) !important;
+  line-height: 1.55;
+  white-space: normal !important;
+}
+
+.arena-center__main > .decision-dock.is-effect-choice .choice-card-grid {
+  min-width: 0;
+  min-height: 0;
+  max-height: min(52dvh, 500px);
+  padding: 8px;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 154px)) !important;
+  justify-content: center;
+  align-items: start;
+  gap: 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+
+.arena-center__main > .decision-dock.is-effect-choice .choice-actions {
+  display: flex !important;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px !important;
+}
+
+.effect-choice-overlay .decision-panel-battlefield,
+.arena-center__main > .decision-dock.is-effect-choice .decision-panel-return {
+  position: static !important;
+  inset: auto !important;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid rgba(132, 207, 218, .45);
+  border-radius: 999px;
+  background: rgba(6, 15, 21, .94);
+  color: #dff8fb;
+  font-size: 11px;
+  font-weight: 850;
+  transform: none !important;
+  pointer-events: auto;
+}
+
+.arena-center__main > .decision-dock.is-effect-choice.is-battlefield-view {
+  inset: 58px auto auto 50% !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 0 !important;
+  display: block !important;
+  overflow: visible !important;
+  transform: translateX(-50%) !important;
+  background: transparent !important;
+  pointer-events: none !important;
+}
+
+.arena-center__main > .decision-dock.is-effect-choice.is-battlefield-view .decision-panel-return {
+  border-color: rgba(229, 204, 121, .58);
+  color: #fff1bd;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
+}
+
 html,
 body,
 #app {
@@ -5601,6 +5760,129 @@ body.room-waiting-active { background: #030506; }
   .arena-center__main:has(> .decision-dock.is-effect-choice) {
     grid-template-rows: minmax(0, .82fr) 38px minmax(0, 1.12fr) 78px;
   }
+
+  .hand-area {
+    padding-inline: 12px !important;
+    overflow: hidden !important;
+  }
+
+  .hand-scroll-shell {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .hand-zone--self {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    padding: 18px 38px 2px !important;
+    justify-content: center;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    overscroll-behavior-x: contain;
+    scroll-behavior: smooth;
+    scroll-padding-inline: 48px;
+    scrollbar-width: none;
+    cursor: grab;
+    touch-action: pan-y;
+  }
+
+  .hand-zone--self::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hand-scroll-shell.has-overflow .hand-zone--self {
+    justify-content: flex-start;
+  }
+
+  .hand-scroll-shell.is-dragging .hand-zone--self {
+    cursor: grabbing;
+    scroll-behavior: auto;
+    user-select: none;
+  }
+
+  .hand-zone--self.is-dense .hand-card,
+  .hand-zone--self.is-very-dense .hand-card {
+    height: clamp(132px, 18.6vh, 184px) !important;
+  }
+
+  .hand-zone--self.is-dense .hand-card {
+    margin-left: -18px;
+  }
+
+  .hand-zone--self.is-very-dense .hand-card {
+    margin-left: -24px;
+  }
+
+  .hand-scroll-button {
+    position: absolute;
+    top: 50%;
+    z-index: 45;
+    width: 30px;
+    min-width: 30px;
+    height: 58px;
+    min-height: 58px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(171, 215, 222, .32);
+    border-radius: 999px;
+    background: rgba(4, 12, 18, .88);
+    color: #e7f7f8;
+    font-size: 24px;
+    line-height: 1;
+    opacity: 0;
+    transform: translateY(-50%);
+    pointer-events: none;
+    transition: opacity .15s ease, border-color .15s ease, background .15s ease;
+  }
+
+  .hand-scroll-button--previous {
+    left: 4px;
+  }
+
+  .hand-scroll-button--next {
+    right: 4px;
+  }
+
+  .hand-scroll-shell.has-overflow .hand-scroll-button {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .hand-scroll-button:hover:not(:disabled),
+  .hand-scroll-button:focus-visible:not(:disabled) {
+    border-color: rgba(238, 210, 128, .72);
+    background: rgba(19, 34, 42, .96);
+  }
+
+  .hand-scroll-button:disabled {
+    opacity: .24 !important;
+    pointer-events: none !important;
+  }
+
+  .hand-scroll-shell.has-overflow::before,
+  .hand-scroll-shell.has-overflow::after {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    z-index: 35;
+    width: 42px;
+    pointer-events: none;
+  }
+
+  .hand-scroll-shell.has-overflow::before {
+    left: 0;
+    background: linear-gradient(90deg, rgba(2, 7, 11, .92), transparent);
+  }
+
+  .hand-scroll-shell.has-overflow::after {
+    right: 0;
+    background: linear-gradient(270deg, rgba(2, 7, 11, .92), transparent);
+  }
 }
 
 @media (max-width: 1279px) {
@@ -6052,4 +6334,60 @@ h3,
   left: clamp(9px, 7%, 18px) !important;
   right: clamp(9px, 7%, 18px) !important;
   width: auto !important;
+}
+
+/* Final cascade boundary for effect choices. Keep this after every legacy
+   arena/dock rule so card effects can never fall back into the bottom lane. */
+.arena-center__main > .decision-dock.has-selection.is-effect-choice {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 170 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 0 !important;
+  padding: clamp(10px, 3vh, 28px) clamp(10px, 3vw, 34px) !important;
+  display: grid !important;
+  place-items: center !important;
+  overflow: hidden !important;
+  transform: none !important;
+  background: rgba(2, 6, 10, .32) !important;
+  pointer-events: auto !important;
+}
+
+.arena-center__main > .decision-dock.is-effect-choice .effect-choice-overlay__content > .selection-panel {
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  margin: 0 !important;
+  padding: 8px 4px 4px !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-content: start !important;
+  gap: 10px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  transform: none !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.effect-choice-overlay .decision-panel-battlefield {
+  position: static !important;
+  inset: auto !important;
+  transform: none !important;
+}
+
+.arena-center__main > .decision-dock.is-effect-choice.is-battlefield-view {
+  inset: 58px auto auto 50% !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 0 !important;
+  display: block !important;
+  transform: translateX(-50%) !important;
+  background: transparent !important;
+  pointer-events: none !important;
 }

@@ -96,6 +96,8 @@ let roomMenuOpen = false
 let rulebookOpen = false
 let decisionPanelCollapsed = false
 let decisionPanelKey: string | null = null
+let handScrollLeft = 0
+let lastCenteredHandCardId: string | null = null
 
 function escapeHtml(value: string): string {
   return value
@@ -1325,7 +1327,11 @@ function renderPlayerBoard(playerId: PlayerId, position: 'self' | 'opponent'): s
     ${field}
     <section class="hand-area" aria-label="내 손패">
       <div class="hand-heading"><span>내 손패</span><strong>${player.handCount}</strong></div>
-      <div class="hand-zone hand-zone--self ${player.handCount > 12 ? 'is-very-dense' : player.handCount > 8 ? 'is-dense' : ''}" style="--hand-count: ${Math.max(1, player.handCount)}">${renderHand(player, true)}</div>
+      <div class="hand-scroll-shell">
+        <button type="button" class="hand-scroll-button hand-scroll-button--previous" data-action="scroll-hand" data-direction="-1" aria-label="이전 손패 보기">‹</button>
+        <div class="hand-zone hand-zone--self ${player.handCount > 12 ? 'is-very-dense' : player.handCount > 8 ? 'is-dense' : ''}" style="--hand-count: ${Math.max(1, player.handCount)}" tabindex="0">${renderHand(player, true)}</div>
+        <button type="button" class="hand-scroll-button hand-scroll-button--next" data-action="scroll-hand" data-direction="1" aria-label="다음 손패 보기">›</button>
+      </div>
     </section>
   </section>`
 }
@@ -1814,10 +1820,19 @@ function renderDecisionDock(opponentId: PlayerId): string {
     </aside>`
   }
 
-  return `<aside class="decision-dock has-selection ${isEffectChoice ? 'is-effect-choice' : ''}" aria-live="polite">
-    ${isEffectChoice ? '<button type="button" class="decision-panel-battlefield" data-action="view-battlefield">전장 보기</button>' : ''}
-    ${activePanel}
-  </aside>`
+  if (isEffectChoice) {
+    return `<aside class="decision-dock has-selection is-effect-choice" aria-live="polite">
+      <section class="effect-choice-overlay" role="dialog" aria-modal="true" aria-label="카드 효과 선택">
+        <header class="effect-choice-overlay__header">
+          <span>카드 효과 처리</span>
+          <button type="button" class="decision-panel-battlefield" data-action="view-battlefield">전장 보기</button>
+        </header>
+        <div class="effect-choice-overlay__content">${activePanel}</div>
+      </section>
+    </aside>`
+  }
+
+  return `<aside class="decision-dock has-selection" aria-live="polite">${activePanel}</aside>`
 }
 
 function renderTurnControl(): string {
@@ -2191,6 +2206,93 @@ function bindEvents(): void {
     decisionPanelCollapsed = false
     render()
   })
+
+  const handScroller = document.querySelector<HTMLElement>('.hand-zone--self')
+  const handScrollShell = handScroller?.closest<HTMLElement>('.hand-scroll-shell') ?? null
+  if (handScroller && handScrollShell) {
+    const previousButton = handScrollShell.querySelector<HTMLButtonElement>('.hand-scroll-button--previous')
+    const nextButton = handScrollShell.querySelector<HTMLButtonElement>('.hand-scroll-button--next')
+    const updateHandScrollState = () => {
+      const maximum = Math.max(0, handScroller.scrollWidth - handScroller.clientWidth)
+      handScrollLeft = Math.min(maximum, Math.max(0, handScroller.scrollLeft))
+      handScrollShell.classList.toggle('has-overflow', maximum > 2)
+      if (previousButton) previousButton.disabled = handScrollLeft <= 2
+      if (nextButton) nextButton.disabled = handScrollLeft >= maximum - 2
+    }
+    const scrollHand = (direction: number) => {
+      handScroller.scrollBy({
+        left: direction * Math.max(180, handScroller.clientWidth * .65),
+        behavior: 'smooth',
+      })
+    }
+
+    handScroller.scrollLeft = handScrollLeft
+    const selectedCard = handScroller.querySelector<HTMLElement>('.hand-card.is-selected')
+    const selectedCardId = selectedCard?.dataset.instanceId ?? null
+    if (selectedCard && selectedCardId !== lastCenteredHandCardId) {
+      handScroller.scrollLeft = selectedCard.offsetLeft
+        - (handScroller.clientWidth - selectedCard.offsetWidth) / 2
+      lastCenteredHandCardId = selectedCardId
+    } else if (!selectedCard) {
+      lastCenteredHandCardId = null
+    }
+
+    handScroller.addEventListener('scroll', updateHandScrollState, { passive: true })
+    handScroller.addEventListener('wheel', (event) => {
+      if (handScroller.scrollWidth <= handScroller.clientWidth + 2) return
+      const movement = Math.abs(event.deltaX) > Math.abs(event.deltaY)
+        ? event.deltaX
+        : event.deltaY
+      if (movement === 0) return
+      event.preventDefault()
+      handScroller.scrollLeft += movement
+    }, { passive: false })
+
+    let dragStartX = 0
+    let dragStartScrollLeft = 0
+    let dragged = false
+    handScroller.addEventListener('pointerdown', (event) => {
+      if (event.pointerType === 'mouse' && event.button !== 0) return
+      if ((event.target as HTMLElement).closest('button')) return
+      dragStartX = event.clientX
+      dragStartScrollLeft = handScroller.scrollLeft
+      dragged = false
+      handScroller.setPointerCapture(event.pointerId)
+      handScrollShell.classList.add('is-dragging')
+    })
+    handScroller.addEventListener('pointermove', (event) => {
+      if (!handScroller.hasPointerCapture(event.pointerId)) return
+      const movement = event.clientX - dragStartX
+      if (Math.abs(movement) > 5) dragged = true
+      if (dragged) handScroller.scrollLeft = dragStartScrollLeft - movement
+    })
+    const endHandDrag = (event: PointerEvent) => {
+      if (handScroller.hasPointerCapture(event.pointerId)) {
+        handScroller.releasePointerCapture(event.pointerId)
+      }
+      handScrollShell.classList.remove('is-dragging')
+      if (dragged) {
+        window.setTimeout(() => {
+          dragged = false
+        }, 0)
+      }
+    }
+    handScroller.addEventListener('pointerup', endHandDrag)
+    handScroller.addEventListener('pointercancel', endHandDrag)
+    handScroller.addEventListener('click', (event) => {
+      if (!dragged) return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      dragged = false
+    }, true)
+
+    for (const button of handScrollShell.querySelectorAll<HTMLButtonElement>('[data-action="scroll-hand"]')) {
+      button.addEventListener('click', () => {
+        scrollHand(Number(button.dataset.direction ?? 0))
+      })
+    }
+    requestAnimationFrame(updateHandScrollState)
+  }
 
   for (const control of document.querySelectorAll<HTMLElement>('[data-action="open-discard"]')) {
     control.addEventListener('click', () => {
