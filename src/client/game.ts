@@ -1226,14 +1226,23 @@ function renderPlayerBoard(playerId: PlayerId, position: 'self' | 'opponent'): s
 
   const isActivePlayer = game.currentPlayer === playerId
   const strip = `<header class="player-strip player-strip--${position} ${isActivePlayer ? 'is-active-turn' : ''}">
-    <strong>${playerId} ${isSelf ? '· 나' : '· 상대'}</strong>
-    ${isActivePlayer ? `<span class="turn-owner-badge">${isSelf ? '내 턴' : '진행 중'}</span>` : ''}
-    <span>손 ${player.handCount}</span>
-    <span>라이프 ${player.lifeCount}</span>
-    <span>마나 ${readyMana}/${player.mana.length}</span>
-    <span>덱 ${player.deckCount}</span>
-    <button type="button" class="strip-link" data-action="open-discard" data-player-id="${playerId}">묘지 ${player.discard.length}</button>
+    <div class="player-identity">
+      <span class="player-crest" aria-hidden="true">${playerId}</span>
+      <span class="player-name">
+        <strong>${isSelf ? '나' : '상대'}</strong>
+        <small>${isActivePlayer ? (isSelf ? '내 턴' : '진행 중') : '대기'}</small>
+      </span>
+      <span class="player-life-shield" title="라이프 ${player.lifeCount}">${player.lifeCount}</span>
+    </div>
+    <div class="player-counters" aria-label="플레이어 상태">
+      <span class="player-counter player-counter--hand" title="손패"><i aria-hidden="true">손</i><b>${player.handCount}</b></span>
+      <span class="player-counter player-counter--mana" title="준비 마나 / 전체 마나"><i aria-hidden="true">마나</i><b>${readyMana}/${player.mana.length}</b></span>
+      <span class="player-counter player-counter--deck" title="덱"><i aria-hidden="true">덱</i><b>${player.deckCount}</b></span>
+      <button type="button" class="player-counter player-counter--discard" data-action="open-discard" data-player-id="${playerId}" title="묘지 열기"><i aria-hidden="true">묘</i><b>${player.discard.length}</b></button>
+    </div>
   </header>`
+
+  const manaPips = player.mana.map((mana) => `<i class="${mana.exhausted ? 'is-spent' : 'is-ready'}" aria-hidden="true"></i>`).join('')
 
   const board = `<div class="combat-row combat-row--${position}">
     <section class="life-zone life-zone--rail ${directTargeting ? 'is-targetable' : ''}" aria-label="${playerId} 라이프">
@@ -1248,12 +1257,13 @@ function renderPlayerBoard(playerId: PlayerId, position: 'self' | 'opponent'): s
     <aside class="resource-rail">
       <section class="mana-zone mana-zone--summary ${isSelf ? 'mana-zone--self' : ''}" aria-label="${playerId} 마나">
         <div class="mana-summary">
-          <span class="mana-summary__label">마나</span>
+          <span class="mana-summary__label">MANA</span>
           <strong class="mana-summary__count">${readyMana}<small> / ${player.mana.length}</small></strong>
           <span class="mana-summary__state">준비 / 전체</span>
+          <span class="mana-summary__pips" aria-hidden="true">${manaPips}</span>
         </div>
         <button type="button" class="mana-open-button" data-action="open-mana-drawer" data-player-id="${playerId}">
-          <span>마나 자세히 보기</span><b aria-hidden="true">→</b>
+          <span>마나 보기</span><b aria-hidden="true">＋</b>
         </button>
       </section>
       <div class="pile-row">
@@ -1690,7 +1700,7 @@ function renderDecisionDock(opponentId: PlayerId): string {
   return `<aside class="decision-dock ${activePanel ? 'has-selection' : ''}" aria-live="polite">
     ${activePanel}
     <div class="primary-actions">
-      <button id="end-turn-button" class="end-turn-button" type="button" ${canEndTurn && !awaitingServer ? '' : 'disabled'}>턴 종료</button>
+      <button id="end-turn-button" class="end-turn-button" type="button" ${canEndTurn && !awaitingServer ? '' : 'disabled'}><span>턴</span><strong>종료</strong></button>
       ${game.status === 'finished' ? `<button id="rematch-button" type="button">${rematchReadyPlayers.includes(game.viewer) ? '재대전 취소' : '재대전 요청'}</button>` : ''}
     </div>
   </aside>`

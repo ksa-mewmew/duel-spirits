@@ -3614,3 +3614,867 @@ body.room-waiting-active { background: #030506; }
   inset: 38px 6px auto;
   height: 21px;
 }
+
+/* 2026-07 visual cleanup: white multi-attribute cards, bottom name ribbons,
+   perfectly centered stat discs, and undistorted mana thumbnails. */
+
+/* Multi-attribute cards use a neutral white/silver frame instead of the old
+   near-black fallback. The illustration still fills the entire card face. */
+.game-card--multi-attribute {
+  --card-accent: #f4f1e8;
+  border-color: #f7f3e8;
+  background: #e7e6e1;
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, .3),
+    inset 0 0 0 1px rgba(255, 255, 255, .78),
+    inset 0 0 0 3px rgba(190, 194, 202, .24);
+}
+
+.game-card--multi-attribute .game-card__art {
+  background-image:
+    var(--card-art, none),
+    linear-gradient(145deg, #ffffff 0%, #e4e5e7 52%, #cfd2d7 100%);
+}
+
+/* Every circular value is a true square. Padding can no longer pull a number
+   or attribute letter away from the visual centre. */
+.game-card {
+  --card-orb-size: 22px;
+  --card-orb-bottom: 6px;
+  --card-name-height: 20px;
+  --card-name-gap: 4px;
+}
+
+.game-card__cost,
+.game-card__attribute,
+.game-card__attack,
+.game-card__health {
+  box-sizing: border-box;
+  width: var(--card-orb-size);
+  min-width: var(--card-orb-size);
+  height: var(--card-orb-size);
+  padding: 0;
+  place-items: center;
+  line-height: 1;
+  text-align: center;
+}
+
+.game-card__attack,
+.game-card__health {
+  bottom: var(--card-orb-bottom);
+}
+
+/* The name now sits directly above the lower stat discs. It always occupies
+   one fixed-height line; longer Korean names shrink through the existing
+   length classes instead of wrapping or receiving an ellipsis. */
+.game-card--art-ready.game-card--center-name .game-card__code,
+.game-card--art-ready.game-card--detail-layout .game-card__code {
+  inset: auto 6px calc(var(--card-orb-bottom) + var(--card-orb-size) + var(--card-name-gap));
+  width: auto;
+  height: var(--card-name-height);
+  white-space: nowrap;
+  text-wrap: nowrap;
+  -webkit-line-clamp: unset;
+}
+
+.hand-card.game-card--art-ready .game-card__code,
+.hand-card.game-card--art-ready.game-card--center-name:has(.game-card__actions):hover .game-card__code,
+.hand-card.game-card--art-ready.game-card--center-name:has(.game-card__actions):focus-within .game-card__code,
+.hand-card.game-card--art-ready.game-card--center-name.is-selected .game-card__code,
+.field-card.game-card--art-ready .game-card__code {
+  inset: auto 6px calc(var(--card-orb-bottom) + var(--card-orb-size) + var(--card-name-gap));
+  height: var(--card-name-height);
+}
+
+.builder-pool-card {
+  --card-orb-size: 28px;
+  --card-orb-bottom: 7px;
+  --card-name-height: 22px;
+  --card-name-gap: 5px;
+}
+
+.builder-pool-card.game-card--art-ready .game-card__code {
+  inset: auto 7px calc(var(--card-orb-bottom) + var(--card-orb-size) + var(--card-name-gap));
+  height: var(--card-name-height);
+}
+
+.card-preview-card,
+.builder-hover-preview-card {
+  --card-orb-size: 28px;
+  --card-orb-bottom: 7px;
+  --card-name-height: 24px;
+  --card-name-gap: 5px;
+}
+
+.card-preview-card.game-card--art-ready .game-card__code,
+.builder-hover-preview-card.game-card--art-ready .game-card__code {
+  inset: auto 8px calc(var(--card-orb-bottom) + var(--card-orb-size) + var(--card-name-gap));
+  height: var(--card-name-height);
+}
+
+/* Mana cards keep the native 5:7 silhouette. Density is handled by column
+   count and scrolling rather than by flattening each card into a landscape
+   rectangle. */
+.mana-list {
+  grid-auto-rows: auto;
+  align-content: start;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.mana-card,
+.mana-card--rail {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0;
+  max-height: none;
+  aspect-ratio: 5 / 7 !important;
+}
+
+.mana-card--rail .game-card__art {
+  height: 100%;
+  opacity: .78;
+}
+
+/* The card itself already identifies the mana. Remove the extra yellow
+   attribute/ability words while preserving selection borders and ready-state
+   animation. */
+.mana-card::after,
+.mana-card--rail.has-mana-ability::before {
+  content: none !important;
+  display: none !important;
+}
+
+/* 2026-07 arena pass: a full-bleed digital battlefield inspired by modern
+   digital CCG staging. Existing controls and rules remain intact; panels are
+   spatially reorganised into edge HUDs so cards and the board own the screen. */
+@media (min-width: 1080px) and (min-height: 640px) {
+  body.game-active {
+    background:
+      radial-gradient(circle at 50% 44%, rgba(25, 145, 166, .16), transparent 27%),
+      radial-gradient(circle at 18% 50%, rgba(142, 45, 76, .11), transparent 34%),
+      #060b10;
+  }
+
+  .room-screen--game {
+    position: relative;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .room-topbar--game {
+    position: absolute;
+    inset: 10px 12px auto;
+    z-index: 120;
+    min-height: 36px;
+    padding: 5px 8px 5px 12px;
+    border: 1px solid rgba(158, 207, 216, .13);
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(4, 9, 14, .88), rgba(4, 9, 14, .55));
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
+    backdrop-filter: blur(12px);
+  }
+
+  .room-topbar--game .match-state {
+    opacity: .72;
+  }
+
+  .game-layout {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .battle-board {
+    position: relative;
+    isolation: isolate;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    margin: 0;
+    padding: 50px 24px 10px;
+    display: grid;
+    grid-template-rows: minmax(0, .92fr) 38px minmax(0, 1.34fr);
+    gap: 2px;
+    border: 0;
+    border-radius: 0;
+    overflow: hidden;
+    box-shadow: none;
+    background:
+      linear-gradient(90deg, transparent 49.85%, rgba(112, 221, 235, .10) 50%, transparent 50.15%),
+      repeating-linear-gradient(90deg, transparent 0 7.8%, rgba(66, 196, 215, .025) 7.9% 8%),
+      linear-gradient(180deg, rgba(15, 22, 28, .05), rgba(3, 8, 13, .24)),
+      #071017;
+  }
+
+  .battle-board::before {
+    content: '';
+    position: absolute;
+    inset: -18%;
+    z-index: -2;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse at center, transparent 0 17%, rgba(42, 205, 225, .09) 17.2% 17.5%, transparent 17.8% 25%, rgba(42, 205, 225, .045) 25.2% 25.5%, transparent 25.8%),
+      conic-gradient(from 8deg at 50% 50%, transparent 0 8%, rgba(65, 197, 215, .045) 8.2% 8.5%, transparent 8.7% 24%, rgba(122, 54, 96, .045) 24.2% 24.5%, transparent 24.7% 50%, rgba(65, 197, 215, .045) 50.2% 50.5%, transparent 50.7% 74%, rgba(122, 54, 96, .045) 74.2% 74.5%, transparent 74.7%);
+    transform: perspective(900px) rotateX(57deg) scale(1.35);
+    transform-origin: center;
+  }
+
+  .battle-board::after {
+    content: '';
+    position: absolute;
+    inset: 48.6% 5% auto;
+    z-index: -1;
+    height: 2px;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(129, 229, 239, .32) 20%, rgba(255,255,255,.42) 50%, rgba(129, 229, 239, .32) 80%, transparent);
+    box-shadow: 0 0 18px rgba(77, 218, 232, .24);
+  }
+
+  .player-board {
+    position: relative;
+    min-height: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .player-board--opponent {
+    grid-template-rows: 56px minmax(0, 1fr);
+  }
+
+  .player-board--self {
+    grid-template-rows: minmax(0, 1fr) 56px minmax(148px, 20vh);
+  }
+
+  .player-board.is-active-player {
+    box-shadow: none;
+  }
+
+  .player-strip {
+    position: relative;
+    z-index: 8;
+    justify-self: center;
+    align-self: center;
+    display: flex;
+    width: auto;
+    min-width: 410px;
+    min-height: 48px;
+    padding: 4px 10px 4px 6px;
+    gap: 12px;
+    border: 1px solid rgba(182, 220, 225, .24);
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(18, 27, 34, .94), rgba(5, 11, 17, .9));
+    box-shadow: 0 9px 26px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.06);
+    backdrop-filter: blur(10px);
+  }
+
+  .player-strip.is-active-turn {
+    border-color: rgba(238, 202, 94, .72);
+    box-shadow: 0 0 0 2px rgba(238, 202, 94, .08), 0 0 28px rgba(238, 202, 94, .17), 0 9px 26px rgba(0,0,0,.38);
+  }
+
+  .player-identity {
+    display: grid;
+    grid-template-columns: 40px auto 38px;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .player-crest {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid rgba(117, 216, 228, .58);
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 50% 38%, rgba(118, 226, 237, .32), transparent 37%),
+      #08161e;
+    color: #dffaff;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .08em;
+    box-shadow: inset 0 0 0 3px rgba(20, 79, 89, .48), 0 0 16px rgba(64, 198, 216, .13);
+  }
+
+  .player-name {
+    display: grid;
+    gap: 1px;
+    min-width: 54px;
+  }
+
+  .player-name strong {
+    margin: 0;
+    color: #f3f7f5;
+    font-size: 13px;
+    line-height: 1.1;
+  }
+
+  .player-name small {
+    color: #83a2a8;
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .05em;
+  }
+
+  .player-strip.is-active-turn .player-name small {
+    color: #f0d77a;
+  }
+
+  .player-life-shield {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 42px;
+    clip-path: polygon(50% 0, 92% 13%, 88% 73%, 50% 100%, 12% 73%, 8% 13%);
+    background: linear-gradient(180deg, #a7444e, #6d1f2b 70%, #3f121a);
+    color: #fff5e9 !important;
+    font-family: Georgia, serif;
+    font-size: 20px !important;
+    font-weight: 900;
+    text-shadow: 0 2px 3px rgba(0,0,0,.65);
+    box-shadow: inset 0 0 0 2px rgba(255, 219, 162, .46);
+  }
+
+  .player-counters {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding-left: 10px;
+    border-left: 1px solid rgba(255,255,255,.1);
+  }
+
+  .player-counter,
+  button.player-counter {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 48px;
+    min-height: 28px;
+    padding: 3px 7px;
+    border: 0;
+    border-radius: 7px;
+    background: rgba(255,255,255,.035);
+    color: #d6e3e3;
+    box-shadow: none;
+  }
+
+  button.player-counter:hover,
+  button.player-counter:focus-visible {
+    background: rgba(100, 205, 218, .13);
+    color: #f4ffff;
+  }
+
+  .player-counter i {
+    color: #7e9ba1;
+    font-size: 8px;
+    font-style: normal;
+    font-weight: 800;
+  }
+
+  .player-counter b {
+    color: #eef5f4;
+    font-size: 11px;
+    line-height: 1;
+  }
+
+  .combat-row {
+    position: relative;
+    grid-template-columns: clamp(130px, 10vw, 175px) minmax(480px, 1fr) clamp(135px, 10.5vw, 180px);
+    gap: clamp(10px, 1.4vw, 24px);
+    min-height: 0;
+    align-items: center;
+  }
+
+  .life-zone,
+  .mana-zone,
+  .field-column,
+  .hand-area {
+    border: 0 !important;
+    border-radius: 0;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .life-zone--rail {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .life-zone--rail::before,
+  .field-heading,
+  .hand-heading,
+  .zone-heading {
+    display: none !important;
+  }
+
+  .life-stack {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 0;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .life-stack > * + * {
+    margin-top: 0;
+    margin-left: calc(var(--card-w-life) * -.56);
+  }
+
+  .life-card-frame {
+    position: relative;
+    transform-origin: 50% 110%;
+    filter: drop-shadow(0 9px 8px rgba(0,0,0,.38));
+  }
+
+  .life-card-frame:nth-child(1) { transform: translateY(5px) rotate(-10deg); }
+  .life-card-frame:nth-child(2) { transform: translateY(1px) rotate(-4deg); }
+  .life-card-frame:nth-child(3) { transform: translateY(1px) rotate(4deg); }
+  .life-card-frame:nth-child(4) { transform: translateY(5px) rotate(10deg); }
+  .life-card-frame:nth-child(n+5) { transform: translateY(7px) rotate(13deg); }
+
+  .life-zone.is-targetable .life-card-frame {
+    filter: drop-shadow(0 0 12px rgba(238, 94, 104, .76));
+  }
+
+  .field-column {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    padding: 0;
+    overflow: visible;
+  }
+
+  .field-zone {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, var(--arena-field-card)));
+    --arena-field-card: clamp(96px, 13.8vh, 132px);
+    justify-content: center;
+    justify-items: center;
+    align-items: center;
+    gap: clamp(8px, 1.15vw, 20px);
+    padding: 2px 0;
+    overflow: visible;
+  }
+
+  .field-slot-frame,
+  .field-slot {
+    width: var(--arena-field-card);
+    min-width: 0;
+  }
+
+  .field-slot {
+    aspect-ratio: 5 / 7;
+    border: 1px solid rgba(87, 199, 213, .16);
+    border-radius: 45% 45% 15px 15px / 24% 24% 15px 15px;
+    background: radial-gradient(ellipse at 50% 80%, rgba(74, 205, 221, .055), transparent 65%);
+    box-shadow: inset 0 0 22px rgba(50, 169, 184, .035);
+  }
+
+  .field-slot--selectable {
+    border-color: rgba(239, 206, 96, .62);
+    background: radial-gradient(ellipse at 50% 80%, rgba(239, 206, 96, .10), transparent 66%);
+  }
+
+  .field-slot-frame .field-card {
+    width: 100%;
+    border-radius: 44% 44% 14px 14px / 22% 22% 14px 14px;
+    box-shadow: 0 14px 22px rgba(0,0,0,.42), inset 0 0 0 1px rgba(255,255,255,.07);
+    transform-origin: 50% 86%;
+  }
+
+  .field-slot-frame .field-card:hover,
+  .field-slot-frame .field-card:focus-within {
+    transform: translateY(-8px) scale(1.045);
+    z-index: 15;
+  }
+
+  .field-card.is-selected,
+  .field-card.is-targetable {
+    box-shadow: 0 0 0 3px rgba(241, 204, 86, .72), 0 0 28px rgba(241, 204, 86, .42), 0 14px 22px rgba(0,0,0,.42);
+  }
+
+  .field-card-status {
+    z-index: 16;
+    transform: translateY(-5px);
+  }
+
+  .resource-rail {
+    align-self: stretch;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) 70px;
+    gap: 8px;
+    overflow: visible;
+  }
+
+  .mana-zone.mana-zone--summary {
+    align-self: center;
+    min-height: clamp(120px, 17vh, 166px);
+    padding: 12px 10px 9px;
+    border: 1px solid rgba(105, 222, 213, .43) !important;
+    border-radius: 16px 4px 16px 4px;
+    background:
+      linear-gradient(145deg, rgba(22, 89, 86, .88), rgba(5, 27, 31, .94) 70%) !important;
+    box-shadow: inset 0 0 0 2px rgba(236, 217, 144, .13), 0 11px 28px rgba(0,0,0,.34) !important;
+  }
+
+  .mana-summary {
+    gap: 3px;
+  }
+
+  .mana-summary__label {
+    color: #a9f1d7;
+    font-size: 11px;
+    letter-spacing: .18em;
+  }
+
+  .mana-summary__count {
+    color: #f0ffe6;
+    font-family: Georgia, serif;
+    font-size: clamp(28px, 4.6vh, 46px);
+    text-shadow: 0 2px 6px rgba(0,0,0,.5);
+  }
+
+  .mana-summary__state {
+    font-size: 8px;
+    color: rgba(216, 245, 232, .58);
+  }
+
+  .mana-summary__pips {
+    display: grid;
+    grid-template-columns: repeat(10, 7px);
+    justify-content: center;
+    gap: 3px;
+    min-height: 7px;
+    margin-top: 4px;
+  }
+
+  .mana-summary__pips i {
+    width: 7px;
+    height: 7px;
+    border: 1px solid rgba(200, 242, 217, .48);
+    border-radius: 50%;
+    background: rgba(0,0,0,.34);
+  }
+
+  .mana-summary__pips i.is-ready {
+    background: #8fe2a6;
+    box-shadow: 0 0 7px rgba(123, 236, 158, .72);
+  }
+
+  .mana-summary__pips i.is-spent {
+    opacity: .42;
+  }
+
+  .mana-zone--summary .mana-open-button {
+    min-height: 25px;
+    border: 0;
+    border-top: 1px solid rgba(220, 243, 224, .13);
+    border-radius: 0;
+    background: transparent;
+    color: #bfeedd;
+    font-size: 9px;
+  }
+
+  .mana-zone--summary .mana-open-button:hover,
+  .mana-zone--summary .mana-open-button:focus-visible {
+    background: rgba(157, 238, 213, .08);
+  }
+
+  .pile-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .card-pile {
+    min-height: 62px;
+    border: 1px solid rgba(142, 191, 198, .21);
+    border-radius: 9px;
+    background: rgba(3, 9, 14, .72);
+  }
+
+  .card-pile__label {
+    font-size: 8px;
+  }
+
+  .card-pile__count {
+    font-size: 15px;
+  }
+
+  .turn-ribbon {
+    z-index: 10;
+    justify-self: center;
+    align-self: center;
+    width: auto;
+    min-width: 240px;
+    height: 32px;
+    padding: 0 14px;
+    gap: 10px;
+    border: 1px solid rgba(146, 220, 228, .25);
+    border-radius: 999px;
+    background: rgba(4, 12, 18, .82);
+    box-shadow: 0 0 20px rgba(62, 193, 210, .08);
+    backdrop-filter: blur(10px);
+  }
+
+  .turn-ribbon strong {
+    font-size: 12px;
+  }
+
+  .turn-ribbon .turn-message {
+    display: none;
+  }
+
+  .turn-ribbon .turn-number,
+  .turn-ribbon .turn-timer {
+    font-size: 9px;
+  }
+
+  .hand-area {
+    position: relative;
+    z-index: 20;
+    display: block;
+    min-height: 0;
+    padding: 0 clamp(115px, 10vw, 180px) 0 clamp(130px, 12vw, 220px);
+    overflow: visible;
+    background: linear-gradient(180deg, transparent, rgba(1, 5, 9, .82) 82%) !important;
+  }
+
+  .hand-zone--self {
+    height: 100%;
+    display: flex;
+    align-items: end;
+    justify-content: center;
+    gap: 0;
+    padding-bottom: 2px;
+    overflow: visible;
+  }
+
+  .hand-zone--self .hand-card {
+    height: clamp(132px, 18.6vh, 184px) !important;
+    margin-left: clamp(-16px, -1vw, -8px);
+    flex: 0 0 auto !important;
+    filter: drop-shadow(0 13px 10px rgba(0,0,0,.48));
+    transform-origin: 50% 100%;
+  }
+
+  .hand-zone--self .hand-card:first-child {
+    margin-left: 0;
+  }
+
+  .hand-zone--self.is-dense .hand-card {
+    height: clamp(118px, 16.4vh, 162px) !important;
+    margin-left: -20px;
+  }
+
+  .hand-zone--self.is-very-dense .hand-card {
+    height: clamp(102px, 14.2vh, 142px) !important;
+    margin-left: -26px;
+  }
+
+  .hand-zone--self .hand-card:hover,
+  .hand-zone--self .hand-card:focus-within,
+  .hand-zone--self .hand-card.is-selected {
+    transform: translateY(-16px) scale(1.09);
+    z-index: 30;
+    filter: drop-shadow(0 20px 16px rgba(0,0,0,.62));
+  }
+
+  .decision-dock,
+  .decision-dock.has-selection {
+    position: absolute;
+    inset: 50% 22px auto auto;
+    z-index: 40;
+    width: 126px;
+    min-height: 0;
+    padding: 0;
+    display: block;
+    overflow: visible;
+    transform: translateY(-50%);
+    border: 0;
+    background: transparent;
+    pointer-events: none;
+  }
+
+  .primary-actions {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    pointer-events: auto;
+  }
+
+  .end-turn-button {
+    display: grid;
+    place-content: center;
+    width: 112px;
+    min-width: 112px;
+    height: 112px;
+    min-height: 112px;
+    padding: 0;
+    border: 2px solid rgba(170, 235, 246, .8);
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 50% 38%, #1e9ec9, #075480 54%, #03283e 72%);
+    color: white;
+    box-shadow:
+      0 0 0 5px rgba(12, 50, 72, .94),
+      0 0 0 7px rgba(220, 193, 116, .55),
+      0 0 28px rgba(55, 197, 240, .42),
+      inset 0 0 20px rgba(158, 240, 255, .28);
+    text-shadow: 0 2px 5px rgba(0,0,0,.55);
+  }
+
+  .end-turn-button span,
+  .end-turn-button strong {
+    display: block;
+    line-height: 1.05;
+  }
+
+  .end-turn-button span {
+    font-size: 15px;
+    font-weight: 800;
+  }
+
+  .end-turn-button strong {
+    font-size: 22px;
+  }
+
+  .end-turn-button:hover:not(:disabled),
+  .end-turn-button:focus-visible:not(:disabled) {
+    transform: scale(1.045);
+    filter: brightness(1.12);
+  }
+
+  .end-turn-button:disabled {
+    border-color: rgba(128, 146, 153, .38);
+    background: radial-gradient(circle at 50% 38%, #36444a, #17242b 60%, #0a1116);
+    color: rgba(230, 238, 239, .38);
+    box-shadow: 0 0 0 5px rgba(12, 18, 22, .88), 0 0 0 7px rgba(111, 112, 105, .28);
+  }
+
+  .selection-panel {
+    position: fixed;
+    left: 50%;
+    bottom: clamp(154px, 21vh, 206px);
+    z-index: 80;
+    width: min(690px, 64vw);
+    min-height: 58px;
+    padding: 9px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    border: 1px solid rgba(224, 205, 132, .38);
+    border-radius: 13px;
+    background: linear-gradient(180deg, rgba(17, 24, 30, .97), rgba(4, 9, 14, .96));
+    box-shadow: 0 14px 40px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.05);
+    transform: translateX(-50%);
+    backdrop-filter: blur(14px);
+    pointer-events: auto;
+  }
+
+  .selection-panel--play {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .selection-panel h3 {
+    font-size: 13px;
+  }
+
+  .selection-panel p {
+    font-size: 10px;
+  }
+
+  .card-inspector,
+  .card-inspector.is-visible,
+  .card-inspector.is-visible:not(.is-empty),
+  .card-inspector.is-pinned {
+    position: absolute !important;
+    inset: 62px auto 22px 16px !important;
+    z-index: 95;
+    display: grid !important;
+    width: min(380px, 28vw) !important;
+    height: auto !important;
+    max-height: calc(100% - 84px) !important;
+    padding: 12px !important;
+    overflow-y: auto;
+    border: 1px solid rgba(174, 220, 226, .28);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(9, 18, 24, .96), rgba(4, 9, 14, .94));
+    box-shadow: 18px 18px 52px rgba(0,0,0,.54);
+    opacity: 1 !important;
+    transform: translateX(0) !important;
+    backdrop-filter: blur(16px);
+  }
+
+  .card-inspector.is-empty {
+    display: none !important;
+  }
+
+  .card-inspector__inner {
+    grid-template-columns: minmax(120px, 42%) minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .card-inspector__visual .card-preview-card,
+  .card-preview-card {
+    width: 100%;
+    max-width: 170px;
+  }
+
+  .card-inspector__copy h2 {
+    font-size: 16px;
+  }
+
+  .card-inspector__rules {
+    font-size: 10px;
+    line-height: 1.5;
+  }
+
+  .card-inspector__hint {
+    display: none;
+  }
+}
+
+@media (min-width: 1080px) and (max-height: 760px) {
+  .battle-board {
+    padding-top: 46px;
+  }
+
+  .player-board--opponent {
+    grid-template-rows: 48px minmax(0, 1fr);
+  }
+
+  .player-board--self {
+    grid-template-rows: minmax(0, 1fr) 48px minmax(132px, 18vh);
+  }
+
+  .player-strip {
+    min-height: 42px;
+    transform: scale(.9);
+  }
+
+  .field-zone {
+    --arena-field-card: clamp(82px, 12.4vh, 108px);
+  }
+
+  .end-turn-button {
+    width: 92px;
+    min-width: 92px;
+    height: 92px;
+    min-height: 92px;
+  }
+
+  .end-turn-button strong { font-size: 18px; }
+  .end-turn-button span { font-size: 12px; }
+}
