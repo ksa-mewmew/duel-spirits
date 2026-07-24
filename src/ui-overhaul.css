@@ -4927,3 +4927,426 @@ body.room-waiting-active { background: #030506; }
     transform: translate(-50%, -50%) !important;
   }
 }
+
+/* 2026-07 arena structure correction: dedicate real columns to life/detail and
+   mana/piles/turn controls so no interface element has to overlap the board. */
+
+/* Deck builder: the current-deck list is a reading surface first. */
+.deck-builder-workspace {
+  grid-template-columns: 14cqw minmax(0, 1fr) minmax(380px, 31cqw) !important;
+}
+
+.deck-list-row {
+  grid-template-columns: minmax(0, 1fr) max-content !important;
+  gap: 8px !important;
+}
+
+.deck-list-row__card {
+  box-sizing: border-box;
+  width: 100% !important;
+  min-width: 0 !important;
+  grid-template-columns: 30px minmax(0, 1fr) !important;
+  gap: 9px !important;
+  overflow: hidden;
+}
+
+.deck-list-row__copy {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: 2px;
+}
+
+.deck-list-row__copy strong,
+.deck-list-row__copy small {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-list-row__copy strong {
+  font-size: 12px;
+}
+
+.deck-list-row__copy small {
+  font-size: 9px;
+}
+
+.deck-list-row__quantity {
+  flex: 0 0 auto;
+  gap: 3px;
+}
+
+.deck-list-row__quantity button {
+  width: 28px;
+  min-width: 28px;
+}
+
+.deck-list-row__quantity strong {
+  min-width: 25px;
+}
+
+/* The board is now three structural columns, not a collection of floating
+   absolute-positioned widgets. */
+.battle-board {
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  padding: 10px 12px 12px !important;
+  display: grid !important;
+  grid-template-columns: clamp(250px, 18vw, 320px) minmax(560px, 1fr) clamp(164px, 11.5vw, 204px) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  gap: clamp(10px, 1vw, 18px) !important;
+  overflow: hidden;
+}
+
+.arena-center {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, .88fr) 38px minmax(0, 1.28fr) auto;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.arena-center .player-board {
+  min-width: 0;
+  min-height: 0;
+}
+
+.arena-center .field-column {
+  grid-column: auto !important;
+  width: 100%;
+  min-width: 0;
+}
+
+.arena-center .player-board--opponent {
+  grid-template-rows: 34px minmax(0, 1fr) !important;
+}
+
+.arena-center .player-board--self {
+  grid-template-rows: minmax(0, 1fr) 34px minmax(126px, 18cqh) !important;
+}
+
+/* Left column: opponent life, a permanent non-overlapping inspector, then own
+   life. The inspector is deliberately vertical rather than a wide overlay. */
+.arena-life-rail {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.arena-life-block {
+  min-width: 0;
+  padding: 9px 10px 10px !important;
+  display: grid !important;
+  gap: 7px;
+  align-content: start !important;
+  border: 1px solid rgba(205, 190, 147, .16) !important;
+  border-radius: 12px !important;
+  background: linear-gradient(180deg, rgba(15, 21, 28, .78), rgba(5, 9, 13, .66)) !important;
+}
+
+.arena-life-block::before {
+  content: none !important;
+}
+
+.arena-life-block__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: rgba(235, 224, 192, .72);
+  font-size: 9px;
+  letter-spacing: .08em;
+}
+
+.arena-life-block__heading strong {
+  color: #fff0bc;
+  font-size: 13px;
+}
+
+.arena-life-block .life-stack {
+  --arena-life-w: clamp(46px, 3.2vw, 56px);
+  --arena-life-h: calc(var(--arena-life-w) * 1.4);
+  width: 100% !important;
+  height: var(--arena-life-h) !important;
+  min-height: var(--arena-life-h) !important;
+  padding: 0 2px;
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: visible;
+}
+
+.arena-life-block .life-stack > * + * {
+  margin-left: calc(var(--arena-life-w) * -.42) !important;
+}
+
+.arena-life-block .life-card-frame,
+.arena-life-block .life-card-frame:nth-child(n) {
+  width: var(--arena-life-w) !important;
+  height: var(--arena-life-h) !important;
+  flex: 0 0 var(--arena-life-w) !important;
+  translate: 0 !important;
+  rotate: 0deg !important;
+  transform: none !important;
+}
+
+.arena-life-block .life-card-rotator,
+.arena-life-block .life-choice-button,
+.arena-life-block .life-card,
+.arena-life-block .life-slot {
+  width: 100% !important;
+  height: 100% !important;
+  transform: none !important;
+  aspect-ratio: 5 / 7 !important;
+}
+
+.arena-life-block .life-card-frame.is-selected .life-card-rotator,
+.arena-life-block .life-card-frame.is-targetable .life-card-rotator {
+  transform: translateY(-4px) scale(1.035) !important;
+}
+
+.card-inspector,
+.card-inspector.is-visible,
+.card-inspector.is-visible:not(.is-empty),
+.card-inspector.is-pinned,
+.card-inspector.is-empty {
+  position: relative !important;
+  inset: auto !important;
+  z-index: 1 !important;
+  box-sizing: border-box;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  padding: 12px !important;
+  display: block !important;
+  overflow: hidden !important;
+  transform: none !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  border-radius: 13px !important;
+}
+
+.card-inspector.is-empty {
+  pointer-events: none !important;
+}
+
+.card-inspector__inner {
+  height: 100%;
+  min-height: 0;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  align-content: start;
+  gap: 10px !important;
+  overflow: hidden;
+}
+
+.card-inspector__visual {
+  position: static !important;
+  min-height: 0;
+  display: grid;
+  place-items: start center !important;
+}
+
+.card-inspector__visual .card-preview-card,
+.card-preview-card {
+  width: clamp(122px, 9.5vw, 172px) !important;
+  max-width: 100% !important;
+}
+
+.card-inspector__copy {
+  min-height: 0;
+  gap: 8px !important;
+  padding-right: 4px;
+  overflow-y: auto;
+}
+
+.card-inspector__copy h2 {
+  font-size: clamp(17px, 1.2vw, 21px) !important;
+  line-height: 1.2 !important;
+}
+
+.card-inspector__meta {
+  gap: 3px !important;
+  font-size: 10px !important;
+  line-height: 1.4 !important;
+}
+
+.card-inspector__stats {
+  font-size: 13px !important;
+}
+
+.card-inspector__rules {
+  padding: 10px 11px !important;
+  font-size: 11px !important;
+  line-height: 1.58 !important;
+}
+
+.card-inspector__hint {
+  display: none !important;
+}
+
+.card-inspector__placeholder {
+  height: 100%;
+  min-height: 0;
+  padding: 18px;
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+
+.card-inspector__placeholder p {
+  max-width: 24ch;
+  font-size: 10px !important;
+}
+
+/* Right column: each player owns a fixed resource block, with the turn control
+   occupying its own middle row. Mana, deck and discard therefore cannot collide. */
+.arena-resource-rail {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 12px;
+  overflow: hidden;
+}
+
+.arena-resource-panel {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 58px;
+  gap: 8px;
+  align-content: stretch;
+}
+
+.arena-resource-panel .mana-zone.mana-zone--summary {
+  box-sizing: border-box;
+  width: 100% !important;
+  min-width: 0;
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 10px 9px 8px !important;
+}
+
+.arena-resource-panel .pile-row {
+  width: 100%;
+  min-width: 0;
+  height: 58px;
+  align-self: stretch;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.arena-resource-panel .card-pile {
+  box-sizing: border-box;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 58px !important;
+  padding: 6px !important;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: 1fr;
+  align-items: center;
+  gap: 4px;
+}
+
+.arena-resource-panel .card-pile__label {
+  font-size: 8px !important;
+  white-space: nowrap;
+}
+
+.arena-resource-panel .card-pile__count {
+  font-size: 14px !important;
+}
+
+.turn-control {
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  gap: 8px;
+}
+
+.turn-control .end-turn-button {
+  position: static !important;
+  inset: auto !important;
+  width: 92px !important;
+  min-width: 92px !important;
+  height: 92px !important;
+  min-height: 92px !important;
+  transform: none !important;
+}
+
+/* Selection confirmation is a real row below the hand, not a floating widget. */
+.arena-center > .decision-dock.has-selection {
+  position: relative !important;
+  inset: auto !important;
+  z-index: 20;
+  box-sizing: border-box;
+  width: 100% !important;
+  min-height: 78px !important;
+  padding: 4px 0 0 !important;
+  display: grid !important;
+  place-items: center;
+  overflow: visible !important;
+  transform: none !important;
+  pointer-events: auto !important;
+}
+
+.arena-center > .decision-dock.has-selection > .selection-panel,
+.arena-center > .decision-dock.has-selection > .selection-panel--play,
+.arena-center > .decision-dock.has-selection > .selection-panel--attack {
+  position: relative !important;
+  inset: auto !important;
+  width: min(920px, 100%) !important;
+  min-height: 72px;
+  max-height: 150px;
+  margin: 0 auto;
+  transform: none !important;
+}
+
+.arena-center:has(> .decision-dock.has-selection) {
+  grid-template-rows: minmax(0, .82fr) 38px minmax(0, 1.12fr) auto;
+}
+
+.arena-center:has(> .decision-dock.has-selection) .hand-zone--self,
+.arena-center:has(> .decision-dock.has-selection) .hand-card {
+  transform: none;
+}
+
+@media (max-width: 1279px) {
+  .battle-board {
+    grid-template-columns: 220px minmax(520px, 1fr) 160px !important;
+    gap: 9px !important;
+  }
+
+  .card-inspector__visual .card-preview-card,
+  .card-preview-card {
+    width: 128px !important;
+  }
+
+  .card-inspector__copy h2 {
+    font-size: 17px !important;
+  }
+
+  .card-inspector__rules {
+    font-size: 10px !important;
+  }
+}
+
+.player-counter--discard,
+button.player-counter--discard {
+  min-width: 58px;
+}

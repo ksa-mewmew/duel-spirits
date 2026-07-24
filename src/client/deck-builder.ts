@@ -615,7 +615,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
       return `<li class="deck-list-row" data-preview-card-id="${cardId}">
         <button type="button" class="deck-list-row__card" data-select-card="${cardId}">
           <span class="deck-list-row__cost">${card.cost}</span>
-          <span><strong>${escapeHtml(card.name)}</strong><small>${escapeHtml(attributeLabel)} · ${card.type === 'unit' ? '몬스터' : '주문'}</small></span>
+          <span class="deck-list-row__copy"><strong>${escapeHtml(card.name)}</strong><small>${escapeHtml(attributeLabel)} · ${card.type === 'unit' ? '몬스터' : '주문'}</small></span>
         </button>
         <div class="deck-list-row__quantity">
           <button type="button" data-remove-card="${cardId}" aria-label="${escapeHtml(card.name)} 한 장 빼기">−</button>

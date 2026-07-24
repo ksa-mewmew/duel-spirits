@@ -1214,18 +1214,14 @@ function renderCardPile(playerId: PlayerId, kind: 'deck' | 'discard'): string {
   </button>`
 }
 
-function renderPlayerBoard(playerId: PlayerId, position: 'self' | 'opponent'): string {
+function renderPlayerStrip(playerId: PlayerId, position: 'self' | 'opponent'): string {
   if (!game) return ''
   const player = game.players[playerId]
   const isSelf = player.isViewer
-  const directTargeting = position === 'opponent'
-    && game.pendingChoice === null
-    && playDraft === null
-    && canSelectedAttackerDirectAttack(player)
   const readyMana = player.mana.filter((card) => !card.exhausted).length
-
   const isActivePlayer = game.currentPlayer === playerId
-  const strip = `<header class="player-strip player-strip--${position} ${isActivePlayer ? 'is-active-turn' : ''}">
+
+  return `<header class="player-strip player-strip--${position} ${isActivePlayer ? 'is-active-turn' : ''}">
     <div class="player-identity">
       <span class="player-crest" aria-hidden="true">${playerId}</span>
       <span class="player-name">
@@ -1238,53 +1234,96 @@ function renderPlayerBoard(playerId: PlayerId, position: 'self' | 'opponent'): s
       <span class="player-counter player-counter--hand" title="손패"><i aria-hidden="true">손</i><b>${player.handCount}</b></span>
       <span class="player-counter player-counter--mana" title="준비 마나 / 전체 마나"><i aria-hidden="true">마나</i><b>${readyMana}/${player.mana.length}</b></span>
       <span class="player-counter player-counter--deck" title="덱"><i aria-hidden="true">덱</i><b>${player.deckCount}</b></span>
-      <button type="button" class="player-counter player-counter--discard" data-action="open-discard" data-player-id="${playerId}" title="묘지 열기"><i aria-hidden="true">묘</i><b>${player.discard.length}</b></button>
+      <button type="button" class="player-counter player-counter--discard" data-action="open-discard" data-player-id="${playerId}" title="묘지 열기"><i aria-hidden="true">묘지</i><b>${player.discard.length}</b></button>
     </div>
   </header>`
+}
 
+function renderArenaLifeBlock(playerId: PlayerId, position: 'self' | 'opponent'): string {
+  if (!game) return ''
+  const player = game.players[playerId]
+  const directTargeting = position === 'opponent'
+    && game.pendingChoice === null
+    && playDraft === null
+    && canSelectedAttackerDirectAttack(player)
+  const slotCount = Math.max(
+    LIFE_SIZE,
+    player.lifeSlotIndices?.length ? Math.max(...player.lifeSlotIndices) + 1 : player.lifeCount,
+  )
+
+  return `<section class="life-zone life-zone--rail arena-life-block arena-life-block--${position} ${directTargeting ? 'is-targetable' : ''}" aria-label="${playerId} 라이프">
+    <div class="arena-life-block__heading"><span>${position === 'opponent' ? '상대 라이프' : '내 라이프'}</span><strong>${player.lifeCount}</strong></div>
+    <div class="life-stack" style="--life-slot-count: ${slotCount}">${renderLife(playerId, position)}</div>
+  </section>`
+}
+
+function renderArenaResourcePanel(playerId: PlayerId, position: 'self' | 'opponent'): string {
+  if (!game) return ''
+  const player = game.players[playerId]
+  const isSelf = player.isViewer
+  const readyMana = player.mana.filter((card) => !card.exhausted).length
   const manaPips = player.mana.map((mana) => `<i class="${mana.exhausted ? 'is-spent' : 'is-ready'}" aria-hidden="true"></i>`).join('')
 
-  const board = `<div class="combat-row combat-row--${position}">
-    <section class="life-zone life-zone--rail ${directTargeting ? 'is-targetable' : ''}" aria-label="${playerId} 라이프">
-      <div class="life-stack" style="--life-slot-count: ${Math.max(LIFE_SIZE, player.lifeSlotIndices?.length ? Math.max(...player.lifeSlotIndices) + 1 : player.lifeCount)}">${renderLife(playerId, position)}</div>
-    </section>
-
-    <section class="field-column" aria-label="${playerId} 전장">
-      <div class="field-heading">${position === 'opponent' ? '상대 전장' : '내 전장'}</div>
-      <div class="field-zone">${renderField(player, isSelf)}</div>
-    </section>
-
-    <aside class="resource-rail">
-      <section class="mana-zone mana-zone--summary ${isSelf ? 'mana-zone--self' : ''}" aria-label="${playerId} 마나">
-        <div class="mana-summary">
-          <span class="mana-summary__label">MANA</span>
-          <strong class="mana-summary__count">${readyMana}<small> / ${player.mana.length}</small></strong>
-          <span class="mana-summary__state">준비 / 전체</span>
-          <span class="mana-summary__pips" aria-hidden="true">${manaPips}</span>
-        </div>
-        <button type="button" class="mana-open-button" data-action="open-mana-drawer" data-player-id="${playerId}">
-          <span>마나 보기</span><b aria-hidden="true">＋</b>
-        </button>
-      </section>
-      <div class="pile-row">
-        ${renderCardPile(playerId, 'deck')}
-        ${renderCardPile(playerId, 'discard')}
+  return `<section class="arena-resource-panel arena-resource-panel--${position}" aria-label="${playerId} 자원">
+    <section class="mana-zone mana-zone--summary ${isSelf ? 'mana-zone--self' : ''}" aria-label="${playerId} 마나">
+      <div class="mana-summary">
+        <span class="mana-summary__label">MANA</span>
+        <strong class="mana-summary__count">${readyMana}<small> / ${player.mana.length}</small></strong>
+        <span class="mana-summary__state">준비 / 전체</span>
+        <span class="mana-summary__pips" aria-hidden="true">${manaPips}</span>
       </div>
-    </aside>
-  </div>`
+      <button type="button" class="mana-open-button" data-action="open-mana-drawer" data-player-id="${playerId}">
+        <span>마나 보기</span><b aria-hidden="true">＋</b>
+      </button>
+    </section>
+    <div class="pile-row">
+      ${renderCardPile(playerId, 'deck')}
+      ${renderCardPile(playerId, 'discard')}
+    </div>
+  </section>`
+}
+
+function renderPlayerBoard(playerId: PlayerId, position: 'self' | 'opponent'): string {
+  if (!game) return ''
+  const player = game.players[playerId]
+  const isSelf = player.isViewer
+  const isActivePlayer = game.currentPlayer === playerId
+  const strip = renderPlayerStrip(playerId, position)
+  const field = `<section class="field-column" aria-label="${playerId} 전장">
+    <div class="field-heading">${position === 'opponent' ? '상대 전장' : '내 전장'}</div>
+    <div class="field-zone">${renderField(player, isSelf)}</div>
+  </section>`
 
   if (position === 'opponent') {
-    return `<section class="player-board player-board--opponent ${isActivePlayer ? 'is-active-player' : ''}">${strip}${board}</section>`
+    return `<section class="player-board player-board--opponent ${isActivePlayer ? 'is-active-player' : ''}">${strip}${field}</section>`
   }
 
   return `<section class="player-board player-board--self ${isActivePlayer ? 'is-active-player' : ''}">
-    ${board}
+    ${field}
     ${strip}
     <section class="hand-area" aria-label="내 손패">
       <div class="hand-heading"><span>내 손패</span><strong>${player.handCount}</strong></div>
       <div class="hand-zone hand-zone--self ${player.handCount > 12 ? 'is-very-dense' : player.handCount > 8 ? 'is-dense' : ''}" style="--hand-count: ${Math.max(1, player.handCount)}">${renderHand(player, true)}</div>
     </section>
   </section>`
+}
+
+function renderArenaLifeRail(opponentId: PlayerId): string {
+  if (!game) return ''
+  return `<aside class="arena-life-rail">
+    ${renderArenaLifeBlock(opponentId, 'opponent')}
+    ${renderCardInspector()}
+    ${renderArenaLifeBlock(game.viewer, 'self')}
+  </aside>`
+}
+
+function renderArenaResourceRail(opponentId: PlayerId): string {
+  if (!game) return ''
+  return `<aside class="arena-resource-rail">
+    ${renderArenaResourcePanel(opponentId, 'opponent')}
+    ${renderTurnControl()}
+    ${renderArenaResourcePanel(game.viewer, 'self')}
+  </aside>`
 }
 
 function renderPlayDraftPanel(): string {
@@ -1694,6 +1733,13 @@ function renderDecisionDock(opponentId: PlayerId): string {
   const draftPanel = renderPlayDraftPanel()
   const attackPanel = renderAttackLifePanel(game.players[opponentId])
   const activePanel = pendingPanel || draftPanel || attackPanel
+  return activePanel
+    ? `<aside class="decision-dock has-selection" aria-live="polite">${activePanel}</aside>`
+    : ''
+}
+
+function renderTurnControl(): string {
+  if (!game) return ''
   const canEndTurn = game.status === 'playing'
     && roomPhase === 'playing'
     && game.viewer === game.currentPlayer
@@ -1701,12 +1747,9 @@ function renderDecisionDock(opponentId: PlayerId): string {
     && playDraft === null
     && selectedAttackerId === null
 
-  return `<aside class="decision-dock ${activePanel ? 'has-selection' : ''}" aria-live="polite">
-    ${activePanel}
-    ${activePanel ? '' : `<div class="primary-actions">
-      <button id="end-turn-button" class="end-turn-button" type="button" ${canEndTurn && !awaitingServer ? '' : 'disabled'}><span>턴</span><strong>종료</strong></button>
-      ${game.status === 'finished' ? `<button id="rematch-button" type="button">${rematchReadyPlayers.includes(game.viewer) ? '재대전 취소' : '재대전 요청'}</button>` : ''}
-    </div>`}
+  return `<aside class="turn-control" aria-label="턴 조작">
+    <button id="end-turn-button" class="end-turn-button" type="button" ${canEndTurn && !awaitingServer ? '' : 'disabled'}><span>턴</span><strong>종료</strong></button>
+    ${game.status === 'finished' ? `<button id="rematch-button" type="button">${rematchReadyPlayers.includes(game.viewer) ? '재대전 취소' : '재대전 요청'}</button>` : ''}
   </aside>`
 }
 
@@ -1850,12 +1893,15 @@ function render(): void {
   else if (opponentId) {
     content = `<section class="game-layout">
       <main class="battle-board ${game.currentPlayer === game.viewer ? 'is-my-turn' : 'is-opponent-turn'} ${game.pendingChoice?.playerId === game.viewer ? 'is-my-response' : ''}">
-        ${renderPlayerBoard(opponentId, 'opponent')}
-        ${renderTurnRibbon()}
-        ${renderPlayerBoard(game.viewer, 'self')}
-        ${renderDecisionDock(opponentId)}
+        ${renderArenaLifeRail(opponentId)}
+        <section class="arena-center">
+          ${renderPlayerBoard(opponentId, 'opponent')}
+          ${renderTurnRibbon()}
+          ${renderPlayerBoard(game.viewer, 'self')}
+          ${renderDecisionDock(opponentId)}
+        </section>
+        ${renderArenaResourceRail(opponentId)}
       </main>
-      ${renderCardInspector()}
       ${renderManaDrawer()}
       ${renderDiscardModal()}
     </section>`
