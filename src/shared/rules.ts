@@ -270,6 +270,7 @@ function attackValue(
   unit: UnitInstance,
 ): number {
   return unitDefinition(unit).attack
+    + (unit.attackModifier ?? 0)
     + unit.temporaryAttackModifier
     + (
       unit.cardId === 'hard_seed_bug'
@@ -648,6 +649,7 @@ function summonCard(
     exhausted: false,
     summonedThisTurn,
     attacksThisTurn: 0,
+    attackModifier: 0,
     temporaryAttackModifier: 0,
     temporaryHealthModifier: 0,
     temporaryFlying: false,
@@ -687,6 +689,7 @@ function evolveCard(
     summonedThisTurn: true,
     evolvedThisTurn: true,
     attacksThisTurn: 0,
+    attackModifier: 0,
     temporaryAttackModifier: 0,
     temporaryHealthModifier: 0,
     temporaryFlying: false,
@@ -1668,6 +1671,12 @@ function attackUnit(
 
   const attackerDamage = combatAttackValue(game, enemyId, defender, 'defender', 'unit')
   const defenderDamage = combatAttackValue(game, actor, attacker, 'attacker', 'unit')
+  if (attacker.cardId === 'living_smoke') {
+    attacker.attackModifier = (attacker.attackModifier ?? 0) + 2
+  }
+  if (defender.cardId === 'living_smoke') {
+    defender.attackModifier = (defender.attackModifier ?? 0) + 2
+  }
   attacker.damage += attackerDamage
   defender.damage += defenderDamage
   cleanupDead(game, random)

@@ -124,10 +124,13 @@ describe('카드군 1 최신 능력', () => {
     )
   })
 
-  test('살아 움직이는 연기는 전투에서만 공격력 2를 얻는다', () => {
+  test('살아 움직이는 연기는 전투할 때마다 공격력 2를 누적한다', () => {
     const game = createTestGame()
     game.players.P1.field = [unit('smoke', 'living_smoke')]
-    game.players.P2.field = [unit('target', 'rock_armor_knight')]
+    game.players.P2.field = [unit('target', 'rock_armor_knight', 0, {
+      temporaryAttackModifier: -2,
+      temporaryHealthModifier: 10,
+    })]
 
     const attacked = applyAction(game, 'P1', {
       type: 'ATTACK_UNIT',
@@ -136,7 +139,22 @@ describe('카드군 1 최신 능력', () => {
     })
 
     expect(attacked.players.P2.field[0]?.damage).toBe(2)
-    expect(attacked.players.P1.field[0]?.damage).toBe(2)
+    expect(attacked.players.P1.field[0]?.damage).toBe(0)
+    expect(attacked.players.P1.field[0]?.attackModifier).toBe(2)
+
+    const smoke = attacked.players.P1.field[0]!
+    smoke.exhausted = false
+    smoke.attacksThisTurn = 0
+    attacked.players.P1.attacksThisTurn = 0
+
+    const attackedAgain = applyAction(attacked, 'P1', {
+      type: 'ATTACK_UNIT',
+      attackerId: 'smoke',
+      defenderId: 'target',
+    })
+
+    expect(attackedAgain.players.P2.field[0]?.damage).toBe(6)
+    expect(attackedAgain.players.P1.field[0]?.attackModifier).toBe(4)
   })
 
   test('잔물결 정령은 손에서 정상 소환하면 카드 한 장을 뽑는다', () => {

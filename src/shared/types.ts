@@ -26,6 +26,8 @@ export interface UnitInstance extends CardInstance {
   exhausted: boolean
   summonedThisTurn: boolean
   attacksThisTurn: number
+  /** 전장을 떠날 때까지 유지되는 누적 공격력 보정입니다. */
+  attackModifier?: number
   temporaryAttackModifier: number
   temporaryHealthModifier: number
   temporaryRush?: boolean

@@ -405,7 +405,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
       ><span>${escapeHtml(sampleDeck.buttonLabel)}</span></button>`
     }).join('')
     return `<section class="sample-deck-panel" aria-labelledby="sample-deck-title">
-      <header><div><span class="sample-deck-panel__eyebrow">QUICK START</span><h3 id="sample-deck-title">견본 덱</h3></div><small>공격·통제·순환 중 하나를 골라 설명을 보고 불러옵니다.</small></header>
+      <header><div><span class="sample-deck-panel__eyebrow">QUICK START</span><h3 id="sample-deck-title">견본 덱</h3></div><small>다섯 가지 운영 중 하나를 골라 안내를 보고 불러옵니다.</small></header>
       <div class="sample-deck-grid">${decks}</div>
     </section>`
   }
@@ -420,6 +420,12 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
       const attributeLabel = sampleDeck.attributes
         .map((attributeId) => CARD_ATTRIBUTES[attributeId].name)
         .join(' · ')
+      const manaPriorityCards = sampleDeck.manaPriorityCards
+        .map((item) => `<li>${escapeHtml(item)}</li>`)
+        .join('')
+      const keepCards = sampleDeck.keepCards
+        .map((item) => `<li>${escapeHtml(item)}</li>`)
+        .join('')
       return `<article
         class="sample-deck-guide sample-deck-guide--${sampleDeck.style}"
         id="sample-deck-guide-${sampleDeck.id}"
@@ -441,8 +447,11 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
             <p>${escapeHtml(sampleDeck.playGuide)}</p>
           </section>
           <section class="sample-deck-guide__mana">
-            <h4>마나 우선순위</h4>
-            <p>${escapeHtml(sampleDeck.manaPriority)}</p>
+            <div class="sample-deck-guide__advice">
+              <div><h4>우선 마나로 보낼 카드</h4><ul>${manaPriorityCards}</ul></div>
+              <div><h4>가능하면 손에 남길 카드</h4><ul>${keepCards}</ul></div>
+            </div>
+            <p>${escapeHtml(sampleDeck.manaGuide)}</p>
           </section>
         </div>
         <footer>버튼을 클릭하면 이 구성으로 새 덱을 불러옵니다.</footer>

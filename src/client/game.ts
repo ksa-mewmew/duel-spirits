@@ -428,6 +428,7 @@ function attackValueView(player: PlayerView, unit: UnitInstance): number {
   const definition = CARDS[unit.cardId]
   if (definition.type !== 'unit') return 0
   return definition.attack
+    + (unit.attackModifier ?? 0)
     + unit.temporaryAttackModifier
     + (
       unit.cardId === 'hard_seed_bug'

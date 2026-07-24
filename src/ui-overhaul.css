@@ -2433,6 +2433,37 @@ body.room-waiting-active { background: #030506; }
 .sample-deck-guide__mana {
   border-color: color-mix(in srgb, var(--sample-accent) 25%, rgba(255, 255, 255, .07)) !important;
   background: color-mix(in srgb, var(--sample-accent) 6%, rgba(255, 255, 255, .02)) !important;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.sample-deck-guide__advice {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.sample-deck-guide__advice h4 {
+  margin-bottom: 6px;
+}
+
+.sample-deck-guide__advice ul {
+  margin: 0;
+  padding-left: 17px;
+  display: grid;
+  gap: 3px;
+}
+
+.sample-deck-guide__advice li {
+  color: #d4d0c6;
+  font-size: clamp(9px, 1.25cqh, 11px);
+  line-height: 1.38;
+}
+
+.sample-deck-guide__mana > p {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(255, 255, 255, .07);
 }
 
 .sample-deck-guide > footer {
