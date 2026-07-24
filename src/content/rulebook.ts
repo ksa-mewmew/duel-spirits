@@ -151,9 +151,67 @@ export function createRulebookDocument(format: GameFormat<CardId>): RulebookDocu
         ],
       },
       {
+        id: 'rules-evolution',
+        navLabel: '진화',
+        title: '5. 진화는 어떻게 하나요?',
+        blocks: [
+          {
+            type: 'paragraph',
+            text: '“진화 - [속성] 몬스터”를 가진 카드는 일반 몬스터처럼 빈 슬롯에 소환하지 않고, 문구에 적힌 속성을 가진 자신의 전장 몬스터 위에 겹쳐서 사용합니다.',
+          },
+          {
+            type: 'list',
+            ordered: true,
+            items: [
+              '손에서 진화 카드를 선택하고 그 카드의 비용만큼 준비된 마나를 소진합니다.',
+              '진화 문구에 적힌 속성을 가진 자신의 전장 몬스터 한 장을 진화 대상으로 선택합니다.',
+              '진화 카드를 선택한 몬스터 위에 겹쳐 놓습니다. 진화 전과 같은 전장 슬롯을 그대로 사용합니다.',
+              '맨 위에 놓인 진화 카드가 새로운 전장 몬스터가 됩니다. 이름, 속성, 비용, 공격력, 체력과 능력은 맨 위 카드를 기준으로 봅니다.',
+              '출현과 “진화해서 소환되었을 때” 능력이 있다면 카드 문구에 적힌 순서대로 처리합니다.',
+            ],
+          },
+          {
+            type: 'callout',
+            title: '전장이 가득 차 있어도 진화할 수 있습니다',
+            text: '진화는 기존 몬스터가 사용하던 슬롯을 그대로 사용합니다. 빈 슬롯은 필요하지 않지만, 조건에 맞는 자신의 몬스터가 전장에 있어야 합니다.',
+          },
+          {
+            type: 'terms',
+            items: [
+              {
+                term: '진화 대상',
+                description: '진화 카드의 문구에 적힌 속성을 가진 자신의 전장 몬스터입니다.',
+              },
+              {
+                term: '진화 아래 카드',
+                description: '진화 몬스터 아래에 겹쳐진 카드입니다. 카드 수에는 포함되지만, 전장에서 별도의 몬스터로 취급하지 않습니다.',
+              },
+              {
+                term: '진화 몬스터',
+                description: '다른 몬스터 위에 겹쳐져 전장에 나온 맨 위의 몬스터입니다.',
+              },
+            ],
+          },
+          {
+            type: 'list',
+            items: [
+              '진화 아래 카드는 공격하거나 공격받거나 효과의 대상으로 선택할 수 없습니다.',
+              '진화 아래 카드의 공격력, 체력, 속성과 능력은 진화 몬스터에게 더해지지 않습니다.',
+              '진화 아래 카드는 전장의 몬스터 수를 셀 때 별도의 몬스터로 세지 않습니다.',
+              '이미 진화한 몬스터도 문구에 적힌 속성을 가지고 있다면 다시 진화할 수 있습니다. 이때 기존의 아래 카드들은 새 진화 몬스터 아래에 그대로 남습니다.',
+              '진화 몬스터는 진화해서 소환된 턴에도 몬스터와 플레이어를 공격할 수 있습니다.',
+              '진화는 손에서 비용을 지불해 사용하는 소환이므로 출현이 발동합니다.',
+              '“진화해서 소환되었을 때” 능력은 실제로 다른 몬스터 위에 겹쳐서 소환된 경우에만 발동합니다.',
+              '진화 몬스터가 전장을 떠나면 맨 위 카드는 원래 이동할 영역으로 갑니다. 그 아래에 겹친 모든 카드는 소유자의 묘지로 갑니다.',
+              '진화할 수 있는 대상이 없다면 그 진화 카드를 사용할 수 없습니다.',
+            ],
+          },
+        ],
+      },
+      {
         id: 'rules-combat',
         navLabel: '공격',
-        title: '5. 몬스터로 공격하기',
+        title: '6. 몬스터로 공격하기',
         blocks: [
           {
             type: 'paragraph',
@@ -180,7 +238,7 @@ export function createRulebookDocument(format: GameFormat<CardId>): RulebookDocu
       {
         id: 'rules-life',
         navLabel: '라이프·각성',
-        title: '6. 라이프를 잃으면 어떻게 되나요?',
+        title: '7. 라이프를 잃으면 어떻게 되나요?',
         blocks: [
           {
             type: 'list',
@@ -213,7 +271,7 @@ export function createRulebookDocument(format: GameFormat<CardId>): RulebookDocu
       {
         id: 'rules-zones',
         navLabel: '카드 영역',
-        title: '7. 카드가 놓이는 곳',
+        title: '8. 카드가 놓이는 곳',
         blocks: [
           {
             type: 'terms',
@@ -241,7 +299,7 @@ export function createRulebookDocument(format: GameFormat<CardId>): RulebookDocu
       {
         id: 'rules-draw',
         navLabel: '드로우·묘지',
-        title: '8. 덱이 비면 어떻게 되나요?',
+        title: '9. 덱이 비면 어떻게 되나요?',
         blocks: [
           {
             type: 'list',
@@ -259,7 +317,7 @@ export function createRulebookDocument(format: GameFormat<CardId>): RulebookDocu
       {
         id: 'rules-damage',
         navLabel: '피해·사망',
-        title: '9. 피해, 회복, 사망',
+        title: '10. 피해, 회복, 사망',
         blocks: [
           {
             type: 'list',
@@ -277,7 +335,7 @@ export function createRulebookDocument(format: GameFormat<CardId>): RulebookDocu
       {
         id: 'rules-keywords',
         navLabel: '키워드',
-        title: '10. 자주 나오는 키워드',
+        title: '11. 자주 나오는 키워드',
         blocks: [
           {
             type: 'terms',
@@ -285,7 +343,7 @@ export function createRulebookDocument(format: GameFormat<CardId>): RulebookDocu
               { term: '출현', description: '손에서 비용을 내고 정상 소환했을 때 발동합니다. 다른 효과로 소환하면 발동하지 않습니다.' },
               { term: '각성', description: '라이프에서 손으로 들어온 직후 발동합니다.' },
               { term: '공명', description: '그 카드를 쓰기 위해 실제로 소진한 마나에 지정 속성이 있으면 발동합니다.' },
-              { term: '진화', description: '문구에 적힌 속성의 내 몬스터 위에 겹쳐서 사용합니다. 진화 몬스터는 소환된 턴에도 공격할 수 있습니다.' },
+              { term: '진화', description: '조건에 맞는 자신의 몬스터 위에 겹쳐 소환합니다. 자세한 내용은 ‘진화’ 항목을 따릅니다.' },
               { term: '고립', description: '내 전장에 그 몬스터 외의 아군 몬스터가 없을 때 적용됩니다.' },
               { term: '기습', description: '소환한 턴에도 몬스터와 플레이어를 공격할 수 있습니다.' },
               { term: '돌진', description: '소환한 턴에는 상대 몬스터만 공격할 수 있습니다.' },
@@ -301,7 +359,7 @@ export function createRulebookDocument(format: GameFormat<CardId>): RulebookDocu
       {
         id: 'rules-details',
         navLabel: '세부 판정',
-        title: '11. 헷갈릴 때 확인할 규칙',
+        title: '12. 헷갈릴 때 확인할 규칙',
         blocks: [
           {
             type: 'paragraph',
@@ -319,9 +377,6 @@ export function createRulebookDocument(format: GameFormat<CardId>): RulebookDocu
               '“소환할 수 있다”는 하지 않아도 되는 선택입니다.',
               '앞선 피해로 죽은 몬스터는 즉시 전장을 떠나므로, 뒤에 적힌 회복을 받을 수 없습니다.',
               '한 카드에 공명이 여러 개 있으면 카드에 적힌 순서대로 하나씩 처리합니다.',
-              '진화 몬스터는 조건에 맞는 내 전장 몬스터 한 장과 같은 슬롯을 차지합니다. 아래에 겹친 카드는 별도의 몬스터로 취급하지 않습니다.',
-              '진화 몬스터가 전장을 떠나면 가장 위의 진화 몬스터는 이동할 영역으로 가고, 아래에 겹친 모든 카드는 소유자의 묘지로 갑니다.',
-              '진화는 손에서 비용을 내고 사용하는 소환이므로 출현이 발동합니다. 다만 “진화해서 소환되었을 때” 능력은 실제로 다른 몬스터 위에 겹쳐진 경우에만 발동합니다.',
               '잠행은 몬스터의 공격만 막습니다. 주문이나 효과의 대상이 되는지는 카드 문구를 따릅니다.',
               '암살은 전투 피해와 별도로 처리합니다. 전투 피해로 살아남은 상대 몬스터도 묘지로 보내며, 암살을 가진 두 몬스터가 전투하면 둘 다 묘지로 갈 수 있습니다.',
               '마나의 ‘너무 무거운 씨앗’을 소환하는 특수 행동은 비용을 내지 않으며 출현도 발동하지 않습니다.',

@@ -1266,7 +1266,9 @@ function renderArenaLifeBlock(playerId: PlayerId, position: 'self' | 'opponent')
 
   return `<section class="life-zone life-zone--rail arena-life-block arena-life-block--${position} ${directTargeting ? 'is-targetable' : ''}" aria-label="${playerId} 라이프">
     <div class="arena-life-block__heading"><span>${position === 'opponent' ? '상대 라이프' : '내 라이프'}</span><strong>${player.lifeCount}</strong></div>
-    <div class="life-stack" style="--life-slot-count: ${slotCount}">${renderLife(playerId, position)}</div>
+    <div class="arena-life-block__stack">
+      <div class="life-stack" style="--life-slot-count: ${slotCount}">${renderLife(playerId, position)}</div>
+    </div>
   </section>`
 }
 
@@ -1346,12 +1348,10 @@ function renderPlayerBoard(playerId: PlayerId, position: 'self' | 'opponent'): s
   </section>`
 }
 
-function renderArenaLifeRail(opponentId: PlayerId): string {
+function renderArenaLifeRail(): string {
   if (!game) return ''
   return `<aside class="arena-life-rail">
-    ${renderArenaLifeBlock(opponentId, 'opponent')}
     ${renderCardInspector()}
-    ${renderArenaLifeBlock(game.viewer, 'self')}
   </aside>`
 }
 
@@ -1971,12 +1971,16 @@ function render(): void {
         class="battle-board ${game.currentPlayer === game.viewer ? 'is-my-turn' : 'is-opponent-turn'} ${game.pendingChoice?.playerId === game.viewer ? 'is-my-response' : ''}"
         style="--battlefield-image: url('${escapeHtml(BATTLEFIELD_BACKGROUND_URL)}');"
       >
-        ${renderArenaLifeRail(opponentId)}
+        ${renderArenaLifeRail()}
         <section class="arena-center">
-          ${renderPlayerBoard(opponentId, 'opponent')}
-          ${renderTurnRibbon()}
-          ${renderPlayerBoard(game.viewer, 'self')}
-          ${renderDecisionDock(opponentId)}
+          ${renderArenaLifeBlock(opponentId, 'opponent')}
+          <div class="arena-center__main">
+            ${renderPlayerBoard(opponentId, 'opponent')}
+            ${renderTurnRibbon()}
+            ${renderPlayerBoard(game.viewer, 'self')}
+            ${renderDecisionDock(opponentId)}
+          </div>
+          ${renderArenaLifeBlock(game.viewer, 'self')}
         </section>
         ${renderArenaResourceRail(opponentId)}
       </main>
