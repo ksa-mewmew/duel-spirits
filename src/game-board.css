@@ -572,7 +572,7 @@ button.card-pile {
   gap: 12px;
   min-width: 0;
   padding: 5px 12px;
-  border-block: 1px solid #343842;
+  border-block: none;
   border-radius: 7px;
   background: #171a20;
 }
@@ -609,7 +609,7 @@ button.card-pile {
   width: var(--card-w-field);
   aspect-ratio: 5 / 7;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--card-accent) 55%, #454a54);
+  border: 2px solid color-mix(in srgb, var(--card-accent) 72%, #454a54);
   border-radius: 14px;
   background: #171a20;
   box-shadow: 0 10px 24px rgba(0, 0, 0, .28), inset 0 0 0 1px rgba(255,255,255,.03);
@@ -688,7 +688,7 @@ button.card-pile {
   inset: auto 8px 8px 8px;
   display: -webkit-box;
   overflow: hidden;
-  max-width: calc(100% - 42px);
+  max-width: calc(100% - 62px);
   color: #f5f1e5;
   font-size: .74rem;
   font-weight: 850;
