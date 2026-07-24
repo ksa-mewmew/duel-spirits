@@ -68,16 +68,12 @@ import {
   reserveSeat,
 } from '../src/shared/room-session'
 import type { SeatReservations } from '../src/shared/room-session'
-import {
-  applyAction,
-  createGame,
-  GameRuleError,
-} from '../src/shared/rules'
+import { WorkerMatchAuthorityAdapter } from '../src/shared/match-authority-adapters'
+import { GameRuleError } from '../src/shared/rules'
 import type {
   GameState,
   PlayerId,
 } from '../src/shared/types'
-import { createGameView } from '../src/shared/views'
 
 interface Env extends Cloudflare.Env {
   Main: DurableObjectNamespace<Main>
@@ -532,17 +528,13 @@ export class Main extends Server<Env> {
     ) {
       timedOutPlayer = this.roomState.game.currentPlayer
       const timeoutAction = { type: 'END_TURN' } as const
-      this.roomState.game = applyAction(
-        this.roomState.game,
+      const authority = this.getMatchAuthority()
+      authority.dispatch(
         timedOutPlayer,
         timeoutAction,
+        { createdAt: now },
       )
-      this.roomState.actionLog.push({
-        sequence: this.roomState.game.actionSequence,
-        playerId: timedOutPlayer,
-        action: timeoutAction,
-        createdAt: now,
-      })
+      this.storeMatchAuthority(authority)
       this.roomState.turnClock = startTurnClock(
         this.roomState.settings.turnLimitSeconds,
         now,
@@ -678,17 +670,14 @@ export class Main extends Server<Env> {
     }
 
     try {
-      this.roomState.game = applyAction(
-        this.roomState.game,
+      const now = Date.now()
+      const authority = this.getMatchAuthority()
+      authority.dispatch(
         playerId,
         action,
+        { createdAt: now },
       )
-      this.roomState.actionLog.push({
-        sequence: this.roomState.game.actionSequence,
-        playerId,
-        action: structuredClone(action),
-        createdAt: Date.now(),
-      })
+      this.storeMatchAuthority(authority)
 
       if (this.roomState.game.status === 'finished') {
         this.roomState.rematchReady = createEmptyRematchReadiness()
@@ -698,7 +687,7 @@ export class Main extends Server<Env> {
       } else if (action.type === 'END_TURN' || action.type === 'RESOLVE_CHOICE') {
         this.roomState.turnClock = startTurnClock(
           this.roomState.settings.turnLimitSeconds,
-          Date.now(),
+          now,
         )
       }
 
@@ -780,7 +769,7 @@ export class Main extends Server<Env> {
       selectedSetIds: this.roomState.settings.selectedSetIds,
     })
 
-    this.roomState.game = createGame({
+    const authority = WorkerMatchAuthorityAdapter.create({
       matchConfig,
       decks: {
         P1: [...p1Deck.cardIds],
@@ -799,7 +788,7 @@ export class Main extends Server<Env> {
         },
       },
     })
-    this.roomState.actionLog = []
+    this.storeMatchAuthority(authority)
     this.roomState.deckReady = createEmptyDeckReadiness()
     this.roomState.rematchReady = createEmptyRematchReadiness()
     this.roomState.turnClock = startTurnClock(
@@ -940,14 +929,38 @@ export class Main extends Server<Env> {
 
   private broadcastGameViews(): void {
     if (!this.roomState?.game) return
+    const authority = this.getMatchAuthority()
     for (const connection of this.getConnections<ConnectionState>()) {
       const state = connection.state as ConnectionState | null
       if (!state?.playerId) continue
       this.send(connection, {
         type: 'GAME_VIEW',
-        game: createGameView(this.roomState.game, state.playerId),
+        game: authority.getView(state.playerId),
       })
     }
+  }
+
+  private getMatchAuthority(): WorkerMatchAuthorityAdapter {
+    if (!this.roomState?.game) {
+      throw new Error('Cannot create a match host without an active game.')
+    }
+
+    return WorkerMatchAuthorityAdapter.restore({
+      game: this.roomState.game,
+      actionLog: this.roomState.actionLog,
+    })
+  }
+
+  private storeMatchAuthority(
+    authority: WorkerMatchAuthorityAdapter,
+  ): void {
+    if (!this.roomState) {
+      throw new Error('Cannot store a match host without an active room.')
+    }
+
+    const snapshot = authority.getSnapshot()
+    this.roomState.game = snapshot.game
+    this.roomState.actionLog = snapshot.actionLog
   }
 
   private async persistAndSchedule(): Promise<void> {

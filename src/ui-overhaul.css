@@ -5558,11 +5558,11 @@ button.player-counter--discard {
   }
 
   .arena-center .player-board--opponent {
-    grid-template-rows: 48px 54px minmax(0, 1fr) !important;
+    grid-template-rows: 76px minmax(0, 1fr) !important;
   }
 
   .arena-center .player-board--self {
-    grid-template-rows: minmax(0, 1fr) 48px minmax(126px, 18cqh) !important;
+    grid-template-rows: minmax(0, 1fr) minmax(138px, 20cqh) !important;
   }
 
   .opponent-hand-rack {
@@ -5577,7 +5577,7 @@ button.player-counter--discard {
 
   .opponent-hand-fan {
     min-width: 0;
-    height: 50px;
+    height: 72px;
     display: flex;
     align-items: flex-start;
     justify-content: center;
@@ -5588,10 +5588,10 @@ button.player-counter--discard {
   .opponent-hand-card {
     position: relative;
     box-sizing: border-box;
-    width: 34px;
-    height: 48px;
-    flex: 0 0 34px;
-    margin-left: -12px;
+    width: 48px;
+    height: 68px;
+    flex: 0 0 48px;
+    margin-left: -17px;
     overflow: hidden;
     border: 1px solid rgba(210, 194, 145, .55);
     border-radius: 5px;
@@ -5648,8 +5648,8 @@ button.player-counter--discard {
 
   .opponent-hand-extra {
     position: absolute;
-    right: calc(50% - 112px);
-    top: 14px;
+    right: calc(50% - 152px);
+    top: 22px;
     display: grid;
     place-items: center;
     min-width: 24px;
@@ -5676,22 +5676,22 @@ button.player-counter--discard {
   }
 
   .arena-center .player-board--opponent {
-    grid-template-rows: 42px 46px minmax(0, 1fr) !important;
+    grid-template-rows: 62px minmax(0, 1fr) !important;
   }
 
   .arena-center .player-board--self {
-    grid-template-rows: minmax(0, 1fr) 42px minmax(118px, 17vh) !important;
+    grid-template-rows: minmax(0, 1fr) minmax(122px, 18vh) !important;
   }
 
   .opponent-hand-fan {
-    height: 43px;
+    height: 58px;
   }
 
   .opponent-hand-card {
-    width: 30px;
-    height: 42px;
-    flex-basis: 30px;
-    margin-left: -11px;
+    width: 41px;
+    height: 58px;
+    flex-basis: 41px;
+    margin-left: -15px;
   }
 }
 

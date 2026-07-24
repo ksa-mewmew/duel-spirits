@@ -1234,31 +1234,6 @@ function renderCardPile(playerId: PlayerId, kind: 'deck' | 'discard'): string {
   </button>`
 }
 
-function renderPlayerStrip(playerId: PlayerId, position: 'self' | 'opponent'): string {
-  if (!game) return ''
-  const player = game.players[playerId]
-  const isSelf = player.isViewer
-  const readyMana = player.mana.filter((card) => !card.exhausted).length
-  const isActivePlayer = game.currentPlayer === playerId
-
-  return `<header class="player-strip player-strip--${position} ${isActivePlayer ? 'is-active-turn' : ''}">
-    <div class="player-identity">
-      <span class="player-crest" aria-hidden="true">${playerId}</span>
-      <span class="player-name">
-        <strong>${isSelf ? '나' : '상대'}</strong>
-        <small>${isActivePlayer ? (isSelf ? '내 턴' : '진행 중') : '대기'}</small>
-      </span>
-      <span class="player-life-shield" title="라이프 ${player.lifeCount}">${player.lifeCount}</span>
-    </div>
-    <div class="player-counters" aria-label="플레이어 상태">
-      <span class="player-counter player-counter--hand" title="손패"><i aria-hidden="true">손</i><b>${player.handCount}</b></span>
-      <span class="player-counter player-counter--mana" title="준비 마나 / 전체 마나"><i aria-hidden="true">마나</i><b>${readyMana}/${player.mana.length}</b></span>
-      <span class="player-counter player-counter--deck" title="덱"><i aria-hidden="true">덱</i><b>${player.deckCount}</b></span>
-      <button type="button" class="player-counter player-counter--discard" data-action="open-discard" data-player-id="${playerId}" title="묘지 열기"><i aria-hidden="true">묘지</i><b>${player.discard.length}</b></button>
-    </div>
-  </header>`
-}
-
 function renderArenaLifeBlock(playerId: PlayerId, position: 'self' | 'opponent'): string {
   if (!game) return ''
   const player = game.players[playerId]
@@ -1331,7 +1306,6 @@ function renderPlayerBoard(playerId: PlayerId, position: 'self' | 'opponent'): s
   const player = game.players[playerId]
   const isSelf = player.isViewer
   const isActivePlayer = game.currentPlayer === playerId
-  const strip = renderPlayerStrip(playerId, position)
   const field = `<section class="field-column" aria-label="${playerId} 전장">
     <div class="field-heading">${position === 'opponent' ? '상대 전장' : '내 전장'}</div>
     <div class="field-zone">${renderField(player, isSelf)}</div>
@@ -1339,7 +1313,6 @@ function renderPlayerBoard(playerId: PlayerId, position: 'self' | 'opponent'): s
 
   if (position === 'opponent') {
     return `<section class="player-board player-board--opponent ${isActivePlayer ? 'is-active-player' : ''}">
-      ${strip}
       ${renderOpponentHandRack(player.handCount)}
       ${field}
     </section>`
@@ -1347,7 +1320,6 @@ function renderPlayerBoard(playerId: PlayerId, position: 'self' | 'opponent'): s
 
   return `<section class="player-board player-board--self ${isActivePlayer ? 'is-active-player' : ''}">
     ${field}
-    ${strip}
     <section class="hand-area" aria-label="내 손패">
       <div class="hand-heading"><span>내 손패</span><strong>${player.handCount}</strong></div>
       <div class="hand-zone hand-zone--self ${player.handCount > 12 ? 'is-very-dense' : player.handCount > 8 ? 'is-dense' : ''}" style="--hand-count: ${Math.max(1, player.handCount)}">${renderHand(player, true)}</div>
