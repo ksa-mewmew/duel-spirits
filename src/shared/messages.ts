@@ -2,6 +2,7 @@ import type { GameAction } from './actions'
 import type { SubmittedDeck } from './decks'
 import type { RoomPhase } from './room-lifecycle'
 import type { RoomSettings } from './room-settings'
+import type { DraftPlayerView } from './room-draft'
 import type { SeatExpiryState } from './room-timing'
 import type { PlayerId } from './types'
 import type { GameView } from './views'
@@ -30,6 +31,13 @@ export type ClientMessage =
   | {
       type: 'SET_REMATCH_READY'
       ready: boolean
+    }
+  | {
+      type: 'SET_DRAFT_SELECTION'
+      selectedIndices: number[]
+    }
+  | {
+      type: 'CONFIRM_DRAFT'
     }
   | {
       type: 'LEAVE_ROOM'
@@ -68,6 +76,10 @@ export type ServerMessage =
   | {
       type: 'GAME_VIEW'
       game: GameView
+    }
+  | {
+      type: 'DRAFT_STATE'
+      draft: DraftPlayerView
     }
   | {
       type: 'ACTION_ERROR'

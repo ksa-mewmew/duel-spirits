@@ -264,12 +264,20 @@ export function createDraftPool(
   if (!format.draft) throw new Error('드래프트 규칙이 없는 포맷입니다.')
 
   const source = CURRENT_CARD_ACCESS_POLICY.getAvailableCardIds()
+  if (source.length * format.maxCopiesPerCard < format.draft.poolSize) {
+    throw new Error('드래프트 풀을 만들 수 있는 카드 수가 부족합니다.')
+  }
   const random = createSeededRandom(seed).next
   const cardIds: CardId[] = []
+  const counts = new Map<CardId, number>()
 
-  for (let index = 0; index < format.draft.poolSize; index += 1) {
+  while (cardIds.length < format.draft.poolSize) {
     const cardId = source[Math.floor(random() * source.length)]
-    if (cardId) cardIds.push(cardId)
+    if (!cardId) continue
+    const count = counts.get(cardId) ?? 0
+    if (count >= format.maxCopiesPerCard) continue
+    cardIds.push(cardId)
+    counts.set(cardId, count + 1)
   }
 
   return {

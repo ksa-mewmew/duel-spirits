@@ -5,6 +5,7 @@ import { createRulebookDocument } from '../content/rulebook'
 import { FIELD_LIMIT, LIFE_SIZE } from '../shared/rules'
 import {
   parseRoomFormatId,
+  parseDraftLimitSeconds,
   parseSeatExpirySeconds,
   parseSelectedSetIds,
   parseTurnLimitSeconds,
@@ -16,6 +17,7 @@ import type { CardPlaySelection, GameAction } from '../shared/actions'
 import type { PublicDeckStates } from '../shared/messages'
 import type { RoomPhase } from '../shared/room-lifecycle'
 import type { RoomSettings } from '../shared/room-settings'
+import type { DraftPlayerView } from '../shared/room-draft'
 import type { SeatExpiryState } from '../shared/room-timing'
 import type { CardInstance, PlayerId, UnitInstance } from '../shared/types'
 import type { GameView, PlayerView } from '../shared/views'
@@ -25,6 +27,8 @@ import {
   connectToRoom,
   sendDeck,
   sendDeckReady,
+  sendDraftConfirm,
+  sendDraftSelection,
   sendLeaveRoom,
   sendPlayerAction,
   sendRematchReady,
@@ -57,6 +61,7 @@ const roomKey = roomKeyParam
 const requestedFormatId = parseRoomFormatId(pageUrl.searchParams.get('format'))
 const requestedSettings: RoomSettings = {
   turnLimitSeconds: parseTurnLimitSeconds(pageUrl.searchParams.get('turn')),
+  draftLimitSeconds: parseDraftLimitSeconds(pageUrl.searchParams.get('draft')),
   seatExpirySeconds: parseSeatExpirySeconds(pageUrl.searchParams.get('seatExpiry')),
   formatId: requestedFormatId,
   selectedSetIds: parseSelectedSetIds(pageUrl.searchParams.get('sets'), requestedFormatId),
@@ -77,6 +82,7 @@ let deckStates: PublicDeckStates = {
   P1: { submitted: false, ready: false, name: null },
   P2: { submitted: false, ready: false, name: null },
 }
+let draftView: DraftPlayerView | null = null
 let selectedAttackerId: string | null = null
 let selectedAttackLifeSlotIndices: number[] = []
 let playDraft: PlayDraft | null = null
@@ -200,6 +206,7 @@ const socket = connectToRoom(
           if (
             roomPhase === 'waiting'
             && assignedPlayerId
+            && roomSettings.formatId !== 'draft-v1'
             && !deckStates[assignedPlayerId].submitted
           ) {
             const compatibleDeck = loadDecks().find((deck) =>
@@ -214,6 +221,15 @@ const socket = connectToRoom(
           }
           break
 
+        case 'DRAFT_STATE':
+          draftView = serverMessage.draft
+          roomPhase = 'drafting'
+          awaitingServer = false
+          message = draftView.confirmed
+            ? '덱을 확정했습니다. 상대의 선택을 기다립니다.'
+            : `${draftView.poolSize}장 중 ${draftView.deckSize}장을 선택하세요.`
+          break
+
         case 'DECK_ACCEPTED':
           awaitingServer = false
           message = `${serverMessage.deckName} 덱을 서버가 확인했습니다.`
@@ -221,6 +237,7 @@ const socket = connectToRoom(
 
         case 'GAME_VIEW':
           game = serverMessage.game
+          draftView = null
           assignedPlayerId ??= game.viewer
           selectedAttackerId = null
           selectedAttackLifeSlotIndices = []
@@ -270,6 +287,7 @@ const socket = connectToRoom(
 
         case 'GAME_CLEARED':
           game = null
+          draftView = null
           selectedAttackerId = null
           selectedAttackLifeSlotIndices = []
           playDraft = null
@@ -302,13 +320,23 @@ function formatDuration(milliseconds: number): string {
 
 function updateClock(): void {
   const timer = document.querySelector<HTMLElement>('#turn-timer')
-  if (!timer) return
-  if (roomSettings.turnLimitSeconds === null) timer.textContent = '∞'
-  else if (turnDeadlineAt === null) {
-    timer.textContent = roomPhase === 'disconnected'
-      ? '일시 정지'
-      : `${roomSettings.turnLimitSeconds}초`
-  } else timer.textContent = formatDuration(turnDeadlineAt - Date.now())
+  if (timer) {
+    if (roomSettings.turnLimitSeconds === null) timer.textContent = '∞'
+    else if (turnDeadlineAt === null) {
+      timer.textContent = roomPhase === 'disconnected'
+        ? '일시 정지'
+        : `${roomSettings.turnLimitSeconds}초`
+    } else timer.textContent = formatDuration(turnDeadlineAt - Date.now())
+  }
+
+  const draftTimer = document.querySelector<HTMLElement>('#draft-timer')
+  if (draftTimer && draftView) {
+    draftTimer.textContent = formatDuration(draftView.deadlineAt - Date.now())
+    draftTimer.classList.toggle(
+      'is-urgent',
+      draftView.deadlineAt - Date.now() <= 30_000,
+    )
+  }
 
   for (const playerId of ['P1', 'P2'] as const) {
     const element = document.querySelector<HTMLElement>(`#seat-expiry-${playerId}`)
@@ -576,8 +604,7 @@ function requiredAttackLifeCount(opponentPlayer: PlayerView): number {
   const self = game.players[game.viewer]
   const attacker = self.field.find((unit) => unit.instanceId === selectedAttackerId)
   if (!attacker) return 0
-  const requested = attacker.cardId === 'exploding_mountain_dragon' && opponentPlayer.lifeCount >= 3 ? 2 : 1
-  return Math.min(requested, opponentPlayer.lifeCount)
+  return Math.min(1, opponentPlayer.lifeCount)
 }
 
 function renderCardBacks(count: number, className: string): string {
@@ -1561,7 +1588,7 @@ function renderSofChoicePanel(pending: Extract<NonNullable<GameView['pendingChoi
       return sofChoicePanel('거울 호수의 예언자', stage === 'both' ? '확인한 라이프와 덱 위 카드를 처리하세요.' : '덱 위 카드를 처리하세요.', content, actions)
     }
     case 'COFFIN_KEEPER_BOTTOM':
-      return sofChoicePanel('가라앉은 관지기', '덱 맨 아래에 놓을 묘지 카드 한 장을 선택할 수 있습니다.', renderSofCandidateGrid(candidates, '덱 아래'), optionalSkip)
+      return sofChoicePanel('가라앉은 관지기', '덱 맨 위에 놓을 묘지 카드 한 장을 선택할 수 있습니다.', renderSofCandidateGrid(candidates, '덱 위'), optionalSkip)
     case 'COFFIN_KEEPER_TOP': {
       const card = pending.revealedCards[0]
       return sofChoicePanel('가라앉은 관지기', '덱 맨 위 카드를 묘지로 보낼 수 있습니다.', card ? renderCard(card.cardId, { compact: true, classNames: ['choice-card'] }) : '', actionButton('덱 위에 둔다', 'resolve-simple-choice', 'choice-id', 'keep') + actionButton('묘지로 보낸다', 'resolve-simple-choice', 'choice-id', 'discard'))
@@ -1927,7 +1954,52 @@ function renderRulebookModal(): string {
   </div>`
 }
 
+function renderDraftRoom(): string {
+  if (!draftView) {
+    return `<div class="waiting-stage"><section class="panel match-lobby draft-loading">
+      <p class="eyebrow">SERVER DRAFT</p>
+      <h2>드래프트 풀을 준비하고 있습니다.</h2>
+    </section></div>`
+  }
+
+  const view = draftView
+  const selected = new Set(view.selectedIndices)
+  const cards = view.pool.cardIds.map((cardId, index) => {
+    const isSelected = selected.has(index)
+    return `<article class="draft-pool-card ${isSelected ? 'is-selected' : ''}">
+      ${renderCard(cardId, { compact: true, classNames: ['draft-choice-card'] })}
+      <button type="button" data-action="toggle-draft-card" data-draft-index="${index}" aria-pressed="${isSelected}" ${view.confirmed ? 'disabled' : ''}>
+        ${isSelected ? '선택 해제' : '덱에 추가'}
+      </button>
+    </article>`
+  }).join('')
+  const selectedCount = view.selectedIndices.length
+  const remaining = view.deckSize - selectedCount
+
+  return `<main class="server-draft" aria-labelledby="draft-title">
+    <header class="server-draft__header">
+      <div>
+        <p class="eyebrow">SERVER DRAFT · ${view.poolSize} CARD POOL</p>
+        <h2 id="draft-title">${view.deckSize}장의 덱을 고르세요</h2>
+        <p>두 플레이어에게 각자의 카드 풀이 지급되었습니다. 같은 카드는 최대 ${getFormat(roomSettings.formatId).maxCopiesPerCard}장까지 선택할 수 있습니다.</p>
+      </div>
+      <div class="draft-clock" aria-label="남은 드래프트 시간">
+        <span>남은 시간</span>
+        <strong id="draft-timer">${formatDuration(view.deadlineAt - Date.now())}</strong>
+      </div>
+    </header>
+    <section class="draft-status-row" aria-live="polite">
+      <div class="${view.confirmed ? 'is-ready' : ''}"><span>내 덱</span><strong>${selectedCount} / ${view.deckSize}</strong><small>${view.confirmed ? '확정 완료' : remaining > 0 ? `${remaining}장 더 선택` : '확정 가능'}</small></div>
+      <div class="${view.opponentConfirmed ? 'is-ready' : ''}"><span>상대</span><strong>${view.opponentSelectedCount} / ${view.deckSize}</strong><small>${view.opponentConfirmed ? '확정 완료' : '선택 중'}</small></div>
+      <button id="confirm-draft-button" class="ready-primary" type="button" ${selectedCount === view.deckSize && !view.confirmed ? '' : 'disabled'}>${view.confirmed ? '확정 완료' : '이 덱으로 확정'}</button>
+    </section>
+    <section class="draft-pool-grid" aria-label="드래프트 카드 풀">${cards}</section>
+    <footer class="server-draft__footer"><span>${escapeHtml(message)}</span><span>시간이 끝나면 선택하지 못한 자리는 서버가 자동으로 채웁니다.</span></footer>
+  </main>`
+}
+
 function renderWaitingRoom(): string {
+  const waitingFormat = getFormat(roomSettings.formatId)
   const decks = loadDecks()
   const options = decks.map((deck) => {
     const compatible = isDeckCompatibleWithFormat(
@@ -1965,13 +2037,17 @@ function renderWaitingRoom(): string {
       <div class="match-lobby__room-meta"><span>방 코드</span><strong>${escapeHtml(roomId)}</strong><button id="copy-invite-button" type="button">초대 링크 복사</button></div>
     </header>
     <div class="seat-grid">${seatCards}</div>
-    <div class="match-deck-controls">
-      <label>사용할 덱<select id="room-deck-select">${options}</select></label>
-      <button id="submit-deck-button" type="button">선택 덱 적용</button>
-      <button id="deck-ready-button" class="ready-primary" type="button" ${myDeckState?.submitted ? '' : 'disabled'}>${ready ? '준비 취소' : '이 덱으로 준비'}</button>
-      <a class="button-link" href="./#decks" target="_blank">덱 편집</a>
-      <p class="match-lobby__message" role="status">${escapeHtml(message || (connectedPlayers.length < 2 ? '초대 링크를 친구에게 보내세요.' : '두 플레이어가 준비하면 대전이 시작됩니다.'))}</p>
-    </div>
+    ${roomSettings.formatId === 'draft-v1'
+      ? `<div class="match-deck-controls match-deck-controls--draft-waiting">
+          <p class="match-lobby__message" role="status">두 번째 플레이어가 들어오면 ${roomSettings.draftLimitSeconds}초 드래프트가 자동으로 시작됩니다. 각자 ${waitingFormat.draft?.poolSize ?? 0}장 중 ${waitingFormat.draft?.deckSize ?? waitingFormat.deckSize}장을 고릅니다.</p>
+        </div>`
+      : `<div class="match-deck-controls">
+          <label>사용할 덱<select id="room-deck-select">${options}</select></label>
+          <button id="submit-deck-button" type="button">선택 덱 적용</button>
+          <button id="deck-ready-button" class="ready-primary" type="button" ${myDeckState?.submitted ? '' : 'disabled'}>${ready ? '준비 취소' : '이 덱으로 준비'}</button>
+          <a class="button-link" href="./#decks" target="_blank">덱 편집</a>
+          <p class="match-lobby__message" role="status">${escapeHtml(message || (connectedPlayers.length < 2 ? '초대 링크를 친구에게 보내세요.' : '두 플레이어가 준비하면 대전이 시작됩니다.'))}</p>
+        </div>`}
   </section></div>`
 }
 
@@ -1982,11 +2058,13 @@ function render(): void {
   let content = ''
 
   document.body.classList.toggle('game-active', game !== null)
+  document.body.classList.toggle('draft-active', roomPhase === 'drafting')
   document.body.classList.toggle('room-waiting-active', game === null && !joinRejectedMessage && !hasLeftRoom)
 
   if (joinRejectedMessage || hasLeftRoom) {
     content = `<section class="panel room-ended-panel"><h2>${escapeHtml(joinRejectedMessage ?? '자리에서 나왔습니다.')}</h2><a class="button-link" href="./">첫 화면</a></section>`
-  } else if (!game) content = renderWaitingRoom()
+  } else if (!game && roomPhase === 'drafting') content = renderDraftRoom()
+  else if (!game) content = renderWaitingRoom()
   else if (opponentId) {
     content = `<section class="game-layout">
       <main
@@ -2412,6 +2490,47 @@ function bindEvents(): void {
   document.querySelector<HTMLButtonElement>('#submit-deck-button')?.addEventListener('click', submitSelectedDeck)
   document.querySelector<HTMLButtonElement>('#deck-ready-button')?.addEventListener('click', () => {
     if (assignedPlayerId) sendDeckReady(socket, !deckStates[assignedPlayerId].ready)
+  })
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="toggle-draft-card"]')) {
+    button.addEventListener('click', () => {
+      if (!draftView || draftView.confirmed) return
+      const index = Number(button.dataset.draftIndex)
+      if (!Number.isInteger(index) || !draftView.pool.cardIds[index]) return
+      const selected = new Set(draftView.selectedIndices)
+      if (selected.has(index)) {
+        selected.delete(index)
+      } else {
+        if (selected.size >= draftView.deckSize) {
+          message = `드래프트 덱은 ${draftView.deckSize}장입니다.`
+          render()
+          return
+        }
+        const cardId = draftView.pool.cardIds[index]
+        const copyCount = [...selected].filter(
+          (selectedIndex) => draftView?.pool.cardIds[selectedIndex] === cardId,
+        ).length
+        const copyLimit = getFormat(roomSettings.formatId).maxCopiesPerCard
+        if (copyCount >= copyLimit) {
+          message = `같은 카드는 최대 ${copyLimit}장까지 선택할 수 있습니다.`
+          render()
+          return
+        }
+        selected.add(index)
+      }
+      draftView = {
+        ...draftView,
+        selectedIndices: [...selected].sort((left, right) => left - right),
+      }
+      sendDraftSelection(socket, draftView.selectedIndices)
+      render()
+    })
+  }
+  document.querySelector<HTMLButtonElement>('#confirm-draft-button')?.addEventListener('click', () => {
+    if (!draftView || draftView.confirmed || draftView.selectedIndices.length !== draftView.deckSize) return
+    awaitingServer = true
+    sendDraftConfirm(socket)
+    message = '드래프트 덱을 서버에서 확인하고 있습니다.'
+    render()
   })
 
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="place-mana"]')) {

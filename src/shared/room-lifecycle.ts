@@ -5,6 +5,7 @@ import type {
 
 export type RoomPhase =
   | 'waiting'
+  | 'drafting'
   | 'playing'
   | 'disconnected'
   | 'finished'
@@ -57,10 +58,9 @@ export function areBothPlayersReady(
 export function getRoomPhase(
   gameStatus: GameStatus | null,
   connectedPlayers: PlayerId[],
+  drafting = false,
 ): RoomPhase {
-  if (!gameStatus) {
-    return 'waiting'
-  }
+  if (!gameStatus) return drafting ? 'drafting' : 'waiting'
 
   if (gameStatus === 'finished') {
     return 'finished'

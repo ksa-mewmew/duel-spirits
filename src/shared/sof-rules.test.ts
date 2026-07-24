@@ -98,12 +98,12 @@ describe('진화 규칙', () => {
       evolutionStack: [card('base', 'tree_fairy')],
     })]
     game.players.P2.hand = [card('current', 'reverse_current')]
-    game.players.P2.mana = [mana('w1', 'wave_reader'), mana('w2', 'wave_reader'), mana('w3', 'wave_reader'), mana('w4', 'wave_reader')]
+    game.players.P2.mana = [mana('w1', 'wave_reader'), mana('w2', 'wave_reader'), mana('w3', 'wave_reader')]
     game.currentPlayer = 'P2'
     game.players.P1.field[0]!.exhausted = true
 
     const immune = applyAction(game, 'P2', {
-      type: 'PLAY_CARD', cardInstanceId: 'current', manaIds: ['w1', 'w2', 'w3', 'w4'],
+      type: 'PLAY_CARD', cardInstanceId: 'current', manaIds: ['w1', 'w2', 'w3'],
       selection: { unitId: 'hill' },
     })
     expect(immune.players.P1.field).toHaveLength(1)
@@ -246,12 +246,79 @@ describe('SOF 불·물 전투', () => {
     expect(next.players.P1.field[0]).toMatchObject({ exhausted: false, attacksThisTurn: 0 })
   })
 
-  test('폭발하는 산맥룡은 라이프가 3장 이상인 상대를 직접 공격하면 2장을 잃게 한다', () => {
+  test('폭발하는 산맥룡의 직접 공격도 라이프를 한 장만 잃게 한다', () => {
     const game = createTestGame()
     game.players.P1.field = [unit('dragon', 'exploding_mountain_dragon')]
-    const slots = game.players.P2.life.slice(0, 2).map((life, index) => life.lifeSlotIndex ?? index)
+    const slots = game.players.P2.life.slice(0, 1).map((life, index) => life.lifeSlotIndex ?? index)
     const next = applyAction(game, 'P1', { type: 'ATTACK_PLAYER', attackerId: 'dragon', lifeSlotIndices: slots })
-    expect(next.players.P2.life).toHaveLength(2)
+    expect(next.players.P2.life).toHaveLength(3)
+  })
+
+  test('폭발하는 산맥룡은 출현할 때 상대의 모든 몬스터에게 피해 2를 준다', () => {
+    const game = createTestGame()
+    game.players.P1.hand = [card('dragon', 'exploding_mountain_dragon')]
+    game.players.P1.mana = Array.from(
+      { length: 6 },
+      (_, index) => mana(`fire-${index}`, 'living_flame'),
+    )
+    game.players.P1.field = [unit('base', 'living_flame')]
+    game.players.P2.field = [
+      unit('enemy-a', 'rock_armor_knight', 0, { ownerId: 'P2', controllerId: 'P2' }),
+      unit('enemy-b', 'cathedral_guard', 1, { ownerId: 'P2', controllerId: 'P2' }),
+    ]
+
+    const next = applyAction(game, 'P1', {
+      type: 'PLAY_CARD',
+      cardInstanceId: 'dragon',
+      manaIds: game.players.P1.mana.map((item) => item.instanceId),
+      selection: { evolutionUnitId: 'base' },
+    })
+
+    expect(next.players.P2.field.map((enemy) => enemy.damage)).toEqual([2, 2])
+  })
+
+  test('가라앉은 관지기는 어둠 공명 후 물 공명을 처리하고 두 공명이면 뽑는다', () => {
+    const game = createTestGame()
+    game.players.P1.hand = [card('keeper', 'sunken_coffin_keeper')]
+    game.players.P1.mana = [
+      mana('water', 'wave_reader'),
+      mana('dark', 'corpse_cat'),
+      mana('both', 'crematory_smoke'),
+    ]
+    game.players.P1.deck = [
+      card('original-top', 'living_flame'),
+      card('next-card', 'ash_hound'),
+    ]
+    game.players.P1.discard = [card('grave-card', 'high_tide')]
+
+    const darkChoice = applyAction(game, 'P1', {
+      type: 'PLAY_CARD',
+      cardInstanceId: 'keeper',
+      manaIds: ['water', 'dark', 'both'],
+      selection: { fieldSlot: 0 },
+    })
+    expect(darkChoice.pendingChoices[0]).toMatchObject({
+      effect: 'COFFIN_KEEPER_TOP',
+      revealedCards: [expect.objectContaining({ instanceId: 'original-top' })],
+    })
+
+    const waterChoice = applyAction(darkChoice, 'P1', {
+      type: 'RESOLVE_CHOICE',
+      choiceIds: ['keep'],
+    })
+    expect(waterChoice.pendingChoices[0]).toMatchObject({
+      effect: 'COFFIN_KEEPER_BOTTOM',
+      candidateIds: ['grave-card'],
+    })
+
+    const resolved = applyAction(waterChoice, 'P1', {
+      type: 'RESOLVE_CHOICE',
+      choiceIds: ['grave-card'],
+    })
+    expect(resolved.players.P1.hand).toContainEqual(
+      expect.objectContaining({ instanceId: 'grave-card' }),
+    )
+    expect(resolved.players.P1.deck[0]?.instanceId).toBe('original-top')
   })
 
   test('얼음거울 정령은 소진된 비용 2 이하 몬스터만 대상으로 삼는다', () => {
@@ -379,7 +446,7 @@ describe('SOF 땅·빛·어둠과 공명', () => {
     expect(() => applyAction(next, 'P1', { type: 'ATTACK_PLAYER', attackerId: 'c', lifeSlotIndices: [next.players.P2.life[0]!.lifeSlotIndex ?? 0] })).toThrow('성령의 대리인')
   })
 
-  test('화장터의 연기는 불·어둠 공명을 모두 충족하면 모든 상대에게 피해 2를 준다', () => {
+  test('그림자 낀 산맥은 불·어둠 공명을 모두 충족하면 모든 상대에게 피해 2를 준다', () => {
     const game = createTestGame()
     game.players.P1.hand = [card('smoke', 'crematory_smoke')]
     game.players.P1.mana = [mana('fire', 'living_flame'), mana('dark', 'corpse_cat'), mana('both', 'crematory_smoke')]

@@ -1,7 +1,9 @@
 import {
   DEFAULT_SEAT_EXPIRY_SECONDS,
+  DEFAULT_DRAFT_LIMIT_SECONDS,
   DEFAULT_TURN_LIMIT_SECONDS,
   SEAT_EXPIRY_OPTIONS,
+  DRAFT_LIMIT_OPTIONS,
   TURN_LIMIT_OPTIONS,
 } from '../shared/room-settings'
 import { LOBBY_FORMATS, DEFAULT_FORMAT_ID, getFormat } from '../content/formats'
@@ -56,6 +58,11 @@ export function renderLobby(appElement: HTMLDivElement): void {
     `${seconds / 60}분`,
     DEFAULT_SEAT_EXPIRY_SECONDS,
   )).join('')
+  const draftOptions = DRAFT_LIMIT_OPTIONS.map((seconds) => createOptionMarkup(
+    seconds,
+    `${Math.floor(seconds / 60)}분${seconds % 60 ? ` ${seconds % 60}초` : ''}`,
+    DEFAULT_DRAFT_LIMIT_SECONDS,
+  )).join('')
 
   appElement.innerHTML = `<main class="app-shell lobby-screen">
     <header class="lobby-masthead">
@@ -91,6 +98,11 @@ export function renderLobby(appElement: HTMLDivElement): void {
         <label class="field-label" for="format-select">대전 포맷</label>
         <select id="format-select">${LOBBY_FORMATS.map((format) => `<option value="${format.id}" ${format.id === initialFormatId ? 'selected' : ''}>${escapeHtml(format.name)}</option>`).join('')}</select>
         <p id="format-description" class="field-help"></p>
+        <div id="draft-settings" hidden>
+          <label class="field-label" for="draft-limit-select">드래프트 제한 시간</label>
+          <select id="draft-limit-select">${draftOptions}</select>
+          <p class="field-help">두 번째 플레이어가 들어오면 동시에 시작합니다. 시간 종료 시 남은 자리는 서버가 자동으로 채웁니다.</p>
+        </div>
         <fieldset id="set-picker" class="format-set-picker">
           <legend>세트 한정전 사용 세트</legend>
           ${Object.values(CARD_SETS).map((set) => `<label><input type="checkbox" data-room-set="${set.id}" ${activeDeck.selectedSetIds.includes(set.id) || set.id === 'foundations-001' ? 'checked' : ''}>${escapeHtml(set.name)} <small>${escapeHtml(set.code)}</small></label>`).join('')}
@@ -127,8 +139,10 @@ export function renderLobby(appElement: HTMLDivElement): void {
     const format = getFormat(formatId)
     const help = document.querySelector<HTMLElement>('#format-description')
     const picker = document.querySelector<HTMLElement>('#set-picker')
+    const draftSettings = document.querySelector<HTMLElement>('#draft-settings')
     if (help) help.textContent = format.description
     if (picker) picker.hidden = format.cardPool.type !== 'selected-sets'
+    if (draftSettings) draftSettings.hidden = format.deckSource !== 'draft'
   }
 
   const actionMenu = document.querySelector<HTMLElement>('#lobby-action-menu')
@@ -157,6 +171,7 @@ export function renderLobby(appElement: HTMLDivElement): void {
     const roomCodeInput = document.querySelector<HTMLInputElement>('#room-code-input')
     const turnLimitSelect = document.querySelector<HTMLSelectElement>('#turn-limit-select')
     const seatExpirySelect = document.querySelector<HTMLSelectElement>('#seat-expiry-select')
+    const draftLimitSelect = document.querySelector<HTMLSelectElement>('#draft-limit-select')
     const formatId = (document.querySelector<HTMLSelectElement>('#format-select')?.value ?? DEFAULT_FORMAT_ID) as GameFormatId
     const format = getFormat(formatId)
     const selectedSetIds = [...document.querySelectorAll<HTMLInputElement>('[data-room-set]:checked')]
@@ -177,6 +192,7 @@ export function renderLobby(appElement: HTMLDivElement): void {
     url.searchParams.set('key', roomKey)
     url.searchParams.set('turn', turnLimitSelect?.value ?? '180')
     url.searchParams.set('seatExpiry', seatExpirySelect?.value ?? '900')
+    url.searchParams.set('draft', draftLimitSelect?.value ?? String(DEFAULT_DRAFT_LIMIT_SECONDS))
     url.searchParams.set('format', formatId)
     if (format.cardPool.type === 'selected-sets') url.searchParams.set('sets', selectedSetIds.join(','))
     window.location.assign(url.toString())

@@ -79,6 +79,9 @@ export function connectToRoom(
         credentials.requestedSettings.turnLimitSeconds === null
           ? 'none'
           : String(credentials.requestedSettings.turnLimitSeconds),
+      draftLimitSeconds: String(
+        credentials.requestedSettings.draftLimitSeconds,
+      ),
       seatExpirySeconds: String(
         credentials.requestedSettings.seatExpirySeconds,
       ),
@@ -161,6 +164,20 @@ export function sendRematchReady(
     type: 'SET_REMATCH_READY',
     ready,
   })
+}
+
+export function sendDraftSelection(
+  socket: PartySocket,
+  selectedIndices: number[],
+): void {
+  sendClientMessage(socket, {
+    type: 'SET_DRAFT_SELECTION',
+    selectedIndices,
+  })
+}
+
+export function sendDraftConfirm(socket: PartySocket): void {
+  sendClientMessage(socket, { type: 'CONFIRM_DRAFT' })
 }
 
 export function sendLeaveRoom(

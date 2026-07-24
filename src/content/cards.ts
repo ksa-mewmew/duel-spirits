@@ -224,7 +224,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     '출현 - 카드를 1장 뽑는다.',
   ),
   ebb: s(
-    'ebb', '썰물', 3, ['water'],
+    'ebb', '썰물', 2, ['water'],
     '자신의 마나에 물 카드만 있을 때 사용할 수 있다. (속성이 여러 개인 경우, 물 속성이 있으면 물 카드로 취급한다.) 상대 전장의 소진된 몬스터 하나를 그 소유자의 손으로 가져온다.',
   ),
   surging_wave: u(
@@ -237,7 +237,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
   ),
   high_tide: s('high_tide', '밀물', 3, ['water'], '카드 2장을 뽑는다.'),
   reverse_current: s(
-    'reverse_current', '역류', 4, ['water'],
+    'reverse_current', '역류', 3, ['water'],
     '상대 전장의 소진된 몬스터 하나를 그 소유자의 손으로 가져온다.',
   ),
   tsunami: s(
@@ -304,7 +304,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     'eclipse', '일식', 6, ['dark', 'light'],
     '빛 공명 - 전장의 모든 몬스터를 소진한다. 어둠 공명 - 전장의 모든 소진된 몬스터를 묘지로 보낸다. 빛 공명을 먼저 처리한다. 각성 - 전장의 모든 몬스터를 소진한다.',
   ),
-  pegasus_rider: u('pegasus_rider', '페가수스 기마병', 2, 1, 2, ['light'], '비행.', ['flying']),
+  pegasus_rider: u('pegasus_rider', '페가수스 기마병', 1, 1, 1, ['light'], '비행.', ['flying']),
   temple_prospect: u(
     'temple_prospect', '신전의 유망주', 2, 2, 2, ['light'],
     '출현 - 자신의 라이프 카드 하나를 선택해 손으로 가져온다. 이때 그 카드의 각성은 발동하지 않는다. 카드를 가져왔다면, 자신의 손에서 카드 하나를 자신의 라이프에 뒷면으로 놓을 수 있다.',
@@ -318,11 +318,11 @@ export const CARDS: Record<CardId, CardDefinition> = {
     '이 몬스터가 전장에 있는 동안 상대의 각성은 발동하지 않는다.',
   ),
   apostle_pigeon: u(
-    'apostle_pigeon', '사도의 비둘기', 3, 1, 3, ['light'],
+    'apostle_pigeon', '사도의 비둘기', 2, 1, 3, ['light'],
     '이 몬스터가 전장에 있는 동안 각 플레이어는 자신의 턴마다 한 번만 공격할 수 있다. 각성 - 자신의 전장에 빈 슬롯이 있다면 이 카드를 소환한다.',
   ),
   devotion: s(
-    'devotion', '헌신', 4, ['light'],
+    'devotion', '헌신', 3, ['light'],
     '자신의 라이프가 2장 이하일 때만 사용할 수 있다. 이 카드를 자신의 라이프 영역에 뒷면으로 놓는다.',
   ),
   holy_mirror_wall: s(
@@ -362,7 +362,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
   ),
   exploding_mountain_dragon: u(
     'exploding_mountain_dragon', '폭발하는 산맥룡', 6, 5, 3, ['fire'],
-    '진화 - 불 몬스터. 출현 - 상대의 모든 몬스터에게 피해 2를 준다. 이 몬스터가 직접 공격할 때 상대의 라이프가 3장 이상이라면, 상대는 라이프를 하나 추가로 잃는다.',
+    '진화 - 불 몬스터. 출현 - 상대의 모든 몬스터에게 피해 2를 준다.',
     [], 'rings', [], 'fire',
   ),
 
@@ -453,7 +453,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     '상대는 자신의 전장에서 몬스터 하나를 선택해 묘지로 보낸다. 자신의 전장에 몬스터가 있다면, 자신의 몬스터 하나를 묘지로 보낼 수 있다. 그렇게 했다면 상대는 몬스터 하나를 추가로 선택해 묘지로 보낸다.',
   ),
   blackwing_predator: u(
-    'blackwing_predator', '검은날개 포식자', 3, 1, 4, ['dark'],
+    'blackwing_predator', '검은날개 포식자', 3, 0, 4, ['dark'],
     '진화 - 어둠 몬스터. 암살. 출현 - 자신의 묘지에서 비용 1 이하인 어둠 몬스터 하나를 손으로 가져올 수 있다.',
     ['assassination'], 'rings', [], 'dark',
   ),
@@ -509,11 +509,11 @@ export const CARDS: Record<CardId, CardDefinition> = {
     '출현 - 빛 공명 - 자신의 라이프 카드 하나를 확인한다. 출현 - 물 공명 - 자신의 덱 맨 위 카드를 확인하고 덱 맨 위로 되돌리거나 묘지로 보낸다. 두 공명을 모두 충족했다면 확인한 라이프 카드와 덱 맨 위 카드를 서로 바꿀 수 있다.',
   ),
   sunken_coffin_keeper: u(
-    'sunken_coffin_keeper', '가라앉은 관지기', 3, 2, 2, ['water', 'dark'],
-    '출현 - 물 공명 - 자신의 묘지 카드 한 장을 덱 맨 아래에 놓을 수 있다. 출현 - 어둠 공명 - 자신의 덱 맨 위 카드 한 장을 묘지로 보낼 수 있다. 두 공명을 모두 충족했다면 카드 1장을 뽑는다.',
+    'sunken_coffin_keeper', '가라앉은 관지기', 3, 2, 3, ['water', 'dark'],
+    '출현 - 어둠 공명 - 자신의 덱 맨 위 카드 한 장을 확인하고 묘지로 보낼 수 있다. 출현 - 물 공명 - 자신의 묘지 카드 한 장을 덱 맨 위에 놓을 수 있다. 두 공명을 모두 충족했다면 카드 1장을 뽑는다.',
   ),
   crematory_smoke: s(
-    'crematory_smoke', '화장터의 연기', 3, ['dark', 'fire'],
+    'crematory_smoke', '그림자 낀 산맥', 3, ['dark', 'fire'],
     '불 공명 - 상대 몬스터 하나에게 피해 2를 준다. 어둠 공명을 충족했다면, 대신 상대의 모든 몬스터에게 준다.',
   ),
 }

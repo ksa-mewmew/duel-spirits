@@ -33,7 +33,7 @@ const SOF_BALANCE = {
   weakened_giant: ['쇠약한 거인', 'unit', 2, 3, 3, ['dark'], null],
   funeral_inviter: ['장례식의 초대자', 'unit', 3, 2, 3, ['dark'], null],
   mass_burial: ['집단 매장', 'spell', 4, null, null, ['dark'], null],
-  blackwing_predator: ['검은날개 포식자', 'unit', 3, 1, 4, ['dark'], 'dark'],
+  blackwing_predator: ['검은날개 포식자', 'unit', 3, 0, 4, ['dark'], 'dark'],
   mourner: ['장송하는 자', 'unit', 5, 4, 5, ['dark'], 'dark'],
 
   silent_shield_soldier: ['침묵하는 방패병', 'unit', 2, 2, 4, ['light'], null],
@@ -47,8 +47,8 @@ const SOF_BALANCE = {
   lava_gardener: ['용암 정원사', 'unit', 3, 2, 3, ['fire', 'earth'], null],
   stone_pillar_priest: ['돌기둥의 성직자', 'unit', 3, 1, 4, ['earth', 'light'], null],
   mirror_lake_prophet: ['거울 호수의 예언자', 'unit', 3, 2, 3, ['light', 'water'], null],
-  sunken_coffin_keeper: ['가라앉은 관지기', 'unit', 3, 2, 2, ['water', 'dark'], null],
-  crematory_smoke: ['화장터의 연기', 'spell', 3, null, null, ['dark', 'fire'], null],
+  sunken_coffin_keeper: ['가라앉은 관지기', 'unit', 3, 2, 3, ['water', 'dark'], null],
+  crematory_smoke: ['그림자 낀 산맥', 'spell', 3, null, null, ['dark', 'fire'], null],
 } as const
 
 describe('진화의 시작(SOF) 원고', () => {
@@ -104,7 +104,9 @@ describe('진화의 시작(SOF) 원고', () => {
     expect(CARDS.mourner.rulesText).toContain('출현 - 자신의 다른 몬스터')
     expect(CARDS.salvation_lancer.rulesText).toContain('공격력 +1')
     expect(CARDS.flame_mane_captain.rulesText).toContain('진화 - 불 몬스터')
-    expect(CARDS.exploding_mountain_dragon.rulesText).toContain('라이프를 하나 추가로')
+    expect(CARDS.exploding_mountain_dragon.rulesText).toBe(
+      '진화 - 불 몬스터. 출현 - 상대의 모든 몬스터에게 피해 2를 준다.',
+    )
     expect(CARDS.earth_guardian.rulesText).toContain('최대 2장')
     expect(CARDS.mourner.rulesText).toContain('출현은 발동하지 않는다')
     expect(CARDS.spirit_agent.rulesText).toContain('최대 두 번')

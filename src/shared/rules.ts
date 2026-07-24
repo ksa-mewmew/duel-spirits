@@ -1126,18 +1126,18 @@ function resolveArrival(
     case 'sunken_coffin_keeper': {
       const hasWater = paidAttributes.has('water')
       const hasDark = paidAttributes.has('dark')
-      if (hasWater && player.discard.length > 0) {
-        enqueueChoice(game, {
-          type: 'SOF_CHOICE', effect: 'COFFIN_KEEPER_BOTTOM',
-          playerId: actor, sourcePlayerId: actor, sourceUnitId: unit.instanceId,
-          candidateIds: player.discard.map((card) => card.instanceId), minChoices: 0, maxChoices: 1,
-          data: { hasDark, drawAfter: hasWater && hasDark },
-        })
-      } else if (hasDark && player.deck[0]) {
+      if (hasDark && player.deck[0]) {
         enqueueChoice(game, {
           type: 'SOF_CHOICE', effect: 'COFFIN_KEEPER_TOP',
           playerId: actor, sourcePlayerId: actor, sourceUnitId: unit.instanceId,
           revealedCards: [{ ...player.deck[0] }], minChoices: 1, maxChoices: 1,
+          data: { hasWater, drawAfter: hasWater && hasDark },
+        })
+      } else if (hasWater && player.discard.length > 0) {
+        enqueueChoice(game, {
+          type: 'SOF_CHOICE', effect: 'COFFIN_KEEPER_BOTTOM',
+          playerId: actor, sourcePlayerId: actor, sourceUnitId: unit.instanceId,
+          candidateIds: player.discard.map((card) => card.instanceId), minChoices: 0, maxChoices: 1,
           data: { drawAfter: hasWater && hasDark },
         })
       } else if (hasWater && hasDark) {
@@ -1760,8 +1760,7 @@ function attackPlayer(
     throw new GameRuleError('공격 가능한 상대 몬스터가 있습니다.')
   }
 
-  const requestedLoss = attacker.cardId === 'exploding_mountain_dragon' && enemy.life.length >= 3 ? 2 : 1
-  const selectableLoss = Math.min(requestedLoss, enemy.life.length)
+  const selectableLoss = Math.min(1, enemy.life.length)
 
   const selectedLifeCards = lifeSlotIndices.map((slotIndex) => enemy.life.find(
     (card, index) => (card.lifeSlotIndex ?? index) === slotIndex,
@@ -2269,24 +2268,13 @@ function resolveChoice(
           if (id) {
             assertCandidate(id)
             const index = sourcePlayer.discard.findIndex((card) => card.instanceId === id)
-            if (index < 0) throw new GameRuleError('덱 아래에 놓을 묘지 카드를 찾지 못했습니다.')
+            if (index < 0) throw new GameRuleError('덱 위에 놓을 묘지 카드를 찾지 못했습니다.')
             const [card] = sourcePlayer.discard.splice(index, 1)
-            sourcePlayer.deck.push(resetHandCost(card!))
+            sourcePlayer.deck.unshift(resetHandCost(card!))
           }
-          const hasDark = Boolean(pending.data?.hasDark)
           const drawAfter = Boolean(pending.data?.drawAfter)
           shift()
-          if (hasDark && sourcePlayer.deck[0]) {
-            game.pendingChoices.unshift({
-              type: 'SOF_CHOICE', effect: 'COFFIN_KEEPER_TOP',
-              playerId: pending.sourcePlayerId, sourcePlayerId: pending.sourcePlayerId,
-              sourceUnitId: pending.sourceUnitId,
-              revealedCards: [{ ...sourcePlayer.deck[0] }], minChoices: 1, maxChoices: 1,
-              data: { drawAfter },
-            })
-          } else if (drawAfter) {
-            draw(sourcePlayer, random)
-          }
+          if (drawAfter) draw(sourcePlayer, random)
           return game
         }
 
@@ -2298,8 +2286,20 @@ function resolveChoice(
             throw new GameRuleError('확인했던 덱 위 카드가 변경되었습니다.')
           }
           if (choice === 'discard') sendToDiscard(game, pending.sourcePlayerId, sourcePlayer.deck.shift()!)
+          const hasWater = Boolean(pending.data?.hasWater)
           shift()
-          if (pending.data?.drawAfter) draw(sourcePlayer, random)
+          if (hasWater && sourcePlayer.discard.length > 0) {
+            game.pendingChoices.unshift({
+              type: 'SOF_CHOICE', effect: 'COFFIN_KEEPER_BOTTOM',
+              playerId: pending.sourcePlayerId, sourcePlayerId: pending.sourcePlayerId,
+              sourceUnitId: pending.sourceUnitId,
+              candidateIds: sourcePlayer.discard.map((card) => card.instanceId),
+              minChoices: 0, maxChoices: 1,
+              data: { drawAfter: Boolean(pending.data?.drawAfter) },
+            })
+          } else if (pending.data?.drawAfter) {
+            draw(sourcePlayer, random)
+          }
           return game
         }
       }

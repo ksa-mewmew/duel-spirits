@@ -133,12 +133,18 @@ describe('콘텐츠와 포맷', () => {
     expect(result.errors.some((error) => error.includes('최대 1장'))).toBe(true)
   })
 
-  test('드래프트는 50장 풀에서 20장 덱을 만든다', () => {
+  test('드래프트는 60장 풀에서 20장 덱을 만든다', () => {
     const format = GAME_FORMATS['draft-v1']
     const pool = createDraftPool('pool-size-seed', 'draft-v1', 1)
 
-    expect(format.draft).toMatchObject({ poolSize: 50, deckSize: 20 })
-    expect(pool.cardIds).toHaveLength(50)
+    expect(format.draft).toMatchObject({ poolSize: 60, deckSize: 20 })
+    expect(pool.cardIds).toHaveLength(60)
+    expect(Math.max(...new Map(
+      pool.cardIds.map((cardId) => [
+        cardId,
+        pool.cardIds.filter((candidate) => candidate === cardId).length,
+      ]),
+    ).values())).toBeLessThanOrEqual(format.maxCopiesPerCard)
   })
 
   test('드래프트 덱은 생성된 풀의 수량을 넘을 수 없다', () => {

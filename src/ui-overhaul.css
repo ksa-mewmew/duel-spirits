@@ -180,6 +180,208 @@
   pointer-events: none !important;
 }
 
+/* Server-authoritative timed draft */
+body.draft-active {
+  overflow: hidden;
+  background: #05080c;
+}
+
+body.draft-active .room-screen:not(.room-screen--game) {
+  overflow: hidden;
+}
+
+.server-draft {
+  min-height: 0;
+  height: 100%;
+  padding: clamp(12px, 2.2cqh, 24px) clamp(14px, 2.5cqw, 34px);
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: clamp(9px, 1.4cqh, 15px);
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(213, 182, 98, .12), transparent 38%),
+    linear-gradient(180deg, #111821, #070b10);
+}
+
+.server-draft__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.server-draft__header h2 {
+  margin: 3px 0 4px;
+  color: #f4e8c5;
+  font-size: clamp(22px, 3cqh, 34px);
+}
+
+.server-draft__header p:last-child {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.draft-clock {
+  min-width: 138px;
+  padding: 9px 16px;
+  display: grid;
+  justify-items: center;
+  border: 1px solid rgba(217, 192, 119, .38);
+  border-radius: 12px;
+  background: rgba(3, 8, 13, .82);
+}
+
+.draft-clock span {
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: .12em;
+}
+
+.draft-clock strong {
+  color: #fff0bc;
+  font-family: Georgia, serif;
+  font-size: 25px;
+  font-variant-numeric: tabular-nums;
+}
+
+.draft-clock strong.is-urgent {
+  color: #ff9d83;
+}
+
+.draft-status-row {
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) minmax(150px, 220px) 1fr auto;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.draft-status-row > div {
+  padding: 7px 11px;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 1px 10px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 9px;
+  background: rgba(4, 10, 15, .7);
+}
+
+.draft-status-row > div.is-ready {
+  border-color: rgba(217, 192, 119, .58);
+}
+
+.draft-status-row span,
+.draft-status-row small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.draft-status-row strong {
+  justify-self: end;
+  color: #f3e7c4;
+}
+
+.draft-status-row small {
+  grid-column: 1 / -1;
+}
+
+.draft-status-row > button {
+  min-width: 170px;
+}
+
+.draft-pool-grid {
+  min-height: 0;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  align-content: start;
+  gap: 10px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 12px;
+  background: rgba(2, 6, 10, .52);
+}
+
+.draft-pool-card {
+  min-width: 0;
+  padding: 5px;
+  display: grid;
+  gap: 5px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .025);
+  transition: border-color .14s ease, background .14s ease, transform .14s ease;
+}
+
+.draft-pool-card:hover {
+  transform: translateY(-2px);
+}
+
+.draft-pool-card.is-selected {
+  border-color: rgba(87, 211, 194, .78);
+  background: rgba(29, 132, 120, .13);
+  box-shadow: 0 0 0 1px rgba(87, 211, 194, .16);
+}
+
+.draft-pool-card .draft-choice-card {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 5 / 7;
+}
+
+.draft-pool-card > button {
+  min-height: 28px;
+  padding: 4px 6px;
+  border-color: rgba(153, 192, 199, .28);
+  font-size: 9px;
+}
+
+.draft-pool-card.is-selected > button {
+  border-color: rgba(87, 211, 194, .62);
+  color: #dffcf6;
+}
+
+.server-draft__footer {
+  min-height: 24px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.match-deck-controls--draft-waiting {
+  grid-template-columns: 1fr;
+}
+
+.draft-loading {
+  height: auto;
+  min-height: 180px;
+  align-content: center;
+  justify-items: center;
+}
+
+@media (max-width: 900px) {
+  .server-draft__header {
+    align-items: flex-start;
+  }
+
+  .draft-status-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .draft-status-row > button {
+    grid-column: 1 / -1;
+  }
+
+  .draft-pool-grid {
+    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  }
+}
+
 .arena-center__main > .decision-dock.is-effect-choice.is-battlefield-view .decision-panel-return {
   border-color: rgba(229, 204, 121, .58);
   color: #fff1bd;

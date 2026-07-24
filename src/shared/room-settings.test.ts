@@ -2,8 +2,10 @@ import { describe, expect, test } from 'vitest'
 
 import {
   DEFAULT_SEAT_EXPIRY_SECONDS,
+  DEFAULT_DRAFT_LIMIT_SECONDS,
   DEFAULT_TURN_LIMIT_SECONDS,
   parseSeatExpirySeconds,
+  parseDraftLimitSeconds,
   parseTurnLimitSeconds,
 } from './room-settings'
 
@@ -27,6 +29,13 @@ describe('방 설정 파싱', () => {
   test('허용되지 않은 자리 만료값은 기본값으로 돌아간다', () => {
     expect(parseSeatExpirySeconds('12')).toBe(
       DEFAULT_SEAT_EXPIRY_SECONDS,
+    )
+  })
+
+  test('드래프트 제한 시간을 읽고 잘못된 값은 기본값으로 돌린다', () => {
+    expect(parseDraftLimitSeconds('600')).toBe(600)
+    expect(parseDraftLimitSeconds('17')).toBe(
+      DEFAULT_DRAFT_LIMIT_SECONDS,
     )
   })
 })

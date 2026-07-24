@@ -3,6 +3,8 @@ import { DEFAULT_TURN_DRAW_COUNT } from './schema'
 import type { GameFormat, GameFormatId } from './schema'
 
 export const DEFAULT_FORMAT_ID: GameFormatId = 'open-v1'
+export const DRAFT_POOL_SIZE = 60
+export const DRAFT_DECK_SIZE = 20
 
 export const GAME_FORMATS: Record<GameFormatId, GameFormat<CardId>> = {
   'campaign-prologue-v1': {
@@ -73,11 +75,11 @@ export const GAME_FORMATS: Record<GameFormatId, GameFormat<CardId>> = {
     id: 'draft-v1',
     name: '드래프트',
     shortName: '드래프트',
-    description: '무작위로 생성된 50장 카드 풀에서 20장 덱을 구성하는 포맷입니다. 현재는 로컬 풀 생성 방식입니다.',
+    description: `두 플레이어가 매칭된 뒤 제한 시간 안에 서버가 발급한 ${DRAFT_POOL_SIZE}장 카드 풀에서 ${DRAFT_DECK_SIZE}장 덱을 구성하는 포맷입니다.`,
     kind: 'draft',
     mode: 'pvp',
     deckSource: 'draft',
-    deckSize: 20,
+    deckSize: DRAFT_DECK_SIZE,
     maxCopiesPerCard: 3,
     startingLife: 4,
     startingHand: 4,
@@ -89,9 +91,9 @@ export const GAME_FORMATS: Record<GameFormatId, GameFormat<CardId>> = {
     selectableInDeckBuilder: true,
     selectableInLobby: true,
     draft: {
-      poolSize: 50,
-      deckSize: 20,
-      packCount: 5,
+      poolSize: DRAFT_POOL_SIZE,
+      deckSize: DRAFT_DECK_SIZE,
+      packCount: DRAFT_POOL_SIZE / 10,
       cardsPerPack: 10,
     },
   },

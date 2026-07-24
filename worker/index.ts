@@ -7,7 +7,14 @@ import {
 } from 'partyserver'
 
 import type { GameAction } from '../src/shared/actions'
-import { isDeckCompatibleWithFormat, parseSubmittedDeck, validateDeck } from '../src/shared/decks'
+import { getFormat } from '../src/content/formats'
+import {
+  DECK_SCHEMA_VERSION,
+  createDraftPool,
+  isDeckCompatibleWithFormat,
+  parseSubmittedDeck,
+  validateDeck,
+} from '../src/shared/decks'
 import type { SubmittedDeck } from '../src/shared/decks'
 import type {
   ClientMessage,
@@ -35,9 +42,19 @@ import type {
   SubmittedDecks,
 } from '../src/shared/room-decks'
 import {
+  areBothDraftsConfirmed,
+  autoCompleteDraftSelection,
+  confirmDraftSelection,
+  createDraftPlayerView,
+  createRoomDraftState,
+  setDraftSelection,
+} from '../src/shared/room-draft'
+import type { RoomDraftState } from '../src/shared/room-draft'
+import {
   createDefaultRoomSettings,
   normalizeRoomSettings,
   parseRoomFormatId,
+  parseDraftLimitSeconds,
   parseSeatExpirySeconds,
   parseSelectedSetIds,
   parseTurnLimitSeconds,
@@ -96,6 +113,7 @@ interface PersistedRoomState {
   submittedDecks?: SubmittedDecks
   deckReady?: DeckReadiness
   actionLog?: LoggedAction[]
+  draft?: RoomDraftState | null
 }
 
 interface StoredRoomState {
@@ -109,6 +127,7 @@ interface StoredRoomState {
   submittedDecks: SubmittedDecks
   deckReady: DeckReadiness
   actionLog: LoggedAction[]
+  draft: RoomDraftState | null
 }
 
 const STORAGE_KEY = 'card-duel-room-state'
@@ -211,6 +230,14 @@ function parseClientMessage(
           ? { type: 'SET_REMATCH_READY', ready: parsed.ready }
           : null
 
+      case 'SET_DRAFT_SELECTION':
+        return isIntegerArray(parsed.selectedIndices)
+          ? { type: 'SET_DRAFT_SELECTION', selectedIndices: parsed.selectedIndices }
+          : null
+
+      case 'CONFIRM_DRAFT':
+        return { type: 'CONFIRM_DRAFT' }
+
       case 'LEAVE_ROOM':
         return { type: 'LEAVE_ROOM' }
 
@@ -301,6 +328,7 @@ export class Main extends Server<Env> {
       deckReady:
         persisted.deckReady ?? createEmptyDeckReadiness(),
       actionLog: persisted.actionLog ?? [],
+      draft: persisted.draft ?? null,
     }
 
     await this.scheduleNextAlarm()
@@ -320,6 +348,9 @@ export class Main extends Server<Env> {
     const requestedSettings: RoomSettings = {
       turnLimitSeconds: parseTurnLimitSeconds(
         requestUrl.searchParams.get('turnLimitSeconds'),
+      ),
+      draftLimitSeconds: parseDraftLimitSeconds(
+        requestUrl.searchParams.get('draftLimitSeconds'),
       ),
       seatExpirySeconds: parseSeatExpirySeconds(
         requestUrl.searchParams.get('seatExpirySeconds'),
@@ -352,6 +383,7 @@ export class Main extends Server<Env> {
         submittedDecks: createEmptySubmittedDecks(),
         deckReady: createEmptyDeckReadiness(),
         actionLog: [],
+        draft: null,
       }
     } else if (this.roomState.roomKey !== roomKey) {
       this.rejectConnection(
@@ -440,8 +472,18 @@ export class Main extends Server<Env> {
       )
     }
 
+    if (
+      !this.roomState.game
+      && !this.roomState.draft
+      && this.roomState.settings.formatId === 'draft-v1'
+      && connectedPlayers.length === 2
+    ) {
+      this.startDraft(now)
+    }
+
     await this.persistAndSchedule()
     this.broadcastRoomState()
+    this.broadcastDraftViews()
     this.broadcastGameViews()
   }
 
@@ -475,6 +517,12 @@ export class Main extends Server<Env> {
         return
       case 'SET_REMATCH_READY':
         await this.handleRematchReady(sender, state.playerId, message.ready)
+        return
+      case 'SET_DRAFT_SELECTION':
+        await this.handleDraftSelection(sender, state.playerId, message.selectedIndices)
+        return
+      case 'CONFIRM_DRAFT':
+        await this.handleDraftConfirm(sender, state.playerId)
         return
       case 'LEAVE_ROOM':
         await this.handleLeaveRoom(sender, state.playerId)
@@ -516,6 +564,13 @@ export class Main extends Server<Env> {
       } satisfies ServerMessage))
     }
 
+    if (
+      this.roomState.draft
+      && this.roomState.draft.deadlineAt <= now
+    ) {
+      this.completeDraftAtDeadline()
+    }
+
     const deadline = this.roomState.turnClock.deadlineAt
     let timedOutPlayer: PlayerId | null = null
 
@@ -550,6 +605,7 @@ export class Main extends Server<Env> {
 
     await this.persistAndSchedule()
     this.broadcastRoomState()
+    this.broadcastDraftViews()
     this.broadcastGameViews()
 
     if (timedOutPlayer) {
@@ -566,6 +622,11 @@ export class Main extends Server<Env> {
     deck: SubmittedDeck,
   ): Promise<void> {
     if (!this.roomState) return
+
+    if (this.roomState.settings.formatId === 'draft-v1') {
+      this.sendError(sender, '드래프트 덱은 매칭 후 서버에서 구성합니다.')
+      return
+    }
 
     if (this.roomState.game?.status === 'playing') {
       this.sendError(sender, '진행 중인 게임에서는 덱을 바꿀 수 없습니다.')
@@ -620,6 +681,11 @@ export class Main extends Server<Env> {
   ): Promise<void> {
     if (!this.roomState) return
 
+    if (this.roomState.settings.formatId === 'draft-v1') {
+      this.sendError(sender, '드래프트는 두 플레이어가 연결되면 자동으로 시작합니다.')
+      return
+    }
+
     if (this.roomState.game) {
       this.sendError(sender, '게임이 시작된 뒤에는 준비 상태를 바꿀 수 없습니다.')
       return
@@ -649,6 +715,101 @@ export class Main extends Server<Env> {
     await this.persistAndSchedule()
     this.broadcastRoomState()
     this.broadcastGameViews()
+  }
+
+  private async handleDraftSelection(
+    sender: GameConnection,
+    playerId: PlayerId,
+    selectedIndices: number[],
+  ): Promise<void> {
+    if (!this.roomState?.draft) {
+      this.sendError(sender, '진행 중인 드래프트가 없습니다.')
+      return
+    }
+    if (this.roomState.draft.deadlineAt <= Date.now()) {
+      this.completeDraftAtDeadline()
+      await this.persistAndSchedule()
+      this.broadcastRoomState()
+      this.broadcastGameViews()
+      return
+    }
+
+    const format = getFormat(this.roomState.settings.formatId)
+    if (!format.draft) {
+      this.sendError(sender, '드래프트 포맷이 아닙니다.')
+      return
+    }
+
+    try {
+      const next = setDraftSelection(
+        this.roomState.draft,
+        playerId,
+        selectedIndices,
+        format.draft.deckSize,
+      )
+      const counts = new Map<string, number>()
+      for (const index of next.selectedIndices[playerId]) {
+        const cardId = next.pools[playerId].cardIds[index]
+        if (!cardId) continue
+        const count = (counts.get(cardId) ?? 0) + 1
+        if (count > format.maxCopiesPerCard) {
+          throw new Error(`같은 카드는 최대 ${format.maxCopiesPerCard}장까지 선택할 수 있습니다.`)
+        }
+        counts.set(cardId, count)
+      }
+      this.roomState.draft = next
+      await this.persistAndSchedule()
+      this.broadcastRoomState()
+      this.broadcastDraftViews()
+    } catch (error) {
+      this.sendError(
+        sender,
+        error instanceof Error ? error.message : '드래프트 선택을 저장하지 못했습니다.',
+      )
+    }
+  }
+
+  private async handleDraftConfirm(
+    sender: GameConnection,
+    playerId: PlayerId,
+  ): Promise<void> {
+    if (!this.roomState?.draft) {
+      this.sendError(sender, '진행 중인 드래프트가 없습니다.')
+      return
+    }
+    if (this.roomState.draft.deadlineAt <= Date.now()) {
+      this.completeDraftAtDeadline()
+      await this.persistAndSchedule()
+      this.broadcastRoomState()
+      this.broadcastGameViews()
+      return
+    }
+    const format = getFormat(this.roomState.settings.formatId)
+    if (!format.draft) return
+
+    try {
+      if (this.roomState.draft.selectedIndices[playerId].length !== format.draft.deckSize) {
+        throw new Error(`드래프트 덱 ${format.draft.deckSize}장을 모두 선택해야 합니다.`)
+      }
+      this.assertDraftDeckValid(playerId)
+      this.roomState.draft = confirmDraftSelection(
+        this.roomState.draft,
+        playerId,
+        format.draft.deckSize,
+      )
+      if (areBothDraftsConfirmed(this.roomState.draft)) {
+        this.finishDraftAndStartMatch()
+      }
+      await this.persistAndSchedule()
+      this.broadcastRoomState()
+      this.broadcastDraftViews()
+      this.broadcastGameViews()
+    } catch (error) {
+      this.sendError(
+        sender,
+        error instanceof Error ? error.message : '드래프트 덱을 확정하지 못했습니다.',
+      )
+    }
   }
 
   private async handlePlayerAction(
@@ -754,6 +915,92 @@ export class Main extends Server<Env> {
     this.broadcastRoomState([sender.id])
   }
 
+  private startDraft(now: number): void {
+    if (!this.roomState) return
+    const format = getFormat(this.roomState.settings.formatId)
+    if (!format.draft) return
+
+    this.roomState.submittedDecks = createEmptySubmittedDecks()
+    this.roomState.deckReady = createEmptyDeckReadiness()
+    this.roomState.draft = createRoomDraftState({
+      P1: createDraftPool(
+        `room:${this.name}:P1:${crypto.randomUUID()}`,
+        format.id,
+        now,
+      ),
+      P2: createDraftPool(
+        `room:${this.name}:P2:${crypto.randomUUID()}`,
+        format.id,
+        now,
+      ),
+    }, this.roomState.settings.draftLimitSeconds, now)
+  }
+
+  private createSubmittedDraftDeck(playerId: PlayerId): SubmittedDeck {
+    if (!this.roomState?.draft) {
+      throw new Error('진행 중인 드래프트가 없습니다.')
+    }
+    const format = getFormat(this.roomState.settings.formatId)
+    if (!format.draft) throw new Error('드래프트 포맷이 아닙니다.')
+    const draft = this.roomState.draft
+    const pool = draft.pools[playerId]
+    const cardIds = draft.selectedIndices[playerId].map((index) => {
+      const cardId = pool.cardIds[index]
+      if (!cardId) throw new Error('드래프트 선택에 존재하지 않는 카드가 있습니다.')
+      return cardId
+    })
+
+    return {
+      schemaVersion: DECK_SCHEMA_VERSION,
+      deckId: `room-draft-${this.name}-${playerId}-${pool.seed}`,
+      name: `${playerId} 드래프트 덱`,
+      cardIds,
+      formatId: format.id,
+      selectedSetIds: [],
+      draftPool: structuredClone(pool),
+    }
+  }
+
+  private assertDraftDeckValid(playerId: PlayerId): void {
+    const deck = this.createSubmittedDraftDeck(playerId)
+    const validation = validateDeck(deck.cardIds, deck)
+    if (!validation.valid) throw new Error(validation.errors.join(' '))
+  }
+
+  private finishDraftAndStartMatch(): void {
+    if (!this.roomState?.draft) return
+    const p1Deck = this.createSubmittedDraftDeck('P1')
+    const p2Deck = this.createSubmittedDraftDeck('P2')
+    for (const [playerId, deck] of [['P1', p1Deck], ['P2', p2Deck]] as const) {
+      const validation = validateDeck(deck.cardIds, deck)
+      if (!validation.valid) throw new Error(validation.errors.join(' '))
+      this.roomState.submittedDecks = setSubmittedDeck(
+        this.roomState.submittedDecks,
+        playerId,
+        deck,
+      )
+    }
+    this.roomState.draft = null
+    this.startMatch()
+  }
+
+  private completeDraftAtDeadline(): void {
+    if (!this.roomState?.draft) return
+    const format = getFormat(this.roomState.settings.formatId)
+    if (!format.draft) return
+
+    for (const playerId of ['P1', 'P2'] as const) {
+      this.roomState.draft.selectedIndices[playerId] = autoCompleteDraftSelection(
+        this.roomState.draft.pools[playerId],
+        this.roomState.draft.selectedIndices[playerId],
+        format.draft.deckSize,
+        format.maxCopiesPerCard,
+      )
+      this.roomState.draft.confirmed[playerId] = true
+    }
+    this.finishDraftAndStartMatch()
+  }
+
   private startMatch(): void {
     if (
       !this.roomState?.submittedDecks.P1
@@ -789,6 +1036,7 @@ export class Main extends Server<Env> {
       },
     })
     this.storeMatchAuthority(authority)
+    this.roomState.draft = null
     this.roomState.deckReady = createEmptyDeckReadiness()
     this.roomState.rematchReady = createEmptyRematchReadiness()
     this.roomState.turnClock = startTurnClock(
@@ -801,6 +1049,7 @@ export class Main extends Server<Env> {
     if (!this.roomState) return
     this.roomState.game = null
     this.roomState.actionLog = []
+    this.roomState.draft = null
     this.roomState.deckReady = createEmptyDeckReadiness()
     this.roomState.rematchReady = createEmptyRematchReadiness()
     this.roomState.turnClock = createStoppedTurnClock()
@@ -909,6 +1158,7 @@ export class Main extends Server<Env> {
       phase: getRoomPhase(
         this.roomState?.game?.status ?? null,
         connectedPlayers,
+        Boolean(this.roomState?.draft),
       ),
       connectedPlayers,
       reservedPlayers: this.roomState
@@ -925,6 +1175,25 @@ export class Main extends Server<Env> {
     }
 
     this.broadcast(JSON.stringify(message), excludedConnectionIds)
+  }
+
+  private broadcastDraftViews(): void {
+    if (!this.roomState?.draft) return
+    const format = getFormat(this.roomState.settings.formatId)
+    if (!format.draft) return
+
+    for (const connection of this.getConnections<ConnectionState>()) {
+      const state = connection.state as ConnectionState | null
+      if (!state?.playerId) continue
+      this.send(connection, {
+        type: 'DRAFT_STATE',
+        draft: createDraftPlayerView(
+          this.roomState.draft,
+          state.playerId,
+          format.draft.deckSize,
+        ),
+      })
+    }
   }
 
   private broadcastGameViews(): void {
@@ -971,12 +1240,18 @@ export class Main extends Server<Env> {
   }
 
   private async scheduleNextAlarm(): Promise<void> {
-    const nextAlarm = this.roomState
+    const roomAlarm = this.roomState
       ? getNextAlarmAt(
           this.roomState.turnClock,
           this.roomState.seatExpiresAt,
         )
       : null
+    const draftAlarm = this.roomState?.draft?.deadlineAt ?? null
+    const nextAlarm = roomAlarm === null
+      ? draftAlarm
+      : draftAlarm === null
+        ? roomAlarm
+        : Math.min(roomAlarm, draftAlarm)
 
     if (nextAlarm === null) {
       await this.ctx.storage.deleteAlarm()

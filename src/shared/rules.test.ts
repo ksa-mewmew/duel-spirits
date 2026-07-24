@@ -138,7 +138,7 @@ describe('플레이어 선택 처리', () => {
   test('대상 지정 주문은 선택한 몬스터에만 적용된다', () => {
     const game = createGame({ random: () => 0.5, idSource: createIdSource() })
     game.players.P1.hand = [{ instanceId: 'spell', cardId: 'reverse_current' }]
-    game.players.P1.mana = [0, 1, 2, 3].map((index) => ({
+    game.players.P1.mana = [0, 1, 2].map((index) => ({
       instanceId: `mana-${index}`,
       cardId: 'ripple_spirit' as const,
       exhausted: false,
@@ -163,7 +163,7 @@ describe('플레이어 선택 처리', () => {
     const next = applyAction(game, 'P1', {
       type: 'PLAY_CARD',
       cardInstanceId: 'spell',
-      manaIds: ['mana-0', 'mana-1', 'mana-2', 'mana-3'],
+      manaIds: ['mana-0', 'mana-1', 'mana-2'],
       selection: { unitId: 'chosen-target' },
     })
 

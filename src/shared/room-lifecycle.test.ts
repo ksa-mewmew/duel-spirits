@@ -46,6 +46,10 @@ describe('방 단계', () => {
     expect(getRoomPhase(null, ['P1'])).toBe('waiting')
   })
 
+  test('서버 드래프트가 시작되면 drafting 단계다', () => {
+    expect(getRoomPhase(null, ['P1', 'P2'], true)).toBe('drafting')
+  })
+
   test('진행 중인 게임에서 한 명이 끊기면 일시 중단된다', () => {
     expect(getRoomPhase('playing', ['P1'])).toBe(
       'disconnected',
