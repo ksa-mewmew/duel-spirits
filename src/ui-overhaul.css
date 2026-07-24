@@ -3833,6 +3833,14 @@ body.room-waiting-active { background: #030506; }
     box-shadow: 0 0 18px rgba(77, 218, 232, .24);
   }
 
+  /* 전장 중앙을 가로지르는 장식선 제거 */
+  @media (min-width: 1080px) and (min-height: 640px) {
+    .battle-board::after {
+      content: none !important;
+      display: none !important;
+    }
+  }
+
   .player-board {
     position: relative;
     min-height: 0;
@@ -5767,4 +5775,12 @@ h3,
 .mana-card--expanded.game-card--art-ready.game-card--center-name .game-card__code {
   inset: auto 7px 9px !important;
   height: 19px !important;
+}
+
+
+/* 모든 일반 카드의 이름표를 좌우로 소폭 축소 */
+.game-card:not(.game-card--name-only) .game-card__code {
+  left: clamp(9px, 7%, 18px) !important;
+  right: clamp(9px, 7%, 18px) !important;
+  width: auto !important;
 }
