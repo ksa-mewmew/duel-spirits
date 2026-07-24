@@ -158,6 +158,32 @@ describe('SOF 불·물 전투', () => {
     expect(direct.players.P2.life).toHaveLength(3)
   })
 
+  test('쇠뿔 멧돼지는 불 공명을 충족했을 때만 소환된 턴에 돌진한다', () => {
+    const resonant = createTestGame()
+    resonant.players.P1.hand = [card('boar', 'iron_horn_boar')]
+    resonant.players.P1.mana = [mana('fire', 'living_flame'), mana('earth', 'seeding_fairy')]
+    setEnemyUnit(resonant, unit('target', 'rock_armor_knight'))
+    const summoned = applyAction(resonant, 'P1', {
+      type: 'PLAY_CARD', cardInstanceId: 'boar', manaIds: ['fire', 'earth'], selection: { fieldSlot: 0 },
+    })
+    expect(summoned.players.P1.field[0]?.temporaryCharge).toBe(true)
+    const attacked = applyAction(summoned, 'P1', {
+      type: 'ATTACK_UNIT', attackerId: 'boar', defenderId: 'target',
+    })
+    expect(attacked.players.P2.field).toHaveLength(0)
+
+    const nonResonant = createTestGame()
+    nonResonant.players.P1.hand = [card('boar-2', 'iron_horn_boar')]
+    nonResonant.players.P1.mana = [mana('earth-1', 'seeding_fairy'), mana('earth-2', 'tree_fairy')]
+    setEnemyUnit(nonResonant, unit('target-2', 'rock_armor_knight'))
+    const noCharge = applyAction(nonResonant, 'P1', {
+      type: 'PLAY_CARD', cardInstanceId: 'boar-2', manaIds: ['earth-1', 'earth-2'], selection: { fieldSlot: 0 },
+    })
+    expect(() => applyAction(noCharge, 'P1', {
+      type: 'ATTACK_UNIT', attackerId: 'boar-2', defenderId: 'target-2',
+    })).toThrow('이번 턴에 소환된 몬스터')
+  })
+
   test('화염 투창병의 선제 피해로 대상이 죽으면 반격받지 않는다', () => {
     const game = createTestGame()
     game.players.P1.field = [unit('javelin', 'flame_javelin_soldier')]
@@ -165,6 +191,39 @@ describe('SOF 불·물 전투', () => {
     const next = applyAction(game, 'P1', { type: 'ATTACK_UNIT', attackerId: 'javelin', defenderId: 'target' })
     expect(next.players.P2.field).toHaveLength(0)
     expect(next.players.P1.field[0]?.damage).toBe(0)
+  })
+
+  test('화염 투창병은 방어할 때도 전투 전에 상대에게 피해 1을 준다', () => {
+    const game = createTestGame()
+    game.players.P1.field = [unit('attacker', 'living_flame')]
+    setEnemyUnit(game, unit('javelin', 'flame_javelin_soldier'))
+    const next = applyAction(game, 'P1', {
+      type: 'ATTACK_UNIT', attackerId: 'attacker', defenderId: 'javelin',
+    })
+    expect(next.players.P1.field).toHaveLength(0)
+    expect(next.players.P2.field[0]).toMatchObject({ instanceId: 'javelin', damage: 0 })
+  })
+
+  test('화산 폭발은 자신의 불 몬스터가 죽었을 때만 한 번 더 발동한다', () => {
+    const nonFireDeath = createTestGame()
+    nonFireDeath.players.P1.hand = [card('eruption', 'volcanic_eruption')]
+    nonFireDeath.players.P1.mana = Array.from({ length: 5 }, (_, index) => mana(`m${index}`, 'living_flame'))
+    nonFireDeath.players.P1.field = [unit('earth-victim', 'tree_fairy')]
+    setEnemyUnit(nonFireDeath, unit('enemy-survivor', 'rock_armor_knight'))
+    const once = applyAction(nonFireDeath, 'P1', {
+      type: 'PLAY_CARD', cardInstanceId: 'eruption', manaIds: ['m0', 'm1', 'm2', 'm3', 'm4'],
+    })
+    expect(once.players.P2.field[0]).toMatchObject({ instanceId: 'enemy-survivor', damage: 2 })
+
+    const fireDeath = createTestGame()
+    fireDeath.players.P1.hand = [card('eruption-2', 'volcanic_eruption')]
+    fireDeath.players.P1.mana = Array.from({ length: 5 }, (_, index) => mana(`f${index}`, 'living_flame'))
+    fireDeath.players.P1.field = [unit('fire-victim', 'living_flame')]
+    setEnemyUnit(fireDeath, unit('enemy-destroyed', 'rock_armor_knight'))
+    const twice = applyAction(fireDeath, 'P1', {
+      type: 'PLAY_CARD', cardInstanceId: 'eruption-2', manaIds: ['f0', 'f1', 'f2', 'f3', 'f4'],
+    })
+    expect(twice.players.P2.field).toHaveLength(0)
   })
 
   test('터지지 않은 폭탄쥐 유언은 상대 몬스터에게 피해 2를 준다', () => {
@@ -195,6 +254,24 @@ describe('SOF 불·물 전투', () => {
     expect(next.players.P2.life).toHaveLength(2)
   })
 
+  test('얼음거울 정령은 소진된 비용 2 이하 몬스터만 대상으로 삼는다', () => {
+    const game = createTestGame()
+    game.players.P1.hand = [card('ice', 'ice_mirror_spirit')]
+    game.players.P1.mana = [mana('w1', 'wave_reader'), mana('w2', 'ripple_spirit'), mana('w3', 'high_tide')]
+    game.players.P2.field = [
+      unit('ready-small', 'living_flame', 0, { ownerId: 'P2', controllerId: 'P2', exhausted: false }),
+      unit('tired-small', 'ash_hound', 1, { ownerId: 'P2', controllerId: 'P2', exhausted: true }),
+      unit('tired-large', 'rock_armor_knight', 2, { ownerId: 'P2', controllerId: 'P2', exhausted: true }),
+    ]
+    const choosing = applyAction(game, 'P1', {
+      type: 'PLAY_CARD', cardInstanceId: 'ice', manaIds: ['w1', 'w2', 'w3'], selection: { fieldSlot: 0 },
+    })
+    expect(choosing.pendingChoices[0]).toMatchObject({
+      effect: 'ICE_MIRROR_FREEZE',
+      candidateIds: ['tired-small'],
+    })
+  })
+
   test('되돌아오는 해파리는 전투 뒤 살아 있으면 손으로 돌아간다', () => {
     const game = createTestGame()
     game.players.P1.field = [unit('jelly', 'returning_jellyfish')]
@@ -206,19 +283,25 @@ describe('SOF 불·물 전투', () => {
 })
 
 describe('SOF 땅·빛·어둠과 공명', () => {
-  test('마나를 뒤집는 요정으로 손의 나무 요정을 마나에 놓아도 뽑지 않는다', () => {
+  test('땅을 가는 요정으로 나무 요정을 마나에 놓으면 나무 요정의 추가 마나 효과가 이어진다', () => {
     const game = createTestGame()
-    game.players.P1.hand = [card('fairy', 'mana_flipping_fairy'), card('tree', 'tree_fairy')]
-    game.players.P1.deck = [card('marker', 'living_flame')]
+    game.players.P1.hand = [
+      card('fairy', 'mana_flipping_fairy'),
+      card('tree', 'tree_fairy'),
+      card('extra', 'living_flame'),
+    ]
     game.players.P1.mana = [mana('pay1', 'heavy_seed'), mana('pay2', 'heavy_seed'), mana('return', 'rock_armor_knight')]
 
     const first = applyAction(game, 'P1', {
       type: 'PLAY_CARD', cardInstanceId: 'fairy', manaIds: ['pay1', 'pay2'], selection: { fieldSlot: 0 },
     })
     const returned = applyAction(first, 'P1', { type: 'RESOLVE_CHOICE', choiceIds: ['return'] })
-    const placed = applyAction(returned, 'P1', { type: 'RESOLVE_CHOICE', choiceIds: ['tree'] })
-    expect(placed.players.P1.deck[0]?.instanceId).toBe('marker')
-    expect(placed.players.P1.hand).toContainEqual(expect.objectContaining({ instanceId: 'return' }))
+    const treePlaced = applyAction(returned, 'P1', { type: 'RESOLVE_CHOICE', choiceIds: ['tree'] })
+    expect(treePlaced.pendingChoices[0]).toMatchObject({ effect: 'TREE_FAIRY_HAND_MANA' })
+    const completed = applyAction(treePlaced, 'P1', { type: 'RESOLVE_CHOICE', choiceIds: ['extra'] })
+    expect(completed.players.P1.mana).toContainEqual(expect.objectContaining({ instanceId: 'tree', exhausted: true }))
+    expect(completed.players.P1.mana).toContainEqual(expect.objectContaining({ instanceId: 'extra', exhausted: false }))
+    expect(completed.players.P1.hand).toContainEqual(expect.objectContaining({ instanceId: 'return' }))
   })
 
   test('솟아나는 대지는 출현 없이 소환하고 땅 몬스터에게 이번 턴 돌진을 준다', () => {
@@ -240,13 +323,19 @@ describe('SOF 땅·빛·어둠과 공명', () => {
     expect(attacked.players.P2.field[0]?.damage).toBe(1)
   })
 
-  test('쇠약한 거인은 턴 종료 시 묘지가 비어 있으면 묘지로 간다', () => {
-    const game = createTestGame()
-    game.players.P1.field = [unit('giant', 'weakened_giant')]
-    game.players.P1.discard = []
-    const next = applyAction(game, 'P1', { type: 'END_TURN' })
-    expect(next.players.P1.field).toHaveLength(0)
-    expect(next.players.P1.discard).toContainEqual(expect.objectContaining({ instanceId: 'giant' }))
+  test('쇠약한 거인은 턴 종료 시 묘지에 어둠 카드가 없으면 묘지로 간다', () => {
+    const noDark = createTestGame()
+    noDark.players.P1.field = [unit('giant', 'weakened_giant')]
+    noDark.players.P1.discard = [card('fire-discard', 'living_flame')]
+    const destroyed = applyAction(noDark, 'P1', { type: 'END_TURN' })
+    expect(destroyed.players.P1.field).toHaveLength(0)
+    expect(destroyed.players.P1.discard).toContainEqual(expect.objectContaining({ instanceId: 'giant' }))
+
+    const withDark = createTestGame()
+    withDark.players.P1.field = [unit('safe-giant', 'weakened_giant')]
+    withDark.players.P1.discard = [card('dark-discard', 'corpse_cat')]
+    const survived = applyAction(withDark, 'P1', { type: 'END_TURN' })
+    expect(survived.players.P1.field).toContainEqual(expect.objectContaining({ instanceId: 'safe-giant' }))
   })
 
   test('침묵하는 방패병은 공격할 수 없고 작은 심판관은 비용 1 공격을 막는다', () => {
@@ -259,6 +348,17 @@ describe('SOF 땅·빛·어둠과 공명', () => {
     judgeGame.players.P1.field = [unit('small', 'living_flame')]
     setEnemyUnit(judgeGame, unit('judge', 'little_judge'))
     expect(() => applyAction(judgeGame, 'P1', { type: 'ATTACK_UNIT', attackerId: 'small', defenderId: 'judge' })).toThrow('작은 심판관')
+  })
+
+  test('구원의 창기사는 라이프가 2장 이하이면 공격력 +1을 얻는다', () => {
+    const game = createTestGame()
+    game.players.P1.life = game.players.P1.life.slice(0, 2)
+    game.players.P1.field = [unit('lancer', 'salvation_lancer')]
+    setEnemyUnit(game, unit('target', 'rock_armor_knight'))
+    const next = applyAction(game, 'P1', {
+      type: 'ATTACK_UNIT', attackerId: 'lancer', defenderId: 'target',
+    })
+    expect(next.players.P2.field[0]?.damage).toBe(3)
   })
 
   test('성령의 대리인이 있으면 한 턴의 전체 공격은 최대 두 번이다', () => {

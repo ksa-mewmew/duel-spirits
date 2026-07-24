@@ -44,7 +44,17 @@ function unit(
 }
 
 describe('카드군 1 최신 능력', () => {
-  test('화산쥐는 항상 돌진하며 불 마나가 둘 이상이면 공격력 2로 전투한다', () => {
+  test('화산쥐는 불 마나가 둘 이상일 때만 비용 0으로 소환할 수 있다', () => {
+    const blocked = createTestGame()
+    blocked.players.P1.hand = [{ instanceId: 'mouse', cardId: 'volcano_mouse' }]
+    blocked.players.P1.mana = [mana('fire-1', 'living_flame')]
+    expect(() => applyAction(blocked, 'P1', {
+      type: 'PLAY_CARD',
+      cardInstanceId: 'mouse',
+      manaIds: [],
+      selection: { fieldSlot: 0 },
+    })).toThrow('불 카드가 2장 이상')
+
     const game = createTestGame()
     game.players.P1.hand = [{ instanceId: 'mouse', cardId: 'volcano_mouse' }]
     game.players.P1.mana = [
@@ -56,16 +66,62 @@ describe('카드군 1 최신 능력', () => {
     const summoned = applyAction(game, 'P1', {
       type: 'PLAY_CARD',
       cardInstanceId: 'mouse',
-      manaIds: ['fire-1'],
+      manaIds: [],
       selection: { fieldSlot: 0 },
     })
-    const attacked = applyAction(summoned, 'P1', {
+    expect(summoned.players.P1.mana.every((card) => !card.exhausted)).toBe(true)
+    expect(() => applyAction(summoned, 'P1', {
       type: 'ATTACK_UNIT',
       attackerId: 'mouse',
       defenderId: 'target',
-    })
+    })).toThrow('이번 턴에 소환된 몬스터')
+  })
 
-    expect(attacked.players.P2.field[0]?.damage).toBe(2)
+  test('화산쥐의 소환 조건은 불타는 행렬 같은 효과 소환에도 적용된다', () => {
+    const blocked = createTestGame()
+    blocked.players.P1.hand = [{ instanceId: 'procession', cardId: 'burning_procession' }]
+    blocked.players.P1.mana = [
+      mana('w1', 'wave_reader'), mana('w2', 'ripple_spirit'),
+      mana('w3', 'high_tide'), mana('w4', 'reverse_current'),
+    ]
+    blocked.players.P1.deck = [
+      { instanceId: 'mouse-top', cardId: 'volcano_mouse' },
+      { instanceId: 'flame-top', cardId: 'living_flame' },
+      { instanceId: 'other-top', cardId: 'tree_fairy' },
+    ]
+    const blockedChoice = applyAction(blocked, 'P1', {
+      type: 'PLAY_CARD',
+      cardInstanceId: 'procession',
+      manaIds: ['w1', 'w2', 'w3', 'w4'],
+    })
+    expect(() => applyAction(blockedChoice, 'P1', {
+      type: 'RESOLVE_CHOICE',
+      choiceIds: ['mouse-top@0'],
+    })).toThrow('소환할 수 없는 카드')
+
+    const allowed = createTestGame()
+    allowed.players.P1.hand = [{ instanceId: 'procession', cardId: 'burning_procession' }]
+    allowed.players.P1.mana = [
+      mana('f1', 'living_flame'), mana('f2', 'living_smoke'),
+      mana('w1', 'wave_reader'), mana('w2', 'ripple_spirit'),
+    ]
+    allowed.players.P1.deck = [
+      { instanceId: 'mouse-top', cardId: 'volcano_mouse' },
+      { instanceId: 'flame-top', cardId: 'living_flame' },
+      { instanceId: 'other-top', cardId: 'tree_fairy' },
+    ]
+    const allowedChoice = applyAction(allowed, 'P1', {
+      type: 'PLAY_CARD',
+      cardInstanceId: 'procession',
+      manaIds: ['f1', 'f2', 'w1', 'w2'],
+    })
+    const summoned = applyAction(allowedChoice, 'P1', {
+      type: 'RESOLVE_CHOICE',
+      choiceIds: ['mouse-top@0'],
+    })
+    expect(summoned.players.P1.field).toContainEqual(
+      expect.objectContaining({ instanceId: 'mouse-top', cardId: 'volcano_mouse' }),
+    )
   })
 
   test('살아 움직이는 연기는 전투에서만 공격력 2를 얻는다', () => {
@@ -129,33 +185,55 @@ describe('카드군 1 최신 능력', () => {
     expect(resolved.players.P1.deck.map((card) => card.instanceId)).toEqual(['draw-marker', 'fire-top'])
   })
 
-  test('나무에 사는 요정은 손에서 직접 마나로 놓을 때는 뽑지 않고 효과로 놓일 때만 뽑는다', () => {
+  test('나무에 사는 요정이 마나에 놓이면 손 카드 한 장을 추가로 준비 마나에 놓을 수 있다', () => {
     const handGame = createTestGame()
-    handGame.players.P1.hand = [{ instanceId: 'tree-hand', cardId: 'tree_fairy' }]
-    handGame.players.P1.deck = [{ instanceId: 'not-drawn', cardId: 'ash_hound' }]
+    handGame.players.P1.hand = [
+      { instanceId: 'tree-hand', cardId: 'tree_fairy' },
+      { instanceId: 'extra-hand', cardId: 'ash_hound' },
+    ]
 
-    const placedFromHand = applyAction(handGame, 'P1', {
+    const choosingFromHand = applyAction(handGame, 'P1', {
       type: 'PLACE_MANA',
       cardInstanceId: 'tree-hand',
     })
-    expect(placedFromHand.players.P1.hand).toHaveLength(0)
-    expect(placedFromHand.players.P1.deck[0]?.instanceId).toBe('not-drawn')
+    expect(choosingFromHand.pendingChoices[0]).toMatchObject({
+      effect: 'TREE_FAIRY_HAND_MANA',
+      candidateIds: ['extra-hand'],
+    })
+    const placedFromHand = applyAction(choosingFromHand, 'P1', {
+      type: 'RESOLVE_CHOICE',
+      choiceIds: ['extra-hand'],
+    })
+    expect(placedFromHand.players.P1.mana).toEqual(expect.arrayContaining([
+      expect.objectContaining({ instanceId: 'tree-hand', exhausted: false }),
+      expect.objectContaining({ instanceId: 'extra-hand', exhausted: false }),
+    ]))
 
     const effectGame = createTestGame()
-    effectGame.players.P1.hand = [{ instanceId: 'seeder', cardId: 'seeding_fairy' }]
-    effectGame.players.P1.mana = [mana('earth-1', 'heavy_seed'), mana('earth-2', 'rock_armor_knight')]
-    effectGame.players.P1.deck = [
-      { instanceId: 'tree-effect', cardId: 'tree_fairy' },
-      { instanceId: 'drawn', cardId: 'ash_hound' },
+    effectGame.players.P1.hand = [
+      { instanceId: 'seeder', cardId: 'seeding_fairy' },
+      { instanceId: 'effect-extra', cardId: 'living_flame' },
     ]
+    effectGame.players.P1.mana = [mana('earth-1', 'heavy_seed')]
+    effectGame.players.P1.deck = [{ instanceId: 'tree-effect', cardId: 'tree_fairy' }]
 
-    const placedByEffect = applyAction(effectGame, 'P1', {
+    const choosingFromEffect = applyAction(effectGame, 'P1', {
       type: 'PLAY_CARD',
       cardInstanceId: 'seeder',
-      manaIds: ['earth-1', 'earth-2'],
+      manaIds: ['earth-1'],
       selection: { fieldSlot: 0 },
     })
-    expect(placedByEffect.players.P1.hand).toContainEqual(expect.objectContaining({ instanceId: 'drawn' }))
+    expect(choosingFromEffect.players.P1.mana).toContainEqual(
+      expect.objectContaining({ instanceId: 'tree-effect', exhausted: true }),
+    )
+    expect(choosingFromEffect.pendingChoices[0]).toMatchObject({ effect: 'TREE_FAIRY_HAND_MANA' })
+    const placedByEffect = applyAction(choosingFromEffect, 'P1', {
+      type: 'RESOLVE_CHOICE',
+      choiceIds: ['effect-extra'],
+    })
+    expect(placedByEffect.players.P1.mana).toContainEqual(
+      expect.objectContaining({ instanceId: 'effect-extra', exhausted: false }),
+    )
   })
 
   test('이름 없는 그림자는 묘지 세 장 이상이면 전투한 상대를 암살한다', () => {

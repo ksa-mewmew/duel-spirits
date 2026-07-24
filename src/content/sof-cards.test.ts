@@ -21,8 +21,8 @@ const SOF_BALANCE = {
   crystal_tsunami: ['수정 해일', 'unit', 5, 4, 4, ['water'], 'water'],
 
   hard_seed_bug: ['단단한 씨앗벌레', 'unit', 1, 1, 2, ['earth'], null],
-  boulder_carrier: ['돌덩이 운반꾼', 'unit', 2, 4, 3, ['earth'], null],
-  mana_flipping_fairy: ['마나를 뒤집는 요정', 'unit', 2, 1, 3, ['earth'], null],
+  boulder_carrier: ['돌덩이 운반꾼', 'unit', 2, 2, 4, ['earth'], null],
+  mana_flipping_fairy: ['땅을 가는 요정', 'unit', 2, 1, 3, ['earth'], null],
   cliff_hunter: ['절벽의 사냥꾼', 'unit', 3, 1, 4, ['earth'], null],
   rising_earth: ['솟아나는 대지', 'spell', 5, null, null, ['earth'], null],
   walking_hill: ['걸어 다니는 언덕', 'unit', 4, 5, 5, ['earth'], 'earth'],
@@ -30,7 +30,7 @@ const SOF_BALANCE = {
 
   poisoned_skeleton: ['독이 발린 해골', 'unit', 2, 1, 1, ['dark'], null],
   grave_merchant: ['무덤 안의 상인', 'unit', 2, 2, 2, ['dark'], null],
-  weakened_giant: ['쇠약한 거인', 'unit', 2, 4, 3, ['dark'], null],
+  weakened_giant: ['쇠약한 거인', 'unit', 2, 4, 4, ['dark'], null],
   funeral_inviter: ['장례식의 초대자', 'unit', 3, 2, 3, ['dark'], null],
   mass_burial: ['집단 매장', 'spell', 4, null, null, ['dark'], null],
   blackwing_predator: ['검은날개 포식자', 'unit', 3, 3, 2, ['dark'], 'dark'],
@@ -39,7 +39,7 @@ const SOF_BALANCE = {
   silent_shield_soldier: ['침묵하는 방패병', 'unit', 2, 2, 4, ['light'], null],
   returning_paladin: ['돌아오는 성기사', 'unit', 2, 2, 2, ['light'], null],
   little_judge: ['작은 심판관', 'unit', 2, 2, 3, ['light'], null],
-  salvation_lancer: ['구원의 창기사', 'unit', 3, 2, 3, ['light'], null],
+  salvation_lancer: ['구원의 창기사', 'unit', 2, 2, 3, ['light'], null],
   last_prayer: ['마지막 기도', 'spell', 5, null, null, ['light'], null],
   sky_white_horse_knight: ['천공의 백마기사', 'unit', 4, 3, 4, ['light'], 'light'],
   spirit_agent: ['성령의 대리인', 'unit', 6, 5, 7, ['light'], 'light'],
@@ -95,6 +95,14 @@ describe('진화의 시작(SOF) 원고', () => {
   })
 
   test('핵심 능력 문구를 보존한다', () => {
+    expect(CARDS.iron_horn_boar.rulesText).toContain('불 공명 - 돌진')
+    expect(CARDS.iron_horn_boar.type === 'unit' ? CARDS.iron_horn_boar.keywords : []).not.toContain('charge')
+    expect(CARDS.flame_javelin_soldier.rulesText).toContain('전투할 때')
+    expect(CARDS.volcanic_eruption.rulesText).toContain('자신의 불 몬스터')
+    expect(CARDS.ice_mirror_spirit.rulesText).toContain('소진된 비용 2 이하')
+    expect(CARDS.weakened_giant.rulesText).toContain('묘지에 어둠 카드가 없다면')
+    expect(CARDS.mourner.rulesText).toContain('출현 - 자신의 다른 몬스터')
+    expect(CARDS.salvation_lancer.rulesText).toContain('공격력 +1')
     expect(CARDS.flame_mane_captain.rulesText).toContain('진화 - 불 몬스터')
     expect(CARDS.exploding_mountain_dragon.rulesText).toContain('라이프를 하나 추가로')
     expect(CARDS.earth_guardian.rulesText).toContain('최대 2장')

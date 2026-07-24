@@ -255,30 +255,42 @@ describe('플레이어 선택 처리', () => {
 })
 
 describe('카드 상호작용 보강', () => {
-  test('씨 뿌리는 요정으로 나무에 사는 요정이 마나에 놓여도 1장 뽑는다', () => {
+  test('씨 뿌리는 요정으로 나무에 사는 요정이 마나에 놓이면 추가 마나 선택이 생긴다', () => {
     const game = createGame({ random: () => 0.5, idSource: createIdSource() })
-    game.players.P1.hand = [{ instanceId: 'seeder', cardId: 'seeding_fairy' }]
+    game.players.P1.hand = [
+      { instanceId: 'seeder', cardId: 'seeding_fairy' },
+      { instanceId: 'extra-card', cardId: 'ash_hound' },
+    ]
     game.players.P1.mana = [
       { instanceId: 'earth-mana', cardId: 'seeding_fairy', exhausted: false },
-      { instanceId: 'earth-mana-2', cardId: 'tree_fairy', exhausted: false },
     ]
     game.players.P1.deck = [
       { instanceId: 'tree-on-top', cardId: 'tree_fairy' },
-      { instanceId: 'drawn-card', cardId: 'ash_hound' },
     ]
 
-    const next = applyAction(game, 'P1', {
+    const choosing = applyAction(game, 'P1', {
       type: 'PLAY_CARD',
       cardInstanceId: 'seeder',
-      manaIds: ['earth-mana', 'earth-mana-2'],
+      manaIds: ['earth-mana'],
       selection: { fieldSlot: 0 },
     })
 
-    expect(next.players.P1.mana.find((card) => card.instanceId === 'tree-on-top')).toMatchObject({
+    expect(choosing.players.P1.mana.find((card) => card.instanceId === 'tree-on-top')).toMatchObject({
       cardId: 'tree_fairy',
       exhausted: true,
     })
-    expect(next.players.P1.hand.some((card) => card.instanceId === 'drawn-card')).toBe(true)
+    expect(choosing.pendingChoices[0]).toMatchObject({
+      effect: 'TREE_FAIRY_HAND_MANA',
+      candidateIds: ['extra-card'],
+    })
+
+    const resolved = applyAction(choosing, 'P1', {
+      type: 'RESOLVE_CHOICE',
+      choiceIds: ['extra-card'],
+    })
+    expect(resolved.players.P1.mana.find((card) => card.instanceId === 'extra-card')).toMatchObject({
+      exhausted: false,
+    })
   })
 
   test('고립은 전장 상태가 바뀌면 즉시 활성화·비활성화된다', () => {
@@ -296,7 +308,7 @@ describe('카드 상호작용 보강', () => {
       battlefieldEntrySeq: 2,
       exhausted: false, summonedThisTurn: false, attacksThisTurn: 0,
       // 마지막 불씨의 개정 체력은 1이므로, 이 검사는 생존 여부가 아니라
-      // 고립 공격력의 즉시 반영만 검증하도록 수비 측 공격력을 0으로 둡니다.
+      // 고립 돌진의 활성화와 공격 횟수만 검증하도록 수비 측 공격력을 0으로 둡니다.
       temporaryAttackModifier: -1, temporaryHealthModifier: 10,
     }]
 
@@ -311,7 +323,7 @@ describe('카드 상호작용 보강', () => {
       attacksThisTurn: 1,
       exhausted: true,
     })
-    expect(isolatedAttack.players.P2.field[0]?.damage).toBe(3)
+    expect(isolatedAttack.players.P2.field[0]?.damage).toBe(2)
 
     const notIsolated = createGame({ random: () => 0.5, idSource: createIdSource(), startingPlayer: 'P1' })
     notIsolated.players.P1.field = [

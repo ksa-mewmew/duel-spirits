@@ -152,25 +152,24 @@ const s = (
 
 export const CARDS: Record<CardId, CardDefinition> = {
   volcano_mouse: u(
-    'volcano_mouse', '화산쥐', 1, 1, 1, ['fire'],
-    '돌진. 자신의 마나에 불 카드가 2장 이상 있으면, 이 몬스터는 공격력 +1을 얻는다.',
-    ['charge'],
+    'volcano_mouse', '화산쥐', 0, 1, 1, ['fire'],
+    '자신의 마나에 불 카드가 2장 이상 있는 경우에만 소환할 수 있다.',
   ),
   living_flame: u('living_flame', '살아 움직이는 불꽃', 1, 2, 1, ['fire'], '없음.'),
   living_smoke: u(
     'living_smoke', '살아 움직이는 연기', 2, 0, 3, ['fire'],
-    '전투 시, 이 몬스터는 공격력 +2를 얻는다. 각성 - 자신의 전장에 빈 슬롯이 있다면 이 카드를 소환한다.',
+    '전투할 때마다, 이 몬스터는 공격력 +2를 얻는다. 각성 - 자신의 전장에 빈 슬롯이 있다면 이 카드를 소환한다.',
   ),
   last_ember: u(
     'last_ember', '마지막 불씨', 2, 2, 1, ['fire'],
-    '고립 - 이 몬스터는 돌진과 공격력 +1을 얻는다. 유언 - 카드 1장을 뽑는다.',
+    '고립 - 이 몬스터는 돌진을 얻는다. 유언 - 카드 1장을 뽑는다.',
     ['last_words'],
   ),
   ash_hound: u('ash_hound', '잿빛 들개', 2, 3, 2, ['fire'], '돌진.', ['charge']),
   moth_swarm: u('moth_swarm', '불나방 무리', 3, 3, 1, ['fire'], '기습.', ['rush']),
   burning_procession: s(
     'burning_procession', '불타는 행렬', 4, ['fire'],
-    '자신의 덱 맨 위 카드 4장을 확인한다. 그중 비용이 2 이하인 불 몬스터를 최대 2장까지 소환한다. 나머지는 묘지로 보낸다.',
+    '자신의 덱 맨 위 카드 3장을 확인한다. 그중 비용이 2 이하인 불 몬스터를 최대 2장까지 소환한다. 나머지는 묘지로 보낸다.',
   ),
   ash_pirate_ship: u(
     'ash_pirate_ship', '잿더미 해적선', 4, 3, 2, ['fire', 'water'],
@@ -181,7 +180,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     '출현 - 물 공명 - 자신의 덱 맨 위 카드를 확인한다. 그 카드를 덱 맨 위로 되돌리거나 묘지로 보낸다.',
   ),
   ripple_spirit: u(
-    'ripple_spirit', '잔물결 정령', 2, 1, 1, ['water'],
+    'ripple_spirit', '잔물결 정령', 2, 1, 2, ['water'],
     '출현 - 카드를 1장 뽑는다.',
   ),
   ebb: s(
@@ -193,24 +192,24 @@ export const CARDS: Record<CardId, CardDefinition> = {
     '출현 - 자신의 덱 맨 위 카드 2장을 확인한다. 그중 비용 2 이하의 물 몬스터 한 장을 공개하고 소환할 수 있다. (이때, 출현은 발동하지 않는다.) 나머지는 원하는 순서로 덱 맨 아래에 놓는다.',
   ),
   ash_clearing_rain: s(
-    'ash_clearing_rain', '잿더미를 치우는 비', 4, ['water'],
+    'ash_clearing_rain', '잿더미를 치우는 비', 3, ['water'],
     '공격력이 1이거나 남은 체력이 1인 모든 몬스터를 묘지로 보낸다.',
   ),
-  high_tide: s('high_tide', '밀물', 4, ['water'], '카드 2장을 뽑는다.'),
+  high_tide: s('high_tide', '밀물', 3, ['water'], '카드 2장을 뽑는다.'),
   reverse_current: s(
     'reverse_current', '역류', 4, ['water'],
     '상대 전장의 소진된 몬스터 하나를 그 소유자의 손으로 가져온다.',
   ),
   tsunami: s(
-    'tsunami', '쓰나미', 3, ['water', 'earth'],
+    'tsunami', '쓰나미', 2, ['water', 'earth'],
     '물 공명 - 카드 1장을 뽑는다. 땅 공명 - 자신의 덱 맨 위 카드를 소진된 상태로 자신의 마나에 놓는다.',
   ),
   tree_fairy: u(
     'tree_fairy', '나무에 사는 요정', 1, 1, 1, ['earth'],
-    '이 카드가 자신의 손 이외의 곳에서 마나에 놓일 때, 카드 1장을 뽑는다.',
+    '이 카드가 마나에 놓일 때, 손에서 마나에 카드를 한 장 놓을 수 있다.',
   ),
   seeding_fairy: u(
-    'seeding_fairy', '씨 뿌리는 요정', 2, 1, 1, ['earth'],
+    'seeding_fairy', '씨 뿌리는 요정', 1, 1, 1, ['earth'],
     '출현 - 자신의 덱에 카드가 있다면, 덱 맨 위 카드를 소진된 상태로 자신의 마나에 놓는다.',
   ),
   heavy_seed: u(
@@ -226,7 +225,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     'overgrown_sprout', '하늘까지 자라난 새싹', 4, ['earth'],
     '자신의 마나에 땅 카드가 4장 이상 있다면, 이번 턴 동안 공격력이 1인 자신의 몬스터가 비행을 얻는다.',
   ),
-  floating_mountains: u('floating_mountains', '떠다니는 산맥', 6, 5, 5, ['earth'], '질풍.', ['windfury']),
+  floating_mountains: u('floating_mountains', '떠다니는 산맥', 6, 5, 6, ['earth'], '질풍.', ['windfury']),
   grave_digging: s(
     'grave_digging', '파묘', 3, ['earth', 'dark'],
     '자신의 준비된 마나 하나를 묘지로 보낸다. 그 후 자신의 묘지에서 카드 2장을 손으로 가져올 수 있다.',
@@ -293,7 +292,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
   ),
   battle_campfire: s(
     'battle_campfire', '전장의 모닥불', 3, ['fire', 'light'],
-    '불 공명 - 모든 몬스터에게 피해 1을 준다. 빛 공명 - 자신의 모든 몬스터가 받은 피해를 1씩 회복한다. 불 공명을 먼저 처리한다.',
+    '불 공명 - 전장의 모든 몬스터에게 피해 1을 준다. 빛 공명 - 자신의 모든 몬스터가 받은 피해를 1씩 회복한다. 불 공명을 먼저 처리한다.',
   ),
 
   // 진화의 시작 (SOF) · 불
@@ -307,15 +306,15 @@ export const CARDS: Record<CardId, CardDefinition> = {
   ),
   iron_horn_boar: u(
     'iron_horn_boar', '쇠뿔 멧돼지', 2, 4, 2, ['fire'],
-    '돌진. 이 몬스터는 직접 공격할 수 없다.', ['charge'],
+    '불 공명 - 돌진. 이 몬스터는 직접 공격할 수 없다.',
   ),
   flame_javelin_soldier: u(
     'flame_javelin_soldier', '화염 투창병', 3, 1, 4, ['fire'],
-    '이 몬스터가 몬스터를 공격할 때, 전투 전에 공격 대상에게 피해 1을 준다. 그 피해로 공격 대상이 묘지로 보내졌다면 전투는 일어나지 않는다.',
+    '이 몬스터가 전투할 때, 전투 전에 상대 몬스터에게 피해 1을 준다. 그 피해로 상대 몬스터가 묘지로 보내졌다면 전투는 일어나지 않는다.',
   ),
   volcanic_eruption: s(
     'volcanic_eruption', '화산 폭발', 5, ['fire'],
-    '모든 몬스터에게 피해 2를 준다. 이 효과로 자신의 몬스터가 묘지로 보내졌다면, 한 번 더 발동한다.',
+    '모든 몬스터에게 피해 2를 준다. 이 효과로 자신의 불 몬스터가 묘지로 보내졌다면, 한 번 더 발동한다.',
   ),
   flame_mane_captain: u(
     'flame_mane_captain', '화염갈기 대장', 3, 3, 3, ['fire'],
@@ -343,7 +342,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
   ),
   ice_mirror_spirit: u(
     'ice_mirror_spirit', '얼음거울 정령', 3, 2, 3, ['water'],
-    '출현 - 상대의 비용 2 이하인 몬스터 하나를 선택한다. 그 몬스터는 다음 턴에 준비되지 않는다.',
+    '출현 - 상대의 소진된 비용 2 이하인 몬스터 하나를 선택한다. 그 몬스터는 다음 턴에 준비되지 않는다.',
   ),
   grand_reverse_current: s(
     'grand_reverse_current', '대환류', 5, ['water'],
@@ -366,11 +365,11 @@ export const CARDS: Record<CardId, CardDefinition> = {
     '자신의 마나에 땅 카드가 5장 이상 있다면, 이 몬스터는 공격력 +1과 체력 +1을 얻는다.',
   ),
   boulder_carrier: u(
-    'boulder_carrier', '돌덩이 운반꾼', 2, 4, 3, ['earth'],
+    'boulder_carrier', '돌덩이 운반꾼', 2, 2, 4, ['earth'],
     '이 몬스터는 직접 공격할 수 없다.',
   ),
   mana_flipping_fairy: u(
-    'mana_flipping_fairy', '마나를 뒤집는 요정', 2, 1, 3, ['earth'],
+    'mana_flipping_fairy', '땅을 가는 요정', 2, 1, 3, ['earth'],
     '출현 - 자신의 마나 하나를 손으로 가져올 수 있다. 그렇게 했다면, 자신의 손에서 카드 한 장을 소진된 상태로 마나에 놓는다.',
   ),
   cliff_hunter: u(
@@ -402,8 +401,8 @@ export const CARDS: Record<CardId, CardDefinition> = {
     '출현 - 자신의 묘지에서 비용 1 이하인 몬스터 하나를 손으로 가져온다.',
   ),
   weakened_giant: u(
-    'weakened_giant', '쇠약한 거인', 2, 4, 3, ['dark'],
-    '이 몬스터는 직접 공격할 수 없다. 자신의 턴 종료 시 자신의 묘지에 카드가 없다면 이 몬스터를 묘지로 보낸다.',
+    'weakened_giant', '쇠약한 거인', 2, 4, 4, ['dark'],
+    '이 몬스터는 직접 공격할 수 없다. 자신의 턴 종료 시 자신의 묘지에 어둠 카드가 없다면 이 몬스터를 묘지로 보낸다.',
   ),
   funeral_inviter: u(
     'funeral_inviter', '장례식의 초대자', 3, 2, 3, ['dark'],
@@ -421,7 +420,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
   ),
   mourner: u(
     'mourner', '장송하는 자', 5, 4, 5, ['dark'],
-    '진화 - 어둠 몬스터. 이 몬스터가 진화해서 소환되었을 때, 자신의 다른 몬스터 하나를 묘지로 보낼 수 있다. 그렇게 했다면 상대 몬스터 하나를 묘지로 보낸다. 유언 - 자신의 묘지에서 비용 2 이하인 어둠 몬스터 하나를 소환할 수 있다. 그 몬스터의 출현은 발동하지 않는다.',
+    '진화 - 어둠 몬스터. 출현 - 자신의 다른 몬스터 하나를 묘지로 보낼 수 있다. 그렇게 했다면 상대 몬스터 하나를 묘지로 보낸다. 유언 - 자신의 묘지에서 비용 2 이하인 어둠 몬스터 하나를 소환할 수 있다. 그 몬스터의 출현은 발동하지 않는다.',
     ['last_words'], 'rings', [], 'dark',
   ),
 
@@ -439,8 +438,8 @@ export const CARDS: Record<CardId, CardDefinition> = {
     '상대의 비용 1 이하인 몬스터는 이 몬스터를 공격할 수 없다.',
   ),
   salvation_lancer: u(
-    'salvation_lancer', '구원의 창기사', 3, 2, 3, ['light'],
-    '자신의 라이프가 2장 이하라면, 이 몬스터는 공격력 +2를 얻는다.',
+    'salvation_lancer', '구원의 창기사', 2, 2, 3, ['light'],
+    '자신의 라이프가 2장 이하라면, 이 몬스터는 공격력 +1을 얻는다.',
   ),
   last_prayer: s(
     'last_prayer', '마지막 기도', 5, ['light'],

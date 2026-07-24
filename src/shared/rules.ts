@@ -202,6 +202,25 @@ function hasAttribute(card: CardInstance, attribute: CardAttributeId): boolean {
   return CARDS[card.cardId].attributes.includes(attribute)
 }
 
+function meetsSummonCondition(
+  game: GameState,
+  owner: PlayerId,
+  card: CardInstance,
+): boolean {
+  if (card.cardId !== 'volcano_mouse') return true
+  return game.players[owner].mana.filter((mana) => hasAttribute(mana, 'fire')).length >= 2
+}
+
+function requireSummonCondition(
+  game: GameState,
+  owner: PlayerId,
+  card: CardInstance,
+): void {
+  if (!meetsSummonCondition(game, owner, card)) {
+    throw new GameRuleError('화산쥐는 자신의 마나에 불 카드가 2장 이상 있어야 소환할 수 있습니다.')
+  }
+}
+
 function isIsolated(player: PlayerState, unit: UnitInstance): boolean {
   return player.field.every((other) => other.instanceId === unit.instanceId)
 }
@@ -253,18 +272,6 @@ function attackValue(
   return unitDefinition(unit).attack
     + unit.temporaryAttackModifier
     + (
-      unit.cardId === 'last_ember'
-      && isIsolated(game.players[owner], unit)
-        ? 1
-        : 0
-    )
-    + (
-      unit.cardId === 'volcano_mouse'
-      && game.players[owner].mana.filter((mana) => hasAttribute(mana, 'fire')).length >= 2
-        ? 1
-        : 0
-    )
-    + (
       unit.cardId === 'hard_seed_bug'
       && game.players[owner].mana.filter((mana) => hasAttribute(mana, 'earth')).length >= 5
         ? 1
@@ -273,7 +280,7 @@ function attackValue(
     + (
       unit.cardId === 'salvation_lancer'
       && game.players[owner].life.length <= 2
-        ? 2
+        ? 1
         : 0
     )
 }
@@ -531,8 +538,8 @@ function placeCardInMana(
   owner: PlayerId,
   card: CardInstance,
   exhausted: boolean,
-  random: RandomSource,
-  source: 'hand' | 'non-hand',
+  _random: RandomSource,
+  _source: 'hand' | 'non-hand',
 ): ManaCardInstance {
   const manaCard: ManaCardInstance = {
     ...resetHandCost(card),
@@ -540,8 +547,17 @@ function placeCardInMana(
   }
   game.players[owner].mana.push(manaCard)
 
-  if (manaCard.cardId === 'tree_fairy' && source === 'non-hand') {
-    draw(game.players[owner], random)
+  if (manaCard.cardId === 'tree_fairy' && game.players[owner].hand.length > 0) {
+    enqueueChoice(game, {
+      type: 'SOF_CHOICE',
+      effect: 'TREE_FAIRY_HAND_MANA',
+      playerId: owner,
+      sourcePlayerId: owner,
+      sourceCard: { ...manaCard },
+      candidateIds: game.players[owner].hand.map((handCard) => handCard.instanceId),
+      minChoices: 0,
+      maxChoices: 1,
+    })
   }
   return manaCard
 }
@@ -610,8 +626,10 @@ function summonCard(
   card: CardInstance,
   summonedThisTurn = true,
   requestedSlot?: number,
+  summonConditionAlreadyChecked = false,
 ): UnitInstance {
   const player = game.players[owner]
+  if (!summonConditionAlreadyChecked) requireSummonCondition(game, owner, card)
   if (player.field.length >= getFieldLimit(game)) {
     throw new GameRuleError('전장에 빈 슬롯이 없습니다.')
   }
@@ -840,6 +858,10 @@ function resolveArrival(
       }
       break
 
+    case 'iron_horn_boar':
+      if (paidAttributes.has('fire')) unit.temporaryCharge = true
+      break
+
     case 'wave_reader': {
       if (paidAttributes.has('water')) {
         const top = player.deck[0]
@@ -905,7 +927,7 @@ function resolveArrival(
 
     case 'ice_mirror_spirit': {
       const candidateIds = game.players[opponent(actor)].field
-        .filter((target) => unitDefinition(target).cost <= 2)
+        .filter((target) => target.exhausted && unitDefinition(target).cost <= 2)
         .map((target) => target.instanceId)
       if (candidateIds.length > 0) {
         enqueueChoice(game, {
@@ -959,7 +981,10 @@ function resolveArrival(
       if (evolved) {
         const candidateIds = player.mana.filter((mana) => {
           const definition = CARDS[mana.cardId]
-          return definition.type === 'unit' && definition.cost <= 2 && !definition.evolutionAttribute
+          return definition.type === 'unit'
+            && definition.cost <= 2
+            && !definition.evolutionAttribute
+            && meetsSummonCondition(game, actor, mana)
         }).map((mana) => mana.instanceId)
         const maxChoices = Math.min(2, getOpenFieldSlots(game, actor).length)
         if (candidateIds.length > 0 && maxChoices > 0) {
@@ -1002,20 +1027,19 @@ function resolveArrival(
       break
     }
 
-    case 'mourner':
-      if (evolved) {
-        const candidateIds = player.field
-          .filter((ally) => ally.instanceId !== unit.instanceId)
-          .map((ally) => ally.instanceId)
-        if (candidateIds.length > 0) {
-          enqueueChoice(game, {
-            type: 'SOF_CHOICE', effect: 'MOURNER_SACRIFICE',
-            playerId: actor, sourcePlayerId: actor, sourceUnitId: unit.instanceId,
-            candidateIds, minChoices: 0, maxChoices: 1,
-          })
-        }
+    case 'mourner': {
+      const candidateIds = player.field
+        .filter((ally) => ally.instanceId !== unit.instanceId)
+        .map((ally) => ally.instanceId)
+      if (candidateIds.length > 0) {
+        enqueueChoice(game, {
+          type: 'SOF_CHOICE', effect: 'MOURNER_SACRIFICE',
+          playerId: actor, sourcePlayerId: actor, sourceUnitId: unit.instanceId,
+          candidateIds, minChoices: 0, maxChoices: 1,
+        })
       }
       break
+    }
 
     case 'sky_white_horse_knight': {
       const candidateIds = player.field
@@ -1180,7 +1204,7 @@ function resolveSpell(
 
   switch (card.cardId) {
     case 'burning_procession': {
-      const revealedCards = player.deck.slice(0, 4).map((item) => ({ ...item }))
+      const revealedCards = player.deck.slice(0, 3).map((item) => ({ ...item }))
       if (revealedCards.length > 0) {
         enqueueChoice(game, {
           type: 'BURNING_PROCESSION',
@@ -1326,13 +1350,18 @@ function resolveSpell(
       break
 
     case 'volcanic_eruption': {
-      const ownBefore = new Set(player.field.map((unit) => unit.instanceId))
+      const ownFireBefore = new Set(
+        player.field
+          .filter((unit) => unitDefinition(unit).attributes.includes('fire'))
+          .map((unit) => unit.instanceId),
+      )
       for (const playerId of ['P1', 'P2'] as const) {
         game.players[playerId].field.forEach((unit) => { unit.damage += 2 })
       }
       cleanupDead(game, random)
-      const ownDied = [...ownBefore].some((id) => !player.field.some((unit) => unit.instanceId === id))
-      if (ownDied) {
+      const ownFireDied = [...ownFireBefore]
+        .some((id) => !player.field.some((unit) => unit.instanceId === id))
+      if (ownFireDied) {
         for (const playerId of ['P1', 'P2'] as const) {
           game.players[playerId].field.forEach((unit) => { unit.damage += 2 })
         }
@@ -1366,12 +1395,14 @@ function resolveSpell(
         || definition?.type !== 'unit'
         || definition.cost > 5
         || definition.evolutionAttribute
+        || !meetsSummonCondition(game, actor, mana)
       ) {
         throw new GameRuleError('비용 5 이하인 비진화 몬스터를 마나에서 선택해야 합니다.')
       }
       const slot = requireOpenFieldSlot(game, actor, selection?.fieldSlot)
+      requireSummonCondition(game, actor, mana)
       player.mana.splice(manaIndex, 1)
-      const summoned = summonCard(game, actor, mana, true, slot)
+      const summoned = summonCard(game, actor, mana, true, slot, true)
       if (definition.attributes.includes('earth')) summoned.temporaryCharge = true
       cleanupDead(game, random)
       break
@@ -1615,11 +1646,17 @@ function attackUnit(
 
   consumeAttack(player, attacker, game, actor)
 
-  // 화염 투창병은 전투 전에 피해를 줍니다.
-  if (attacker.cardId === 'flame_javelin_soldier') {
-    defender.damage += 1
+  // 화염 투창병은 공격·방어 어느 쪽이든 전투 전에 상대에게 피해를 줍니다.
+  if (attacker.cardId === 'flame_javelin_soldier') defender.damage += 1
+  if (defender.cardId === 'flame_javelin_soldier') attacker.damage += 1
+  if (
+    attacker.cardId === 'flame_javelin_soldier'
+    || defender.cardId === 'flame_javelin_soldier'
+  ) {
     cleanupDead(game, random)
-    if (!enemy.field.some((unit) => unit.instanceId === defenderId)) return game
+    const attackerStillHere = player.field.some((unit) => unit.instanceId === attackerId)
+    const defenderStillHere = enemy.field.some((unit) => unit.instanceId === defenderId)
+    if (!attackerStillHere || !defenderStillHere) return game
   }
 
   const attackerHasAssassination = hasKeyword(game, actor, attacker, 'assassination')
@@ -1831,8 +1868,8 @@ function resolveChoice(
           const id = oneRequired()
           assertCandidate(id)
           const target = sourceEnemy.field.find((unit) => unit.instanceId === id)
-          if (!target || unitDefinition(target).cost > 2) {
-            throw new GameRuleError('비용 2 이하인 상대 몬스터를 선택해야 합니다.')
+          if (!target || !target.exhausted || unitDefinition(target).cost > 2) {
+            throw new GameRuleError('소진된 비용 2 이하인 상대 몬스터를 선택해야 합니다.')
           }
           target.skipNextReady = true
           shift()
@@ -1877,6 +1914,19 @@ function resolveChoice(
           if (index < 0) throw new GameRuleError('덱 아래에 놓을 손 카드를 찾지 못했습니다.')
           const [card] = sourcePlayer.hand.splice(index, 1)
           sourcePlayer.deck.push(resetHandCost(card!))
+          shift()
+          return game
+        }
+
+        case 'TREE_FAIRY_HAND_MANA': {
+          const id = oneOptional()
+          if (id) {
+            assertCandidate(id)
+            const index = sourcePlayer.hand.findIndex((card) => card.instanceId === id)
+            if (index < 0) throw new GameRuleError('마나에 놓을 손 카드를 찾지 못했습니다.')
+            const [card] = sourcePlayer.hand.splice(index, 1)
+            placeCardInMana(game, pending.sourcePlayerId, card!, false, random, 'hand')
+          }
           shift()
           return game
         }
@@ -1930,15 +1980,25 @@ function resolveChoice(
             assertCandidate(item.id)
             if (!open.has(item.slot)) throw new GameRuleError('선택한 전장 슬롯은 사용할 수 없습니다.')
           }
-          for (const item of parsed) {
-            const index = sourcePlayer.mana.findIndex((mana) => mana.instanceId === item.id)
-            const mana = sourcePlayer.mana[index]
+          const summons = parsed.map((item) => {
+            const mana = sourcePlayer.mana.find((candidate) => candidate.instanceId === item.id)
             const definition = mana ? CARDS[mana.cardId] : null
-            if (!mana || definition?.type !== 'unit' || definition.cost > 2 || definition.evolutionAttribute) {
-              throw new GameRuleError('비용 2 이하인 비진화 몬스터만 소환할 수 있습니다.')
+            if (
+              !mana
+              || definition?.type !== 'unit'
+              || definition.cost > 2
+              || definition.evolutionAttribute
+              || !meetsSummonCondition(game, pending.sourcePlayerId, mana)
+            ) {
+              throw new GameRuleError('현재 소환 조건을 만족하는 비용 2 이하 비진화 몬스터만 소환할 수 있습니다.')
             }
+            return { ...item, mana }
+          })
+          for (const item of summons) {
+            const index = sourcePlayer.mana.findIndex((mana) => mana.instanceId === item.id)
+            if (index < 0) throw new GameRuleError('소환할 마나 카드를 찾지 못했습니다.')
             sourcePlayer.mana.splice(index, 1)
-            summonCard(game, pending.sourcePlayerId, mana, true, item.slot)
+            summonCard(game, pending.sourcePlayerId, item.mana, true, item.slot, true)
           }
           shift()
           cleanupDead(game, random)
@@ -2345,6 +2405,7 @@ function resolveChoice(
         return definition.type === 'unit'
           && definition.cost <= 2
           && definition.attributes.includes('fire')
+          && meetsSummonCondition(game, actor, card)
       }).map((card) => card.instanceId))
 
       const selections = choiceIds.map((choice) => {
@@ -2492,7 +2553,9 @@ function endTurn(
   assertNoPendingChoice(game)
 
   const endingPlayer = game.players[actor]
-  if (endingPlayer.discard.length === 0) {
+  const hasDarkCardInDiscard = endingPlayer.discard
+    .some((card) => CARDS[card.cardId].attributes.includes('dark'))
+  if (!hasDarkCardInDiscard) {
     const weakenedGiantIds = endingPlayer.field
       .filter((unit) => unit.cardId === 'weakened_giant')
       .map((unit) => unit.instanceId)

@@ -414,20 +414,13 @@ function attackValueView(player: PlayerView, unit: UnitInstance): number {
   if (definition.type !== 'unit') return 0
   return definition.attack
     + unit.temporaryAttackModifier
-    + (unit.cardId === 'last_ember' && player.field.length === 1 ? 1 : 0)
-    + (
-      unit.cardId === 'volcano_mouse'
-      && player.mana.filter((mana) => CARDS[mana.cardId].attributes.includes('fire')).length >= 2
-        ? 1
-        : 0
-    )
     + (
       unit.cardId === 'hard_seed_bug'
       && player.mana.filter((mana) => CARDS[mana.cardId].attributes.includes('earth')).length >= 5
         ? 1
         : 0
     )
-    + (unit.cardId === 'salvation_lancer' && player.lifeCount <= 2 ? 2 : 0)
+    + (unit.cardId === 'salvation_lancer' && player.lifeCount <= 2 ? 1 : 0)
 }
 
 function attackingUnitValueView(
@@ -778,6 +771,7 @@ function renderMana(
         && definition.type === 'unit'
         && definition.cost <= 5
         && !definition.evolutionAttribute
+        && meetsSummonConditionView(player, mana.cardId)
         && !selectedAsCost
       const canSelectForGardener = draftCard?.cardId === 'lava_gardener'
         && selectedPaidAttributes().has('earth')
@@ -833,18 +827,29 @@ function renderMana(
   }).join('') || '<div class="zone-empty">마나 없음</div>'
 }
 
+function meetsSummonConditionView(player: PlayerView, cardId: CardId): boolean {
+  if (cardId !== 'volcano_mouse') return true
+  return player.mana.filter((mana) => CARDS[mana.cardId].attributes.includes('fire')).length >= 2
+}
+
 function isPlayDraftReady(): boolean {
   if (!game || !playDraft) return false
   const card = selectedPlayCard()
   if (!card) return false
   const definition = CARDS[card.cardId]
+  if (!meetsSummonConditionView(game.players[game.viewer], card.cardId)) return false
   if (playDraft.manaIds.length !== effectiveCost(card)) return false
   if (definition.type === 'unit') {
     if (definition.evolutionAttribute) {
       if (!playDraft.evolutionUnitId) return false
     } else if (playDraft.fieldSlot === undefined) return false
   }
-  if (card.cardId === 'rising_earth' && playDraft.fieldSlot === undefined) return false
+  if (card.cardId === 'rising_earth') {
+    if (playDraft.fieldSlot === undefined) return false
+    const effectManaId = playDraft.effectManaId
+    const selectedMana = game.players[game.viewer].mana.find((mana) => mana.instanceId === effectManaId)
+    if (!selectedMana || !meetsSummonConditionView(game.players[game.viewer], selectedMana.cardId)) return false
+  }
   if (playDraftNeedsUnitTarget(card) && !playDraft.unitId) return false
   if (needsLifeTarget(card.cardId) && playDraft.lifeIndex === undefined) return false
   if (playDraftNeedsEffectMana(card) && !playDraft.effectManaId) return false
@@ -920,6 +925,7 @@ function renderManaDrawer(): string {
 
 function hasLegalPlayTarget(card: CardInstance, self: PlayerView, enemy: PlayerView): boolean {
   const definition = CARDS[card.cardId]
+  if (!meetsSummonConditionView(self, card.cardId)) return false
   const targetMode = unitTargetMode(card.cardId)
   if (targetMode !== null && !['lava_gardener', 'crematory_smoke'].includes(card.cardId) && enemy.field.length === 0) return false
   if (targetMode === 'exhausted' && !enemy.field.some((unit) => unit.exhausted)) return false
@@ -929,7 +935,10 @@ function hasLegalPlayTarget(card: CardInstance, self: PlayerView, enemy: PlayerV
   if (card.cardId === 'rising_earth') {
     const validMana = self.mana.some((mana) => {
       const manaDefinition = CARDS[mana.cardId]
-      return manaDefinition.type === 'unit' && manaDefinition.cost <= 5 && !manaDefinition.evolutionAttribute
+      return manaDefinition.type === 'unit'
+        && manaDefinition.cost <= 5
+        && !manaDefinition.evolutionAttribute
+        && meetsSummonConditionView(self, mana.cardId)
     })
     if (!validMana || getOpenFieldSlotsView(self).length === 0) return false
   }
@@ -1017,11 +1026,7 @@ function getUnitStatusBadges(
   if (unit.cardId === 'spark_chasing_lizard') badges.push({ label: '공격 중 +3' })
   if (unit.cardId === 'cliff_hunter') badges.push({ label: '대 몬스터 +2' })
   if (unit.cardId === 'hard_seed_bug' && healthValueView(player, unit) > (CARDS[unit.cardId] as any).health) badges.push({ label: '+1/+1', tone: 'warning' })
-  if (unit.cardId === 'salvation_lancer' && player.lifeCount <= 2) badges.push({ label: '공격 +2', tone: 'warning' })
-  if (
-    unit.cardId === 'volcano_mouse'
-    && player.mana.filter((mana) => CARDS[mana.cardId].attributes.includes('fire')).length >= 2
-  ) badges.push({ label: '공격 +1', tone: 'warning' })
+  if (unit.cardId === 'salvation_lancer' && player.lifeCount <= 2) badges.push({ label: '공격 +1', tone: 'warning' })
   if (hasRushView(unit)) badges.push({ label: '기습' })
   if (hasChargeView(player, unit)) badges.push({ label: '돌진', tone: 'warning' })
   if (hasWindfuryView(player, unit)) badges.push({ label: '질풍' })
@@ -1398,7 +1403,7 @@ function renderSofChoicePanel(pending: Extract<NonNullable<GameView['pendingChoi
       return sofChoicePanel('물밑을 살피는 자', '확인한 카드의 순서를 정하거나 한 장을 묘지로 보냅니다.', content, actions)
     }
     case 'ICE_MIRROR_FREEZE':
-      return sofChoicePanel('얼음거울 정령', '다음 준비 단계에 준비되지 않을 비용 2 이하 상대 몬스터를 선택하세요.', renderSofCandidateGrid(candidates, '준비 봉인'))
+      return sofChoicePanel('얼음거울 정령', '다음 준비 단계에 준비되지 않을 소진된 비용 2 이하 상대 몬스터를 선택하세요.', renderSofCandidateGrid(candidates, '준비 봉인'))
     case 'WAVE_FIN_BOUNCE':
       return sofChoicePanel('파도의 등지느러미', '손으로 되돌릴 소진된 비용 2 이하 상대 몬스터를 선택할 수 있습니다.', renderSofCandidateGrid(candidates, '손으로'), optionalSkip)
     case 'CRYSTAL_TSUNAMI_BOUNCE':
@@ -1407,10 +1412,12 @@ function renderSofChoicePanel(pending: Extract<NonNullable<GameView['pendingChoi
       return sofChoicePanel('파도의 등지느러미', '카드 1장을 뽑은 뒤 손 카드 한 장을 덱 맨 아래에 놓겠습니까?', '', actionButton('카드를 뽑는다', 'resolve-simple-choice', 'choice-id', 'draw') + actionButton('건너뛴다', 'resolve-simple-choice', 'choice-id', 'skip'))
     case 'WAVE_FIN_BOTTOM':
       return sofChoicePanel('파도의 등지느러미', '덱 맨 아래에 놓을 손 카드 한 장을 선택하세요.', renderSofCandidateGrid(candidates, '덱 아래'))
+    case 'TREE_FAIRY_HAND_MANA':
+      return sofChoicePanel('나무에 사는 요정', '손에서 카드 한 장을 준비 상태로 마나에 놓을 수 있습니다.', renderSofCandidateGrid(candidates, '마나로'), optionalSkip)
     case 'MANA_FLIP_RETURN':
-      return sofChoicePanel('마나를 뒤집는 요정', '손으로 가져올 자신의 마나 한 장을 선택할 수 있습니다.', renderSofCandidateGrid(candidates, '손으로'), optionalSkip)
+      return sofChoicePanel('땅을 가는 요정', '손으로 가져올 자신의 마나 한 장을 선택할 수 있습니다.', renderSofCandidateGrid(candidates, '손으로'), optionalSkip)
     case 'MANA_FLIP_PLACE':
-      return sofChoicePanel('마나를 뒤집는 요정', '소진된 상태로 마나에 놓을 손 카드 한 장을 선택하세요.', renderSofCandidateGrid(candidates, '마나로'))
+      return sofChoicePanel('땅을 가는 요정', '소진된 상태로 마나에 놓을 손 카드 한 장을 선택하세요.', renderSofCandidateGrid(candidates, '마나로'))
     case 'EARTH_GUARDIAN_SUMMON': {
       const cards = candidates.map((id) => {
         const card = findVisibleCardInstance(id)
@@ -1535,7 +1542,11 @@ function renderPendingChoicePanel(): string {
     case 'BURNING_PROCESSION': {
       const selectable = new Set(pending.revealedCards.filter((card) => {
         const definition = CARDS[card.cardId]
-        return definition.type === 'unit' && definition.cost <= 2 && definition.attributes.includes('fire')
+        return definition.type === 'unit'
+          && definition.cost <= 2
+          && definition.attributes.includes('fire')
+          && game !== null
+          && meetsSummonConditionView(game.players[game.viewer], card.cardId)
       }).map((card) => card.instanceId))
       return `<div class="selection-panel selection-panel--urgent"><h3>불타는 행렬</h3><p>각 카드 아래에서 서로 다른 빈 슬롯을 선택하세요. 선택하지 않은 카드는 묘지로 갑니다.</p><div class="choice-card-grid">${pending.revealedCards.map((card) => {
         const current = pendingChoiceIds.find((choice) => choice.startsWith(`${card.instanceId}@`))
@@ -1871,6 +1882,20 @@ function confirmPlayDraft(): void {
   if (!card) return
   const definition = CARDS[card.cardId]
   const cost = effectiveCost(card)
+  if (!meetsSummonConditionView(game.players[game.viewer], card.cardId)) {
+    message = '화산쥐는 내 마나에 불 카드가 2장 이상 있어야 소환할 수 있습니다.'
+    render()
+    return
+  }
+  if (card.cardId === 'rising_earth' && playDraft.effectManaId) {
+    const effectManaId = playDraft.effectManaId
+    const selectedMana = game.players[game.viewer].mana.find((mana) => mana.instanceId === effectManaId)
+    if (selectedMana && !meetsSummonConditionView(game.players[game.viewer], selectedMana.cardId)) {
+      message = '화산쥐는 내 마나에 불 카드가 2장 이상 있어야 효과로 소환할 수 있습니다.'
+      render()
+      return
+    }
+  }
   if (playDraft.manaIds.length !== cost) {
     message = `비용으로 사용할 마나 ${cost}장을 선택해 주세요.`
     render()
