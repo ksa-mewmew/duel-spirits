@@ -44,6 +44,8 @@ interface PlayDraft {
 const appQuery = document.querySelector<HTMLDivElement>('#app')
 if (!appQuery) throw new Error('App element was not found.')
 const appElement: HTMLDivElement = appQuery
+const BATTLEFIELD_BACKGROUND_URL =
+  `${import.meta.env.BASE_URL}ui/battlefield/battlefield.webp`
 
 const pageUrl = new URL(window.location.href)
 const roomIdParam = pageUrl.searchParams.get('room')
@@ -1917,7 +1919,10 @@ function render(): void {
   } else if (!game) content = renderWaitingRoom()
   else if (opponentId) {
     content = `<section class="game-layout">
-      <main class="battle-board ${game.currentPlayer === game.viewer ? 'is-my-turn' : 'is-opponent-turn'} ${game.pendingChoice?.playerId === game.viewer ? 'is-my-response' : ''}" style="background-image: url('./ui/battle-bg.png'); background-size: cover; background-position: center; background-attachment: fixed;">
+      <main
+        class="battle-board ${game.currentPlayer === game.viewer ? 'is-my-turn' : 'is-opponent-turn'} ${game.pendingChoice?.playerId === game.viewer ? 'is-my-response' : ''}"
+        style="--battlefield-image: url('${escapeHtml(BATTLEFIELD_BACKGROUND_URL)}');"
+      >
         ${renderArenaLifeRail(opponentId)}
         <section class="arena-center">
           ${renderPlayerBoard(opponentId, 'opponent')}
