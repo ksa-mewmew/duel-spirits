@@ -1,4 +1,5 @@
 import { CARD_ATTRIBUTES, CARDS } from '../shared/cards'
+import { analyzeCardForDeck } from './deck-intelligence'
 import { actionKey, sampleOne } from './utils'
 
 import type { CardAttributeId, CardId } from '../shared/cards'
@@ -43,6 +44,9 @@ export const BASELINE_PROFILE_WEIGHTS: Record<HeuristicBotProfileId, HeuristicWe
     readyManaValue: 5,
     readyUnitValue: 12,
     stateDelta: 1.05,
+    setupValue: 7,
+    staticAbilityValue: 7,
+    graveyardValue: 3,
   },
   value: {
     directAttack: 155,
@@ -61,6 +65,9 @@ export const BASELINE_PROFILE_WEIGHTS: Record<HeuristicBotProfileId, HeuristicWe
     readyManaValue: 8,
     readyUnitValue: 15,
     stateDelta: 1.3,
+    setupValue: 15,
+    staticAbilityValue: 13,
+    graveyardValue: 11,
   },
   control: {
     directAttack: 135,
@@ -79,6 +86,9 @@ export const BASELINE_PROFILE_WEIGHTS: Record<HeuristicBotProfileId, HeuristicWe
     readyManaValue: 10,
     readyUnitValue: 18,
     stateDelta: 1.5,
+    setupValue: 13,
+    staticAbilityValue: 18,
+    graveyardValue: 9,
   },
 }
 
@@ -108,12 +118,32 @@ function createDeckStrategy(cardIds: readonly CardId[]): DeckStrategy {
   }
 }
 
+function staticRulesValue(cardId: CardId, ready: boolean, weights: HeuristicWeights): number {
+  const definition = CARDS[cardId]
+  const text = definition.rulesText
+  let value = 0
+  if (text.includes('각성은 발동하지 않는다')) value += 1.6
+  if (text.includes('한 번만 공격할 수 있다')) value += 2.1
+  if (text.includes('최대 두 번만 공격할 수 있다')) value += 1.1
+  if (text.includes('이 몬스터부터 공격해야 한다')) value += 1.5
+  if (text.includes('공격받지 않는다')) value += 0.8
+  if (text.includes('다음 턴에 준비되지 않는다')) value += 0.9
+  if (ready && text.includes('이 몬스터가 준비된 상태라면')) value += 1.7
+  if (text.includes('이 몬스터는 공격할 수 없다')) value -= 1.15
+  else if (text.includes('직접 공격할 수 없다')) value -= 0.45
+  if (definition.type === 'unit' && definition.keywords?.includes('last_words')) value += 0.65
+  return value * weights.staticAbilityValue
+}
+
 function cardKeepValue(card: CardInstance, weights: HeuristicWeights): number {
   const definition = CARDS[card.cardId]
+  const analysis = analyzeCardForDeck(card.cardId)
+  const roleBonus = analysis.roles.includes('lockdown') ? weights.staticAbilityValue * 0.8 : 0
   if (definition.type === 'spell') {
     return weights.playSpell
       + definition.cost * (weights.highCostBias + 4)
       + Math.min(18, definition.rulesText.length * 0.04)
+      + roleBonus
   }
   const keywordBonus = (definition.keywords?.length ?? 0) * 13
     + (definition.evolutionAttribute ? 22 : 0)
@@ -122,6 +152,7 @@ function cardKeepValue(card: CardInstance, weights: HeuristicWeights): number {
     + definition.health * weights.healthStat
     + definition.cost * weights.highCostBias
     + keywordBonus
+    + staticRulesValue(card.cardId, true, weights) * 0.55
 }
 
 function cardScore(card: CardInstance, weights: HeuristicWeights): number {
@@ -147,17 +178,47 @@ function unitPublicValue(unit: UnitInstance, weights: HeuristicWeights): number 
     + health * weights.healthStat
     + definition.cost * 3
     + keywordBonus
+    + staticRulesValue(unit.cardId, !unit.exhausted, weights)
     + (unit.exhausted ? 0 : weights.readyUnitValue)
     - (unit.skipNextReady ? 16 : 0)
 }
 
-function playerPublicValue(player: PlayerView, weights: HeuristicWeights): number {
+function strategicPlayerValue(
+  player: PlayerView,
+  weights: HeuristicWeights,
+  strategy: DeckStrategy | null,
+): number {
+  if (!strategy) return 0
+  const darkDiscard = player.discard.filter((card) => CARDS[card.cardId].attributes.includes('dark')).length
+  const graveyardProgress = Math.min(6, player.discard.length) + Math.min(4, darkDiscard) * 0.5
+  const earthMana = player.mana.filter((card) => CARDS[card.cardId].attributes.includes('earth')).length
+  const activeLifeCards = player.hand.filter((card) => (
+    CARDS[card.cardId].rulesText.includes('자신의 라이프가 2장 이하')
+  )).length
+  const graveyardValue = graveyardProgress * weights.graveyardValue * strategy.graveyardAffinity
+  const manaThresholdValue = strategy.manaAffinity * weights.setupValue * (
+    Math.min(4, earthMana) * 0.18
+    + (earthMana >= 4 ? 0.75 : 0)
+    + (earthMana >= 5 ? 0.65 : 0)
+  )
+  const activeLifeValue = player.lifeCount <= 2
+    ? activeLifeCards * weights.setupValue * strategy.lifeAffinity * 0.8
+    : 0
+  return graveyardValue + manaThresholdValue + activeLifeValue
+}
+
+function playerPublicValue(
+  player: PlayerView,
+  weights: HeuristicWeights,
+  strategy: DeckStrategy | null,
+): number {
   const readyMana = player.mana.filter((mana) => !mana.exhausted).length
   return player.lifeCount * weights.lifeValue
     + player.handCount * weights.handValue
     + player.mana.length * weights.manaValue
     + readyMana * weights.readyManaValue
     + player.field.reduce((sum, unit) => sum + unitPublicValue(unit, weights), 0)
+    + strategicPlayerValue(player, weights, strategy)
 }
 
 /**
@@ -166,13 +227,18 @@ function playerPublicValue(player: PlayerView, weights: HeuristicWeights): numbe
  * 전장 상태만 평가합니다. 직접 공격은 각성 내용을 미리 볼 수 있으므로 별도로
  * 처리하고 이 델타를 사용하지 않습니다.
  */
-function publicStateScore(view: GameView, actor: PlayerId, weights: HeuristicWeights): number {
+function publicStateScore(
+  view: GameView,
+  actor: PlayerId,
+  weights: HeuristicWeights,
+  strategy: DeckStrategy,
+): number {
   if (view.status === 'finished') {
     if (view.winner === actor) return 100000
     if (view.winner === enemyOf(actor)) return -100000
   }
-  return playerPublicValue(view.players[actor], weights)
-    - playerPublicValue(view.players[enemyOf(actor)], weights)
+  return playerPublicValue(view.players[actor], weights, strategy)
+    - playerPublicValue(view.players[enemyOf(actor)], weights, null)
 }
 
 function combatScore(
@@ -260,6 +326,28 @@ function selectedUnitValue(
   return selectedInstanceIds(action).reduce((sum, instanceId) => {
     const unit = units.get(instanceId)
     return sum + (unit ? unitPublicValue(unit, weights) : 0)
+  }, 0)
+}
+
+function selectedSacrificeBonus(
+  action: Extract<GameAction, { type: 'RESOLVE_CHOICE' }>,
+  view: GameView,
+  weights: HeuristicWeights,
+  strategy: DeckStrategy,
+): number {
+  const units = new Map(
+    [...view.players.P1.field, ...view.players.P2.field]
+      .map((unit) => [unit.instanceId, unit] as const),
+  )
+  return selectedInstanceIds(action).reduce((sum, instanceId) => {
+    const unit = units.get(instanceId)
+    if (!unit) return sum
+    const definition = CARDS[unit.cardId]
+    const lastWords = definition.type === 'unit' && definition.keywords?.includes('last_words')
+      ? weights.setupValue * 1.7
+      : 0
+    const graveSetup = weights.setupValue * strategy.graveyardAffinity * 0.65
+    return sum + lastWords + graveSetup
   }, 0)
 }
 
@@ -378,6 +466,7 @@ function choiceScore(
     case 'MASS_BURIAL_SELF':
     case 'MOURNER_SACRIFICE':
       return score - selectedUnits * 0.38
+        + selectedSacrificeBonus(action, context.view, weights, strategy)
     case 'MOURNER_DESTROY':
     case 'ICE_MIRROR_FREEZE':
     case 'WAVE_FIN_BOUNCE':
@@ -431,6 +520,24 @@ function manaPlacementScore(
     strategy.dominantAttributes.includes(attribute)
   )) ? 12 : 0
   const keepValue = cardKeepValue(card, weights)
+  const hasBroadManaSummon = context.deckCardIds.some((cardId) => (
+    CARDS[cardId].rulesText.includes('자신의 마나에서 비용 5 이하')
+  ))
+  const hasLowCostManaSummon = context.deckCardIds.some((cardId) => (
+    CARDS[cardId].rulesText.includes('자신의 마나에서 비용 2 이하')
+  ))
+  let storedUnitBonus = 0
+  if (definition.type === 'unit' && strategy.manaAffinity > 0) {
+    if (definition.rulesText.includes('마나에 있는 이 카드')) {
+      storedUnitBonus += weights.setupValue * strategy.manaAffinity * 1.45
+    }
+    if (hasBroadManaSummon && definition.cost <= 5) {
+      storedUnitBonus += weights.setupValue * strategy.manaAffinity * 0.72
+    }
+    if (hasLowCostManaSummon && definition.cost <= 2) {
+      storedUnitBonus += weights.setupValue * strategy.manaAffinity * 0.55
+    }
+  }
 
   return weights.placeMana
     + Math.max(0, 5 - manaCount) * (20 + strategy.manaAffinity * 12)
@@ -438,13 +545,77 @@ function manaPlacementScore(
     + attributeNeed * 24
     + dominantBonus
     + Math.max(0, definition.attributes.length - 1) * 9
-    - keepValue * 0.16
+    + storedUnitBonus
+    - keepValue * (storedUnitBonus > 0 ? 0.08 : 0.16)
+}
+
+function strategicPlayBonus(
+  card: CardInstance,
+  context: BotDecisionContext,
+  weights: HeuristicWeights,
+  strategy: DeckStrategy,
+): number {
+  const analysis = analyzeCardForDeck(card.cardId)
+  const own = context.view.players[context.actor]
+  const discardCount = own.discard.length
+  const earthMana = own.mana.filter((mana) => CARDS[mana.cardId].attributes.includes('earth')).length
+  let bonus = 0
+
+  if (analysis.roles.includes('graveyard_enabler')) {
+    bonus += Math.max(0, 4 - discardCount) * weights.setupValue * strategy.graveyardAffinity * 0.55
+  }
+  if (analysis.roles.includes('graveyard_payoff') && discardCount >= 3) {
+    bonus += weights.setupValue * strategy.graveyardAffinity * 1.05
+  }
+  if (analysis.roles.includes('recursion') && discardCount > 0) {
+    bonus += weights.setupValue * strategy.graveyardAffinity * 0.75
+  }
+  if (analysis.roles.includes('ramp') && own.mana.length < 6) {
+    bonus += weights.setupValue * strategy.manaAffinity * 1.2
+  }
+  if (analysis.roles.includes('mana_payoff') && earthMana >= 4) {
+    bonus += weights.setupValue * strategy.manaAffinity * 1.15
+  }
+  if (analysis.roles.includes('draw')) {
+    bonus += weights.setupValue * strategy.waterAffinity * 0.38
+  }
+  if (analysis.roles.includes('tempo')) {
+    bonus += weights.setupValue * strategy.waterAffinity * 0.3
+  }
+  if (analysis.roles.includes('life_control')) {
+    bonus += weights.setupValue * strategy.lifeAffinity * 0.45
+  }
+  if (analysis.roles.includes('lockdown')) {
+    bonus += weights.setupValue * strategy.lifeAffinity * 0.55
+  }
+  if (analysis.roles.includes('awakening')) {
+    bonus += weights.setupValue * strategy.lifeAffinity * 0.22
+  }
+  if (analysis.roles.includes('evolution')) {
+    const definition = CARDS[card.cardId]
+    const evolutionAttribute = definition.type === 'unit' ? definition.evolutionAttribute : undefined
+    if (evolutionAttribute && own.field.some((unit) => CARDS[unit.cardId].attributes.includes(evolutionAttribute))) {
+      bonus += weights.setupValue * 0.55
+    }
+  }
+  return bonus
+}
+
+function directAttackReadinessCost(
+  attacker: UnitInstance,
+  weights: HeuristicWeights,
+): number {
+  if (attacker.exhausted) return 0
+  const readyStatic = staticRulesValue(attacker.cardId, true, weights)
+  const exhaustedStatic = staticRulesValue(attacker.cardId, false, weights)
+  return weights.readyUnitValue + Math.max(0, readyStatic - exhaustedStatic)
 }
 
 function publicDeltaForAction(
   action: GameAction,
   context: BotDecisionContext,
   weights: HeuristicWeights,
+  strategy: DeckStrategy,
 ): number {
   // 직접 공격의 nextState에는 공격 전에는 알 수 없는 라이프 각성 결과가 포함됩니다.
   if (action.type === 'ATTACK_PLAYER') return 0
@@ -453,8 +624,8 @@ function publicDeltaForAction(
   ))
   if (!option) return 0
   return (
-    publicStateScore(option.nextView, context.actor, weights)
-    - publicStateScore(context.view, context.actor, weights)
+    publicStateScore(option.nextView, context.actor, weights, strategy)
+    - publicStateScore(context.view, context.actor, weights, strategy)
   ) * weights.stateDelta
 }
 
@@ -466,7 +637,7 @@ function scoreAction(
 ): number {
   const own = context.view.players[context.actor]
   const enemy = context.view.players[enemyOf(context.actor)]
-  const stateDelta = publicDeltaForAction(action, context, weights)
+  const stateDelta = publicDeltaForAction(action, context, weights, strategy)
 
   switch (action.type) {
     case 'PLACE_MANA':
@@ -479,13 +650,14 @@ function scoreAction(
         return mana ? CARDS[mana.cardId].attributes : []
       }))
       return cardScore(card, weights) * 0.72
+        + strategicPlayBonus(card, context, weights, strategy)
         + paidAttributes.size * 10
         - action.manaIds.length * 3
         + stateDelta
     }
     case 'SUMMON_FROM_MANA': {
       const card = own.mana.find((candidate) => candidate.instanceId === action.cardInstanceId)
-      return card ? cardScore(card, weights) * 0.55 + 30 + stateDelta : -1000
+      return card ? cardScore(card, weights) * 0.55 + strategicPlayBonus(card, context, weights, strategy) + 30 + stateDelta : -1000
     }
     case 'ATTACK_UNIT': {
       const attacker = own.field.find((unit) => unit.instanceId === action.attackerId)
@@ -497,7 +669,9 @@ function scoreAction(
     case 'ATTACK_PLAYER': {
       const lifeLoss = action.lifeSlotIndices?.length ?? 0
       const lethal = enemy.lifeCount <= lifeLoss ? 100000 : 0
-      return weights.directAttack * Math.max(1, lifeLoss) + lethal
+      const attacker = own.field.find((unit) => unit.instanceId === action.attackerId)
+      const readinessCost = attacker ? directAttackReadinessCost(attacker, weights) : 0
+      return weights.directAttack * Math.max(1, lifeLoss) + lethal - readinessCost * 0.72
     }
     case 'RESOLVE_CHOICE':
       return choiceScore(action, context, weights, strategy) + stateDelta * 1.35

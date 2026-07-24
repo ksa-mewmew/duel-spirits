@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { normalizeMetaSimulationConfig, DEFAULT_META_SIMULATION_CONFIG } from './config'
 import { runMetaSimulation } from './experiment'
 import {
+  createAttributesCsv,
   createBotsCsv,
   createCardsCsv,
   createDecksCsv,
@@ -73,6 +74,7 @@ function main(): void {
   writeFileSync(resolve(outputDirectory, 'report.json'), JSON.stringify(report, null, 2), 'utf8')
   writeFileSync(resolve(outputDirectory, 'summary.md'), createSummaryMarkdown(report), 'utf8')
   writeFileSync(resolve(outputDirectory, 'bots.csv'), createBotsCsv(report), 'utf8')
+  writeFileSync(resolve(outputDirectory, 'attributes.csv'), createAttributesCsv(report), 'utf8')
   writeFileSync(resolve(outputDirectory, 'decks.csv'), createDecksCsv(report), 'utf8')
   writeFileSync(resolve(outputDirectory, 'cards.csv'), createCardsCsv(report), 'utf8')
   writeFileSync(resolve(outputDirectory, 'matchups.csv'), createMatchupsCsv(report), 'utf8')

@@ -23,6 +23,7 @@ export type DeckRole =
   | 'graveyard_payoff'
   | 'recursion'
   | 'life_control'
+  | 'lockdown'
   | 'awakening'
   | 'evolution'
   | 'resonance'
@@ -60,6 +61,9 @@ export interface HeuristicWeights {
   readyManaValue: number
   readyUnitValue: number
   stateDelta: number
+  setupValue: number
+  staticAbilityValue: number
+  graveyardValue: number
 }
 
 export type HeuristicWeightKey = keyof HeuristicWeights

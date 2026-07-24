@@ -1,6 +1,6 @@
 import { normalizeMetaSimulationConfig } from './config'
 import { runMetaSimulation } from './experiment'
-import { analyzeDeckProfile } from './deck-intelligence'
+import { analyzeCardForDeck, analyzeDeckProfile } from './deck-intelligence'
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`SELF TEST FAILED: ${message}`)
@@ -65,6 +65,12 @@ assert(matches.length === 12, '라운드로빈 경기 수가 예상과 다릅니
 assert(matches.every((match) => match.termination !== 'no-legal-actions'), '합법 행동을 찾지 못한 경기가 있습니다.')
 assert(report.finalStandings.every((standing) => standing.games === 6), '각 덱의 경기 수가 맞지 않습니다.')
 assert(report.cardStandings.length === report.cardPool.length, '카드 통계가 카드 풀 전체를 덮지 못했습니다.')
+assert(analyzeCardForDeck('mass_burial').roles.includes('removal'), '집단 매장을 제거 카드로 분류하지 못했습니다.')
+assert(analyzeCardForDeck('mass_burial').roles.includes('graveyard_enabler'), '집단 매장을 묘지 준비 카드로 분류하지 못했습니다.')
+assert(!analyzeCardForDeck('funeral_inviter').roles.includes('graveyard_enabler'), '상대 손 버리기를 자신의 묘지 준비로 오분류했습니다.')
+assert(!analyzeCardForDeck('silent_shield_soldier').roles.includes('pressure'), '공격 불가 몬스터를 압박 카드로 오분류했습니다.')
+assert(!analyzeCardForDeck('silent_shield_soldier').roles.includes('lockdown'), '자기 공격 불가를 상대 봉쇄로 오분류했습니다.')
+assert(analyzeCardForDeck('cathedral_guard').roles.includes('lockdown'), '성당 경비병의 봉쇄 역할을 인식하지 못했습니다.')
 
 const behaviorMatches = report.behaviorGenerations.reduce((sum, generation) => sum + generation.matches.length, 0)
 console.log(`SELF TEST OK: ${behaviorMatches} behavior matches, ${matches.length} deck matches, ${report.cardPool.length} cards`)

@@ -1,8 +1,8 @@
-import { CARDS } from '../shared/cards'
+import { CARD_ATTRIBUTES, CARDS } from '../shared/cards'
 import { HEURISTIC_WEIGHT_KEYS } from './behavior-evolution'
 import { analyzeDeckProfile } from './deck-intelligence'
 
-import type { CardId } from '../shared/cards'
+import type { CardAttributeId, CardId } from '../shared/cards'
 import type { DeckCandidate, MetaSimulationReport } from './types'
 
 function csvCell(value: string | number): string {
@@ -27,6 +27,88 @@ function deckList(deck: DeckCandidate): string {
     ))
     .map(([cardId, count]) => `${CARDS[cardId].name}×${count}`)
     .join(' / ')
+}
+
+interface AttributeSummaryRow {
+  attribute: CardAttributeId
+  deckCount: number
+  games: number
+  wins: number
+  losses: number
+  draws: number
+  winRate: number
+  bestDeckName: string
+  bestDeckWinRate: number
+  averageTurns: number
+}
+
+function buildAttributeSummary(report: MetaSimulationReport): AttributeSummaryRow[] {
+  const deckById = new Map(report.finalDecks.map((deck) => [deck.id, deck]))
+  const rows = new Map<CardAttributeId, {
+    deckIds: Set<string>
+    games: number
+    wins: number
+    losses: number
+    draws: number
+    weightedTurns: number
+    bestDeckName: string
+    bestDeckWinRate: number
+  }>()
+  for (const attribute of Object.keys(CARD_ATTRIBUTES) as CardAttributeId[]) {
+    rows.set(attribute, {
+      deckIds: new Set(), games: 0, wins: 0, losses: 0, draws: 0,
+      weightedTurns: 0, bestDeckName: '', bestDeckWinRate: -1,
+    })
+  }
+  for (const standing of report.finalStandings) {
+    const deck = deckById.get(standing.deckId)
+    if (!deck) continue
+    const attributes = analyzeDeckProfile(deck.cardIds).attributes
+    for (const attribute of attributes) {
+      const row = rows.get(attribute)!
+      row.deckIds.add(deck.id)
+      row.games += standing.games
+      row.wins += standing.wins
+      row.losses += standing.losses
+      row.draws += standing.draws
+      row.weightedTurns += standing.averageTurns * standing.games
+      if (standing.winRate > row.bestDeckWinRate) {
+        row.bestDeckWinRate = standing.winRate
+        row.bestDeckName = standing.deckName
+      }
+    }
+  }
+  return [...rows.entries()].map(([attribute, row]) => ({
+    attribute,
+    deckCount: row.deckIds.size,
+    games: row.games,
+    wins: row.wins,
+    losses: row.losses,
+    draws: row.draws,
+    winRate: row.games > 0 ? row.wins / row.games : 0,
+    bestDeckName: row.bestDeckName,
+    bestDeckWinRate: row.bestDeckWinRate < 0 ? 0 : row.bestDeckWinRate,
+    averageTurns: row.games > 0 ? row.weightedTurns / row.games : 0,
+  })).sort((left, right) => right.winRate - left.winRate)
+}
+
+export function createAttributesCsv(report: MetaSimulationReport): string {
+  return toCsv([
+    ['attribute_id', 'attribute_name', 'deck_count', 'games', 'wins', 'losses', 'draws', 'win_rate', 'best_deck', 'best_deck_win_rate', 'average_turns'],
+    ...buildAttributeSummary(report).map((row) => [
+      row.attribute,
+      CARD_ATTRIBUTES[row.attribute].name,
+      row.deckCount,
+      row.games,
+      row.wins,
+      row.losses,
+      row.draws,
+      row.winRate.toFixed(6),
+      row.bestDeckName,
+      row.bestDeckWinRate.toFixed(6),
+      row.averageTurns.toFixed(3),
+    ]),
+  ])
 }
 
 
@@ -154,6 +236,7 @@ export function createSummaryMarkdown(report: MetaSimulationReport): string {
   const finalMatches = report.generations[report.generations.length - 1]?.matches ?? []
   const completed = finalMatches.filter((match) => match.termination === 'win').length
   const stalled = finalMatches.length - completed
+  const attributeSummary = buildAttributeSummary(report)
 
   const lines = [
     '# Duel Spirits 메타 시뮬레이션',
@@ -186,6 +269,16 @@ export function createSummaryMarkdown(report: MetaSimulationReport): string {
     '|---:|---|---:|---:|---:|---:|---:|',
     ...topDecks.map((standing, index) => (
       `| ${index + 1} | ${standing.deckName} | ${percentage(standing.winRate)} | ${percentage(standing.firstGames > 0 ? standing.firstWins / standing.firstGames : 0)} | ${percentage(standing.secondGames > 0 ? standing.secondWins / standing.secondGames : 0)} | ${standing.averageTurns.toFixed(1)} | ${percentage(standing.confidenceLow)}–${percentage(standing.confidenceHigh)} |`
+    )),
+    '',
+    '## 속성별 성적',
+    '',
+    '> 다속성 덱은 가진 각 속성에 함께 집계됩니다. 덱 수가 적은 속성은 표본이 작으므로 최고 덱과 전체 승률을 함께 보십시오.',
+    '',
+    '| 속성 | 덱 수 | 합산 승률 | 최고 덱 | 최고 덱 승률 | 평균 턴 |',
+    '|---|---:|---:|---|---:|---:|',
+    ...attributeSummary.map((row) => (
+      `| ${CARD_ATTRIBUTES[row.attribute].name} | ${row.deckCount} | ${percentage(row.winRate)} | ${row.bestDeckName || '-'} | ${percentage(row.bestDeckWinRate)} | ${row.averageTurns.toFixed(1)} |`
     )),
     '',
   ]

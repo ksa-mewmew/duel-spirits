@@ -60,8 +60,19 @@ function attributeWeight(cardId: CardId, plan: DeckArchetypePlan): number {
   if (plan.attributes.length === 0) return 1
   const card = CARDS[cardId]
   const matches = card.attributes.filter((attribute) => plan.attributes.includes(attribute)).length
-  if (matches === 0) return plan.exploratory ? 0.55 : 0.1
-  return 1 + matches * 0.78 + (card.attributes.length > 1 ? 0.18 : 0)
+  if (matches === 0) return plan.exploratory ? 0.55 : 0.06
+
+  // 단일 속성 원형에서 다속성 카드를 무조건 더 좋은 마나로 취급하면,
+  // 실제로는 절반의 공명만 쓰는 카드가 3장씩 들어가 원형이 흐려집니다.
+  if (plan.attributes.length === 1) {
+    if (card.attributes.length === 1) return 2.05
+    return 0.82
+  }
+
+  // 두 속성 원형은 정확히 두 속성을 모두 가진 카드를 가장 높게 평가하되,
+  // 한쪽 단일 속성 카드도 충분히 골격 역할을 하도록 남겨 둡니다.
+  if (matches >= plan.attributes.length && card.attributes.length === plan.attributes.length) return 2.55
+  return 1.45 + matches * 0.18
 }
 
 function isOnPlan(cardId: CardId, plan: DeckArchetypePlan): boolean {
@@ -151,6 +162,7 @@ function preferredCopies(
   if (card.cost >= 5 && preferred >= 3) preferred = 2
   if (plan.strategy === 'aggro' && card.cost <= 2 && card.type === 'unit') preferred = 3
   if (plan.strategy === 'evolution' && analysis.roles.includes('evolution')) preferred = 2
+  if (plan.attributes.length === 1 && card.attributes.length > 1) preferred = Math.min(preferred, 2)
   return Math.max(1, Math.min(maximumCopies, preferred))
 }
 

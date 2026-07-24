@@ -40,6 +40,9 @@ export const HEURISTIC_WEIGHT_KEYS: readonly HeuristicWeightKey[] = [
   'readyManaValue',
   'readyUnitValue',
   'stateDelta',
+  'setupValue',
+  'staticAbilityValue',
+  'graveyardValue',
 ]
 
 const WEIGHT_LIMITS: Record<HeuristicWeightKey, readonly [number, number]> = {
@@ -59,6 +62,9 @@ const WEIGHT_LIMITS: Record<HeuristicWeightKey, readonly [number, number]> = {
   readyManaValue: [0, 40],
   readyUnitValue: [0, 56],
   stateDelta: [0.1, 4],
+  setupValue: [0, 48],
+  staticAbilityValue: [0, 56],
+  graveyardValue: [0, 36],
 }
 
 function rounded(value: number): number {
