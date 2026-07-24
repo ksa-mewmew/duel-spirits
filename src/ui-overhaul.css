@@ -901,7 +901,7 @@ body.room-waiting-active { background: #030506; }
 .card-inspector.is-empty { pointer-events: none; opacity: 0; }
 
 /* Modals stay inside the stage visually. */
-.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.72); backdrop-filter: blur(8px); }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.72); backdrop-filter: none; }
 .rulebook-dialog { max-height: min(88vh, 850px); }
 
 @media (max-aspect-ratio: 16 / 9) {
@@ -1126,7 +1126,7 @@ body.room-waiting-active { background: #030506; }
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 1cqh;
-  width: min(88cqw, 1440px);
+  width: min(76cqw, 1180px);
   height: min(82cqh, 820px);
   padding: 1.4cqh 1.2cqw;
   overflow: hidden;
@@ -1579,6 +1579,7 @@ body.room-waiting-active { background: #030506; }
 .card-inspector__inner {
   grid-template-columns: 1fr;
   gap: 1cqh;
+  min-height: 0;
 }
 
 .card-inspector__visual {
@@ -1592,6 +1593,7 @@ body.room-waiting-active { background: #030506; }
 
 .card-inspector__copy {
   gap: 8px;
+  min-height: 0;
 }
 
 .card-inspector__copy h2 {
@@ -1604,13 +1606,33 @@ body.room-waiting-active { background: #030506; }
 }
 
 .card-inspector__stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
+}
+
+.card-inspector__stat.is-up {
+  color: #baf3c0;
+}
+
+.card-inspector__stat.is-down {
+  color: #ff9f9f;
+}
+
+.card-inspector__stat-separator {
+  color: #8f96a4;
 }
 
 .card-inspector__rules {
   padding: 9px 10px;
   font-size: 11px;
   line-height: 1.55;
+  max-height: 28svh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  overflow-wrap: anywhere;
 }
 
 .card-inspector__hint,
@@ -3657,6 +3679,18 @@ body.room-waiting-active { background: #030506; }
   place-items: center;
   line-height: 1;
   text-align: center;
+}
+
+.game-card__attack.is-up,
+.game-card__health.is-up {
+  color: #baf3c0;
+  border-color: rgba(123, 232, 148, .95);
+}
+
+.game-card__attack.is-down,
+.game-card__health.is-down {
+  color: #ff9f9f;
+  border-color: rgba(255, 128, 128, .95);
 }
 
 .game-card__attack,

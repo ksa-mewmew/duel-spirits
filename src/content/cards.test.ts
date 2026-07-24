@@ -31,6 +31,7 @@ const BALANCE = {
   corpse_cat: ['시체에 숨은 고양이', 'unit', 1, 1, 2, ['dark']],
   nameless_shadow: ['이름 없는 그림자', 'unit', 1, 1, 2, ['dark']],
   blue_black_hound: ['검푸른 들개', 'unit', 2, 4, 2, ['dark']],
+  weakened_giant: ['쇠약한 거인', 'unit', 2, 3, 3, ['dark']],
   coffin_warrior: ['관 속의 전사', 'unit', 4, 3, 3, ['dark']],
   demon_finger: ['악마의 손가락', 'unit', 4, 4, 4, ['dark']],
   demon_breath: ['악마의 숨결', 'spell', 5, null, null, ['dark']],

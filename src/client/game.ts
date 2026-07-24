@@ -359,6 +359,17 @@ function findVisibleCardInstance(instanceId: string | null): CardInstance | unde
   return undefined
 }
 
+function findVisibleUnitView(instanceId: string | null): { player: PlayerView; unit: UnitInstance } | undefined {
+  if (!game || !instanceId) return undefined
+
+  for (const player of Object.values(game.players)) {
+    const unit = player.field.find((candidate) => candidate.instanceId === instanceId)
+    if (unit) return { player, unit }
+  }
+
+  return undefined
+}
+
 function unitTargetMode(cardId: CardId): 'any' | 'exhausted' | 'highest-health' | null {
   if (cardId === 'desertification') return 'any'
   if (cardId === 'ebb' || cardId === 'reverse_current') return 'exhausted'
@@ -1678,6 +1689,8 @@ function renderCardInspector(): string {
 function renderCardInspectorContent(cardId: CardId, instanceId: string | null = null): string {
   const card = CARDS[cardId]
   const instance = findVisibleCardInstance(instanceId)
+  const visibleUnit = instance && 'damage' in instance ? instance as UnitInstance : null
+  const visibleUnitView = visibleUnit ? findVisibleUnitView(instanceId) : undefined
   const currentCost = instance?.cardId === cardId ? effectiveCost(instance) : card.cost
   const costReduced = currentCost < card.cost
   const coffinFree = cardId === 'coffin_warrior' && currentCost === 0 && card.cost > 0
@@ -1689,13 +1702,48 @@ function renderCardInspectorContent(cardId: CardId, instanceId: string | null = 
   const keywords = card.type === 'unit'
     ? (card.keywords ?? []).map((keyword) => keywordNames[keyword]).filter(Boolean)
     : []
+  const currentAttack = visibleUnit && visibleUnitView
+    ? attackValueView(visibleUnitView.player, visibleUnitView.unit)
+    : card.type === 'unit'
+      ? card.attack
+      : 0
+  const currentHealth = visibleUnit && visibleUnitView
+    ? healthValueView(visibleUnitView.player, visibleUnitView.unit) - visibleUnitView.unit.damage
+    : card.type === 'unit'
+      ? card.health
+      : 0
+  const attackToneClass = card.type === 'unit' && currentAttack !== card.attack
+    ? currentAttack > card.attack
+      ? 'is-up'
+      : 'is-down'
+    : ''
+  const healthToneClass = card.type === 'unit' && currentHealth !== card.health
+    ? currentHealth > card.health
+      ? 'is-up'
+      : 'is-down'
+    : ''
+  const inspectorCardOptions = visibleUnit && visibleUnitView
+    ? {
+        interactive: false,
+        detailLayout: true,
+        displayCost: currentCost,
+        displayAttack: currentAttack,
+        remainingHealth: currentHealth,
+        classNames: ['card-preview-card'],
+      }
+    : {
+        interactive: false,
+        detailLayout: true,
+        displayCost: currentCost,
+        classNames: ['card-preview-card'],
+      }
   return `<div class="card-inspector__inner">
     <button type="button" class="card-inspector__close" data-action="close-card-preview" aria-label="카드 상세 닫기">×</button>
-    <div class="card-inspector__visual">${renderCard(cardId, { interactive: false, detailLayout: true, displayCost: currentCost, classNames: ['card-preview-card'] })}</div>
+    <div class="card-inspector__visual">${renderCard(cardId, inspectorCardOptions)}</div>
     <div class="card-inspector__copy">
       <div class="card-inspector__meta"><span>속성: ${escapeHtml(attributes)}</span><span>카드군: ${escapeHtml(families)}</span><span>${card.type === 'unit' ? '몬스터' : '주문'} · ${costReduced ? `현재 비용 ${currentCost} · 기본 ${card.cost}` : `비용 ${card.cost}`}</span></div>
       <h2>${escapeHtml(card.name)}</h2>
-      ${card.type === 'unit' ? `<p class="card-inspector__stats">공격력 ${card.attack} · 체력 ${card.health}</p>` : ''}
+      ${card.type === 'unit' ? `<p class="card-inspector__stats"><span class="card-inspector__stat ${attackToneClass}">공격력 ${currentAttack}</span><span class="card-inspector__stat-separator" aria-hidden="true">·</span><span class="card-inspector__stat ${healthToneClass}">체력 ${currentHealth}</span></p>` : ''}
       ${keywords.length > 0 ? `<div class="card-inspector__keywords">${keywords.map((keyword) => `<span>${escapeHtml(keyword)}</span>`).join('')}</div>` : ''}
       ${costReduced ? `<p class="card-inspector__cost-notice"><strong>${coffinFree ? '무료 사용 조건 충족' : '비용 감소 적용 중'}</strong><span>${card.cost} → ${currentCost}</span></p>` : ''}
       <p class="card-inspector__rules">${escapeHtml(card.rulesText || '능력 없음')}</p>

@@ -724,6 +724,18 @@ button.card-pile {
 .game-card__attack { border-color: #cf8b70; }
 .game-card__health { border-color: #7da686; }
 
+.game-card__attack.is-up,
+.game-card__health.is-up {
+  color: #baf3c0;
+  border-color: rgba(123, 232, 148, .95);
+}
+
+.game-card__attack.is-down,
+.game-card__health.is-down {
+  color: #ff9f9f;
+  border-color: rgba(255, 128, 128, .95);
+}
+
 .game-card__spell-type {
   padding: 2px 5px;
   border: 1px solid #777d88;
@@ -883,6 +895,8 @@ button.card-pile {
   pointer-events: none;
   transform: translateY(-5px);
   transition: opacity .12s ease, transform .12s ease;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .card-inspector.is-visible {
@@ -899,6 +913,7 @@ button.card-pile {
   display: grid;
   grid-template-columns: 132px minmax(0, 1fr);
   gap: 13px;
+  min-height: 0;
 }
 
 .card-inspector__close {
@@ -926,6 +941,7 @@ button.card-pile {
   align-content: start;
   gap: 10px;
   min-width: 0;
+  min-height: 0;
   padding-top: 5px;
 }
 
@@ -948,8 +964,23 @@ button.card-pile {
 }
 
 .card-inspector__stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: #e2cfa1;
   font-size: .76rem;
+}
+
+.card-inspector__stat.is-up {
+  color: #baf3c0;
+}
+
+.card-inspector__stat.is-down {
+  color: #ff9f9f;
+}
+
+.card-inspector__stat-separator {
+  color: #8f96a4;
 }
 
 .card-inspector__rules {
@@ -960,6 +991,11 @@ button.card-pile {
   color: #e7e5df;
   font-size: .78rem;
   line-height: 1.55;
+  max-height: 34svh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  overflow-wrap: anywhere;
 }
 
 .card-inspector__hint {
@@ -975,14 +1011,14 @@ button.card-pile {
   place-items: center;
   padding: 32px;
   background: rgba(5, 6, 8, .78);
-  backdrop-filter: blur(5px);
+  backdrop-filter: none;
 }
 
 .discard-dialog {
   display: grid;
   grid-template-rows: auto auto auto minmax(0, 1fr) auto;
   gap: 10px;
-  width: min(1100px, 100%);
+  width: min(960px, 100%);
   max-height: min(82svh, 760px);
   padding: 16px;
   border: 1px solid #4a505b;

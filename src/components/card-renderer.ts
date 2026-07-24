@@ -175,6 +175,19 @@ export function renderCard(
   const displayHealth =
     options.remainingHealth ?? ('health' in card ? (card as any).health : 0)
 
+  const baseAttack = 'attack' in card ? (card as any).attack : 0
+  const baseHealth = 'health' in card ? (card as any).health : 0
+  const attackToneClass = displayAttack > baseAttack
+    ? 'is-up'
+    : displayAttack < baseAttack
+      ? 'is-down'
+      : ''
+  const healthToneClass = displayHealth > baseHealth
+    ? 'is-up'
+    : displayHealth < baseHealth
+      ? 'is-down'
+      : ''
+
   const classes = [
     'game-card',
 
@@ -332,9 +345,9 @@ export function renderCard(
                   class="game-card__stats"
                   aria-label="공격력과 체력"
                 >
-                  <span class="game-card__attack">${displayAttack}</span>
+                  <span class="game-card__attack ${attackToneClass}">${displayAttack}</span>
 
-                  <span class="game-card__health">${displayHealth}</span>
+                  <span class="game-card__health ${healthToneClass}">${displayHealth}</span>
                 </div>
               `
               : `

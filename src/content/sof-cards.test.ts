@@ -30,7 +30,7 @@ const SOF_BALANCE = {
 
   poisoned_skeleton: ['독이 발린 해골', 'unit', 2, 1, 1, ['dark'], null],
   grave_merchant: ['무덤 안의 상인', 'unit', 2, 2, 2, ['dark'], null],
-  weakened_giant: ['쇠약한 거인', 'unit', 2, 4, 4, ['dark'], null],
+  weakened_giant: ['쇠약한 거인', 'unit', 2, 3, 3, ['dark'], null],
   funeral_inviter: ['장례식의 초대자', 'unit', 3, 2, 3, ['dark'], null],
   mass_burial: ['집단 매장', 'spell', 4, null, null, ['dark'], null],
   blackwing_predator: ['검은날개 포식자', 'unit', 3, 1, 4, ['dark'], 'dark'],

@@ -440,7 +440,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     '출현 - 자신의 묘지에서 비용 1 이하인 몬스터 하나를 손으로 가져온다.',
   ),
   weakened_giant: u(
-    'weakened_giant', '쇠약한 거인', 2, 4, 4, ['dark'],
+    'weakened_giant', '쇠약한 거인', 2, 3, 3, ['dark'],
     '이 몬스터는 직접 공격할 수 없다. 자신의 턴 종료 시 자신의 묘지에 어둠 카드가 없다면 이 몬스터를 묘지로 보낸다.',
   ),
   funeral_inviter: u(
