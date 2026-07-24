@@ -85,6 +85,7 @@ export function renderCard(
     options.nameOnly ? 'game-card--name-only' : '',
     !options.nameOnly && !options.detailLayout ? 'game-card--center-name' : '',
     options.detailLayout ? 'game-card--detail-layout' : '',
+    card.artUrl ? 'game-card--art-ready' : 'game-card--no-art',
     card.name.length >= 11 ? 'game-card--name-xlong' : card.name.length >= 8 ? 'game-card--name-long' : '',
     options.exhausted ? 'is-exhausted' : '',
     options.selected ? 'is-selected' : '',
@@ -94,7 +95,7 @@ export function renderCard(
   ].filter(Boolean)
 
   const style = card.artUrl
-    ? `style="--card-art: url('${escapeHtml(card.artUrl)}')"`
+    ? `style="--card-art: url('${escapeHtml(card.artUrl)}'); --card-art-position: ${escapeHtml(card.artPosition ?? '50% 42%')}; --card-art-scale: ${Number.isFinite(card.artScale) ? card.artScale : 1}"`
     : ''
   const interactive = options.interactive !== false
   const displayCost = options.displayCost ?? card.cost

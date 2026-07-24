@@ -99,7 +99,7 @@ export function renderLobby(appElement: HTMLDivElement): void {
         <select id="turn-limit-select">${turnOptions}</select>
         <details>
           <summary>고급 설정</summary>
-          <div class="lobby-mode-panel is-active">
+          <div class="lobby-advanced-fields">
             <label class="field-label" for="room-code-input">방 코드</label>
             <input id="room-code-input" type="text" maxlength="24" placeholder="비워두면 자동 생성" autocomplete="off">
             <label class="field-label" for="seat-expiry-select">연결 종료 후 자리 보존</label>

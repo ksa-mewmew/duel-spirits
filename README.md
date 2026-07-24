@@ -21,6 +21,18 @@ npm run dev
 npm run check
 ```
 
+## 메타 시뮬레이션
+
+실제 규칙 엔진을 화면 없이 반복 실행해 카드 풀에서 덱을 생성하고, 봇 라운드로빈과 카드·덱 통계를 만들 수 있습니다.
+
+```bash
+npm run sim:test
+cp simulator.config.example.json simulator.config.json
+npm run sim:meta
+```
+
+설정, 새 카드 대응 방식, 결과 해석은 `META-SIMULATOR.md`를 참고하세요.
+
 ## 서버 배포
 
 기존 Worker 이름은 배포 호환성을 위해 `card-duel-server`로 유지합니다.

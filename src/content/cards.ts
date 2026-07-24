@@ -41,6 +41,13 @@ export const CARD_IDS = [
 
 export type CardId = typeof CARD_IDS[number]
 
+export type CardPlaySelectionField = 'unitId' | 'lifeIndex' | 'effectManaId' | 'fieldSlot'
+
+export interface CardSimulationHints {
+  /** 봇이 PLAY_CARD 후보를 만들 때 조합해야 하는 선택 필드입니다. 실제 합법성은 규칙 엔진이 판정합니다. */
+  playSelectionFields?: CardPlaySelectionField[]
+}
+
 export type CardKeyword =
   | 'rush'
   | 'charge'
@@ -51,7 +58,12 @@ export type CardKeyword =
   | 'assassination'
 
 export interface CardBase {
+  /** public/card-art/<card id>.webp 경로의 카드 일러스트입니다. */
   artUrl?: string
+  /** 카드 면에서 일러스트의 초점 위치입니다. CSS object-position 형식입니다. */
+  artPosition?: string
+  /** 전장처럼 좁은 카드에서 사용할 선택적 확대 배율입니다. */
+  artScale?: number
   id: CardId
   name: string
   cost: number
@@ -62,6 +74,8 @@ export interface CardBase {
   setId: SetId
   collectorNumber: string
   contentVersion: string
+  /** 카드 풀이 바뀌어도 시뮬레이터가 대상 선택을 자동 생성하기 위한 최소 메타데이터입니다. */
+  simulationHints?: CardSimulationHints
 }
 
 export interface UnitCard extends CardBase {
@@ -78,6 +92,29 @@ export interface SpellCard extends CardBase {
 }
 
 export type CardDefinition = UnitCard | SpellCard
+
+
+export interface CardArtPresentation {
+  position?: string
+  scale?: number
+}
+
+/**
+ * 카드 이미지는 public/card-art/<card id>.webp 에 넣으면 자동으로 연결됩니다.
+ * 개별 그림의 얼굴이나 핵심 피사체가 잘릴 때만 아래 표에 초점/확대를 추가합니다.
+ */
+export const CARD_ART_PRESENTATION: Partial<Record<CardId, CardArtPresentation>> = {
+  // volcano_mouse: { position: '50% 38%', scale: 1.04 },
+}
+
+function getCardArtMetadata(id: CardId): Pick<CardBase, 'artUrl' | 'artPosition' | 'artScale'> {
+  const presentation = CARD_ART_PRESENTATION[id]
+  return {
+    artUrl: `./card-art/${id}.webp`,
+    artPosition: presentation?.position ?? '50% 42%',
+    artScale: presentation?.scale ?? 1,
+  }
+}
 
 export const SOF_CARD_IDS = [
   'spark_chasing_lizard', 'unexploded_bomb_mouse', 'iron_horn_boar', 'flame_javelin_soldier', 'volcanic_eruption', 'flame_mane_captain', 'exploding_mountain_dragon',
@@ -128,6 +165,7 @@ const u = (
   visualKey,
   evolutionAttribute,
   ...getMetadata(id),
+  ...getCardArtMetadata(id),
 })
 
 const s = (
@@ -148,6 +186,7 @@ const s = (
   rulesText,
   visualKey,
   ...getMetadata(id),
+  ...getCardArtMetadata(id),
 })
 
 export const CARDS: Record<CardId, CardDefinition> = {
@@ -477,6 +516,30 @@ export const CARDS: Record<CardId, CardDefinition> = {
     '불 공명 - 상대 몬스터 하나에게 피해 2를 준다. 어둠 공명을 충족했다면, 대신 상대의 모든 몬스터에게 준다.',
   ),
 }
+
+/**
+ * 카드의 실제 효과 판정은 rules.ts에만 존재합니다.
+ * 아래 힌트는 시뮬레이터가 가능한 PLAY_CARD 입력을 만드는 데만 사용하며,
+ * 잘못 만든 후보는 applyAction이 제거합니다. 새 카드가 플레이 시 대상을 요구한다면
+ * 해당 필드만 추가하면 덱 생성기와 봇은 카드 풀 크기와 무관하게 자동으로 처리합니다.
+ */
+const CARD_SIMULATION_HINTS: Partial<Record<CardId, CardSimulationHints>> = {
+  ebb: { playSelectionFields: ['unitId'] },
+  reverse_current: { playSelectionFields: ['unitId'] },
+  desertification: { playSelectionFields: ['unitId'] },
+  grave_digging: { playSelectionFields: ['effectManaId'] },
+  demon_breath: { playSelectionFields: ['unitId'] },
+  holy_mirror_wall: { playSelectionFields: ['lifeIndex'] },
+  rising_earth: { playSelectionFields: ['effectManaId', 'fieldSlot'] },
+  lava_gardener: { playSelectionFields: ['unitId', 'effectManaId'] },
+  crematory_smoke: { playSelectionFields: ['unitId'] },
+}
+
+for (const cardId of CARD_IDS) {
+  const hints = CARD_SIMULATION_HINTS[cardId]
+  if (hints) CARDS[cardId].simulationHints = hints
+}
+
 export const ALL_CARD_IDS = [...CARD_IDS]
 
 export const DEFAULT_DECK: CardId[] = [

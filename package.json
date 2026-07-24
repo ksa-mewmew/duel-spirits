@@ -11,10 +11,13 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
+    "sim:test": "node scripts/run-simulator.mjs self-test",
+    "sim:meta": "node scripts/run-simulator.mjs cli",
     "check": "npm run test:run && npm run build",
     "server:deploy": "wrangler deploy",
     "server:tail": "wrangler tail",
-    "server:whoami": "wrangler whoami"
+    "server:whoami": "wrangler whoami",
+    "art:check": "node scripts/check-card-art.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "4.20260625.1",

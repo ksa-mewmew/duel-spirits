@@ -1,0 +1,54 @@
+{
+  "seed": "meta-test-001",
+  "formatId": "open-v1",
+  "selectedSetIds": [],
+  "cardPool": {
+    "cardIds": [],
+    "includeSetIds": [],
+    "excludeCardIds": []
+  },
+  "deckGeneration": {
+    "populationSize": 8,
+    "generations": 2,
+    "eliteCount": 3,
+    "mutationsPerChild": 2,
+    "minUnits": 10,
+    "maxUnits": 17,
+    "maxAttemptsPerDeck": 300
+  },
+  "behaviorEvolution": {
+    "enabled": true,
+    "populationSize": 8,
+    "generations": 3,
+    "eliteCount": 3,
+    "mutationsPerChild": 4,
+    "mutationScale": 0.08,
+    "trainingDeckCount": 5,
+    "gamesPerPairPerDeck": 2,
+    "hallOfFameCount": 3,
+    "finalBotCount": 3,
+    "drawScore": 0.15,
+    "seedProfiles": [
+      "aggressive",
+      "value",
+      "control"
+    ]
+  },
+  "matches": {
+    "gamesPerPair": 12,
+    "botProfiles": [
+      "aggressive",
+      "value",
+      "control"
+    ],
+    "maxTurns": 80,
+    "maxActions": 500,
+    "legalActionLimits": {
+      "maxPaymentVariantsPerCard": 48,
+      "maxGeneratedActions": 400,
+      "maxChoiceCombinations": 160
+    }
+  },
+  "outputDirectory": "simulation-results/latest",
+  "seedDecks": []
+}

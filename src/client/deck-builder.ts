@@ -615,6 +615,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
       return `<li class="deck-list-row" data-preview-card-id="${cardId}">
         <button type="button" class="deck-list-row__card" data-select-card="${cardId}">
           <span class="deck-list-row__cost">${card.cost}</span>
+          <span class="deck-list-row__art deck-list-row__art--${card.attributes[0]}" aria-hidden="true" style="--deck-card-art: url('${escapeHtml(card.artUrl ?? '')}'); --deck-card-art-position: ${escapeHtml(card.artPosition ?? '50% 42%')}"></span>
           <span><strong>${escapeHtml(card.name)}</strong><small>${escapeHtml(attributeLabel)} · ${card.type === 'unit' ? '몬스터' : '주문'}</small></span>
         </button>
         <div class="deck-list-row__quantity">

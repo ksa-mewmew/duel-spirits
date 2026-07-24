@@ -34,3 +34,8 @@ dist-ssr
 # Cloudflare Wrangler local development state
 .wrangler/
 .dev.vars
+
+# Headless meta simulator output
+.sim-build/
+simulation-results/
+simulator.config.json
