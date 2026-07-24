@@ -4,6 +4,7 @@ import {
 } from '../shared/cards'
 
 import type { CardId } from '../shared/cards'
+import { getCardArtPresentation } from '../config/visual-assets'
 
 export interface RenderCardOptions {
   instanceId?: string
@@ -81,6 +82,7 @@ export function renderCard(
   if (options.hidden) return renderCardBack(options.classNames)
 
   const card = CARDS[cardId]
+  const art = getCardArtPresentation(cardId)
   const primaryAttribute = card.attributes[0]
   const isMultiAttribute = card.attributes.length > 1
   const attributeLabel = card.attributes
@@ -94,7 +96,7 @@ export function renderCard(
     options.nameOnly ? 'game-card--name-only' : '',
     !options.nameOnly && !options.detailLayout ? 'game-card--center-name' : '',
     options.detailLayout ? 'game-card--detail-layout' : '',
-    card.artUrl ? 'game-card--art-ready' : 'game-card--no-art',
+    'game-card--art-ready',
     getCardNameLengthClass(card.name),
     options.exhausted ? 'is-exhausted' : '',
     options.selected ? 'is-selected' : '',
@@ -103,9 +105,7 @@ export function renderCard(
     ...(options.classNames ?? []),
   ].filter(Boolean)
 
-  const style = card.artUrl
-    ? `style="--card-art: url('${escapeHtml(card.artUrl)}'); --card-art-position: ${escapeHtml(card.artPosition ?? '50% 42%')}; --card-art-scale: ${Number.isFinite(card.artScale) ? card.artScale : 1}"`
-    : ''
+  const style = `style="--card-art: url('${escapeHtml(art.url)}'); --card-art-position: ${escapeHtml(art.position)}; --card-art-scale: ${art.scale}"`
   const interactive = options.interactive !== false
   const displayCost = options.displayCost ?? card.cost
   const costReduction = Math.max(0, card.cost - displayCost)

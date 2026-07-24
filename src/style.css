@@ -1,3 +1,20 @@
+/* External font slots. The game keeps its fallback fonts until these files exist. */
+@font-face {
+  font-family: 'Duel Spirits UI';
+  src: url('/ui/fonts/ui.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Duel Spirits Display';
+  src: url('/ui/fonts/display.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 :root {
   --text: #6b6375;
   --text-h: #08060d;
@@ -11,8 +28,8 @@
   --shadow:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --sans: 'Duel Spirits UI', system-ui, 'Segoe UI', 'Noto Sans KR', sans-serif;
+  --heading: 'Duel Spirits Display', 'Duel Spirits UI', system-ui, 'Segoe UI', 'Noto Sans KR', sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
   font: 18px/145% var(--sans);

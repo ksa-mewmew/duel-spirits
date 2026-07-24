@@ -5609,3 +5609,36 @@ button.player-counter--discard {
     opacity: .28;
   }
 }
+
+/* 2026-07 external typography slots ---------------------------------------
+   Drop WOFF2 files into public/ui/fonts. Missing files simply fall back to
+   the existing system fonts, so visual asset work can be added incrementally. */
+:root {
+  --font-ui: 'Duel Spirits UI', system-ui, 'Segoe UI', 'Noto Sans KR', sans-serif;
+  --font-display: 'Duel Spirits Display', 'Duel Spirits UI', system-ui, 'Segoe UI', 'Noto Sans KR', sans-serif;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-ui);
+}
+
+h1,
+h2,
+h3,
+.section-heading,
+.field-heading,
+.hand-heading,
+.arena-life-block__heading,
+.selection-panel__title,
+.lobby-command__title,
+.game-card__code,
+.game-card__name-only,
+.player-name,
+.turn-ribbon,
+.end-turn-button {
+  font-family: var(--font-display);
+}
