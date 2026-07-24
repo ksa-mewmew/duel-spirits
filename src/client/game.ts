@@ -1917,7 +1917,7 @@ function render(): void {
   } else if (!game) content = renderWaitingRoom()
   else if (opponentId) {
     content = `<section class="game-layout">
-      <main class="battle-board ${game.currentPlayer === game.viewer ? 'is-my-turn' : 'is-opponent-turn'} ${game.pendingChoice?.playerId === game.viewer ? 'is-my-response' : ''}">
+      <main class="battle-board ${game.currentPlayer === game.viewer ? 'is-my-turn' : 'is-opponent-turn'} ${game.pendingChoice?.playerId === game.viewer ? 'is-my-response' : ''}" style="background-image: url('./ui/battle-bg.png'); background-size: cover; background-position: center; background-attachment: fixed;">
         ${renderArenaLifeRail(opponentId)}
         <section class="arena-center">
           ${renderPlayerBoard(opponentId, 'opponent')}
