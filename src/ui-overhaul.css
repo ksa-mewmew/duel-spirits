@@ -902,10 +902,30 @@ body.room-waiting-active { background: #030506; }
 
 /* Modals stay inside the stage visually. */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.72); backdrop-filter: none; }
+.discard-backdrop {
+  place-items: center end;
+  padding: 4cqh 4cqw;
+  background: transparent !important;
+  backdrop-filter: none !important;
+}
+.discard-backdrop .discard-dialog {
+  width: min(960px, calc(100vw - clamp(250px, 18vw, 320px) - 6cqw));
+}
 .rulebook-dialog { max-height: min(88vh, 850px); }
 
 @media (max-aspect-ratio: 16 / 9) {
   body { min-width: 0; }
+}
+
+@media (max-width: 1079px) {
+  .discard-backdrop {
+    place-items: center;
+    padding: 10px;
+  }
+
+  .discard-backdrop .discard-dialog {
+    width: min(960px, 100%);
+  }
 }
 
 /* 2026-07 follow-up: true 5:7 hand cards and first-class mana abilities. */
@@ -5049,7 +5069,7 @@ body.room-waiting-active { background: #030506; }
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-columns: clamp(62px, 5vw, 78px) minmax(0, 1fr) clamp(62px, 5vw, 78px);
+  grid-template-columns: clamp(104px, 8vw, 132px) minmax(0, 1fr) clamp(104px, 8vw, 132px);
   grid-template-rows: minmax(0, 1fr);
   gap: clamp(4px, .5vw, 8px);
   overflow: hidden;
@@ -5096,7 +5116,7 @@ body.room-waiting-active { background: #030506; }
 }
 
 .arena-life-block {
-  --arena-life-card-w: clamp(42px, 3.1vw, 50px);
+  --arena-life-card-w: clamp(76px, 5.8vw, 92px);
   --arena-life-card-h: calc(var(--arena-life-card-w) * 1.4);
   min-width: 0;
   width: 100%;
@@ -5113,12 +5133,12 @@ body.room-waiting-active { background: #030506; }
 
 .arena-life-block--opponent {
   grid-column: 1;
-  transform: translateY(-9%);
+  transform: translateY(-20%);
 }
 
 .arena-life-block--self {
   grid-column: 3;
-  transform: translateY(9%);
+  transform: translateY(20%);
 }
 
 .arena-life-block::before {
@@ -5160,7 +5180,7 @@ body.room-waiting-active { background: #030506; }
 }
 
 .arena-life-block .life-stack > * + * {
-  margin-top: calc(var(--arena-life-card-w) * -.28) !important;
+  margin-top: calc(var(--arena-life-card-w) * -.12) !important;
   margin-left: 0 !important;
 }
 

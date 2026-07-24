@@ -1765,7 +1765,7 @@ function renderDiscardModal(): string {
   const candidates = discardCandidates(playerId)
   const cards = [...candidates].reverse()
 
-  return `<div class="modal-backdrop" data-modal="discard">
+  return `<div class="modal-backdrop discard-backdrop" data-modal="discard">
     <section class="discard-dialog" role="dialog" aria-modal="true" aria-labelledby="discard-title">
       <header class="discard-dialog__header">
         <div>
