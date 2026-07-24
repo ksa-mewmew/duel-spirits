@@ -815,7 +815,7 @@ function renderMana(
       actions.push(actionButton('취소', 'cancel-summon-from-mana'))
     }
 
-    return renderCard(mana.cardId, {
+    const cardMarkup = renderCard(mana.cardId, {
       instanceId: mana.instanceId,
       compact: !expanded,
       nameOnly: !expanded,
@@ -829,7 +829,7 @@ function renderMana(
         ability ? 'has-mana-ability' : '',
         ability?.enabled ? 'has-ready-mana-ability' : '',
       ].filter(Boolean),
-      actionsHtml: actions.join(''),
+      actionsHtml: expanded ? '' : actions.join(''),
       dataAttributes: {
         'mana-attribute': CARDS[mana.cardId].attributes
           .map((attributeId) => CARD_ATTRIBUTES[attributeId].shortName)
@@ -837,6 +837,13 @@ function renderMana(
         ...(ability ? { 'mana-ability': ability.status } : {}),
       },
     })
+
+    if (!expanded) return cardMarkup
+
+    return `<div class="mana-card-control">
+      ${cardMarkup}
+      ${actions.length > 0 ? `<div class="mana-card-control__actions">${actions.join('')}</div>` : ''}
+    </div>`
   }).join('') || '<div class="zone-empty">마나 없음</div>'
 }
 

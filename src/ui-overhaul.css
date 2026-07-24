@@ -903,13 +903,13 @@ body.room-waiting-active { background: #030506; }
 /* Modals stay inside the stage visually. */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.72); backdrop-filter: none; }
 .discard-backdrop {
-  place-items: center end;
+  place-items: center;
   padding: 4cqh 4cqw;
   background: transparent !important;
   backdrop-filter: none !important;
 }
 .discard-backdrop .discard-dialog {
-  width: min(960px, calc(100vw - clamp(250px, 18vw, 320px) - 6cqw));
+  width: min(900px, calc(100vw - clamp(500px, 36vw, 640px) - 48px)) !important;
 }
 .rulebook-dialog { max-height: min(88vh, 850px); }
 
@@ -924,7 +924,7 @@ body.room-waiting-active { background: #030506; }
   }
 
   .discard-backdrop .discard-dialog {
-    width: min(960px, 100%);
+    width: min(960px, 100%) !important;
   }
 }
 
@@ -1139,14 +1139,20 @@ body.room-waiting-active { background: #030506; }
   z-index: 110;
   display: grid;
   place-items: center;
-  padding: 4cqh 4cqw;
+  padding:
+    4cqh
+    4cqw
+    4cqh
+    calc(clamp(250px, 18vw, 320px) + clamp(10px, 1vw, 18px) + 20px);
+  background: transparent !important;
+  backdrop-filter: none !important;
 }
 
 .mana-drawer {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 1cqh;
-  width: min(76cqw, 1180px);
+  width: min(1040px, 100%) !important;
   height: min(82cqh, 820px);
   padding: 1.4cqh 1.2cqw;
   overflow: hidden;
@@ -1311,6 +1317,16 @@ body.room-waiting-active { background: #030506; }
 
   .mana-card--expanded {
     width: clamp(68px, 10.5cqh, 94px) !important;
+  }
+}
+
+@media (max-width: 1079px) {
+  .mana-drawer-backdrop {
+    padding: 10px;
+  }
+
+  .mana-drawer {
+    width: min(92vw, 100%) !important;
   }
 }
 
@@ -2628,6 +2644,38 @@ body.room-waiting-active { background: #030506; }
   padding: 8px;
 }
 
+.mana-card-control {
+  --mana-expanded-card-width: clamp(104px, 13cqh, 132px);
+  display: grid;
+  width: var(--mana-expanded-card-width);
+  min-width: 0;
+  align-content: start;
+  justify-items: stretch;
+  gap: 7px;
+}
+
+.mana-card-control .mana-card--expanded {
+  width: 100% !important;
+  justify-self: center;
+}
+
+.mana-card-control__actions {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+}
+
+.mana-card-control__actions .action-button {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 7px;
+  border-radius: 8px;
+  font-size: 10px;
+  line-height: 1.15;
+  white-space: normal;
+}
+
 .mana-card--expanded {
   container-type: inline-size;
   width: clamp(104px, 13cqh, 132px) !important;
@@ -2938,6 +2986,10 @@ body.room-waiting-active { background: #030506; }
 
   .mana-card--expanded {
     width: clamp(94px, 12.2cqh, 118px) !important;
+  }
+
+  .mana-card-control {
+    --mana-expanded-card-width: clamp(94px, 12.2cqh, 118px);
   }
 }
 
@@ -5069,7 +5121,7 @@ body.room-waiting-active { background: #030506; }
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-columns: clamp(104px, 8vw, 132px) minmax(0, 1fr) clamp(104px, 8vw, 132px);
+  grid-template-columns: clamp(78px, 6vw, 96px) minmax(0, 1fr) clamp(78px, 6vw, 96px);
   grid-template-rows: minmax(0, 1fr);
   gap: clamp(4px, .5vw, 8px);
   overflow: hidden;
@@ -5080,7 +5132,7 @@ body.room-waiting-active { background: #030506; }
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, .88fr) 38px minmax(0, 1.28fr) auto;
+  grid-template-rows: minmax(0, .82fr) 38px minmax(0, 1.12fr) 78px;
   gap: 6px;
   overflow: hidden;
 }
@@ -5116,7 +5168,7 @@ body.room-waiting-active { background: #030506; }
 }
 
 .arena-life-block {
-  --arena-life-card-w: clamp(76px, 5.8vw, 92px);
+  --arena-life-card-w: clamp(54px, 4.1vw, 64px);
   --arena-life-card-h: calc(var(--arena-life-card-w) * 1.4);
   min-width: 0;
   width: 100%;
@@ -5191,6 +5243,7 @@ body.room-waiting-active { background: #030506; }
   flex: 0 0 var(--arena-life-card-w) !important;
   display: grid;
   place-items: center;
+  margin-inline: auto !important;
   translate: 0 !important;
   rotate: 0deg !important;
   transform: none !important;
@@ -5398,7 +5451,8 @@ body.room-waiting-active { background: #030506; }
   transform: none !important;
 }
 
-/* Selection confirmation is a real row below the hand, not a floating widget. */
+/* The confirmation lane always reserves the same 78px. Opening a selection
+   panel therefore never changes the battlefield, hand, or turn-ribbon rows. */
 .arena-center__main > .decision-dock.has-selection {
   position: relative !important;
   inset: auto !important;
@@ -5427,7 +5481,7 @@ body.room-waiting-active { background: #030506; }
 }
 
 .arena-center__main:has(> .decision-dock.has-selection) {
-  grid-template-rows: minmax(0, .82fr) 38px minmax(0, 1.12fr) auto;
+  grid-template-rows: minmax(0, .82fr) 38px minmax(0, 1.12fr) 78px;
 }
 
 .arena-center__main:has(> .decision-dock.has-selection) .hand-zone--self,
