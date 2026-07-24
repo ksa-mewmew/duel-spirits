@@ -94,6 +94,8 @@ let pinnedPreviewCardId: CardId | null = null
 let pinnedPreviewInstanceId: string | null = null
 let roomMenuOpen = false
 let rulebookOpen = false
+let decisionPanelCollapsed = false
+let decisionPanelKey: string | null = null
 
 function escapeHtml(value: string): string {
   return value
@@ -1787,9 +1789,34 @@ function renderDecisionDock(opponentId: PlayerId): string {
   const draftPanel = renderPlayDraftPanel()
   const attackPanel = renderAttackLifePanel(game.players[opponentId])
   const activePanel = pendingPanel || draftPanel || attackPanel
-  return activePanel
-    ? `<aside class="decision-dock has-selection" aria-live="polite">${activePanel}</aside>`
-    : ''
+  if (!activePanel) {
+    decisionPanelCollapsed = false
+    decisionPanelKey = null
+    return ''
+  }
+
+  const isEffectChoice = Boolean(pendingPanel)
+  const nextDecisionPanelKey = isEffectChoice
+    ? `effect:${game.actionSequence}:${game.pendingChoice?.type ?? 'waiting'}`
+    : draftPanel
+      ? `play:${playDraft?.cardInstanceId ?? 'draft'}`
+      : `attack:${selectedAttackerId ?? 'direct'}`
+
+  if (decisionPanelKey !== nextDecisionPanelKey) {
+    decisionPanelCollapsed = false
+    decisionPanelKey = nextDecisionPanelKey
+  }
+
+  if (isEffectChoice && decisionPanelCollapsed) {
+    return `<aside class="decision-dock has-selection is-effect-choice is-battlefield-view" aria-live="polite">
+      <button type="button" class="decision-panel-return" data-action="return-to-effect-choice">효과 선택으로 돌아가기</button>
+    </aside>`
+  }
+
+  return `<aside class="decision-dock has-selection ${isEffectChoice ? 'is-effect-choice' : ''}" aria-live="polite">
+    ${isEffectChoice ? '<button type="button" class="decision-panel-battlefield" data-action="view-battlefield">전장 보기</button>' : ''}
+    ${activePanel}
+  </aside>`
 }
 
 function renderTurnControl(): string {
@@ -2152,6 +2179,15 @@ function bindEvents(): void {
 
   document.querySelector<HTMLButtonElement>('#room-menu-button')?.addEventListener('click', () => {
     roomMenuOpen = !roomMenuOpen
+    render()
+  })
+
+  document.querySelector<HTMLElement>('[data-action="view-battlefield"]')?.addEventListener('click', () => {
+    decisionPanelCollapsed = true
+    render()
+  })
+  document.querySelector<HTMLElement>('[data-action="return-to-effect-choice"]')?.addEventListener('click', () => {
+    decisionPanelCollapsed = false
     render()
   })
 

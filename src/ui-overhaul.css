@@ -904,12 +904,16 @@ body.room-waiting-active { background: #030506; }
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.72); backdrop-filter: none; }
 .discard-backdrop {
   place-items: center;
-  padding: 4cqh 4cqw;
+  padding:
+    4cqh
+    4cqw
+    4cqh
+    calc(clamp(250px, 18vw, 320px) + clamp(10px, 1vw, 18px) + 20px);
   background: transparent !important;
   backdrop-filter: none !important;
 }
 .discard-backdrop .discard-dialog {
-  width: min(900px, calc(100vw - clamp(500px, 36vw, 640px) - 48px)) !important;
+  width: min(1040px, 100%) !important;
 }
 .rulebook-dialog { max-height: min(88vh, 850px); }
 
@@ -5487,6 +5491,85 @@ body.room-waiting-active { background: #030506; }
 .arena-center__main:has(> .decision-dock.has-selection) .hand-zone--self,
 .arena-center__main:has(> .decision-dock.has-selection) .hand-card {
   transform: none;
+}
+
+/* Effect resolution is a centred, temporary layer. Players can collapse it
+   without cancelling or changing the pending choice when they need to inspect
+   or target cards on the battlefield. */
+@media (min-width: 1080px) and (min-height: 640px) {
+  .arena-center__main {
+    position: relative;
+  }
+
+  .arena-center__main > .decision-dock.has-selection.is-effect-choice {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 150;
+    box-sizing: border-box;
+    width: 100% !important;
+    min-height: 0 !important;
+    padding: 18px !important;
+    display: grid !important;
+    place-items: center;
+    overflow: visible !important;
+    pointer-events: none !important;
+  }
+
+  .arena-center__main > .decision-dock.has-selection.is-effect-choice > .selection-panel,
+  .arena-center__main > .decision-dock.has-selection.is-effect-choice > .selection-panel--urgent {
+    position: relative !important;
+    inset: auto !important;
+    z-index: 1;
+    box-sizing: border-box;
+    width: min(820px, calc(100% - 32px)) !important;
+    min-height: 0;
+    max-height: calc(100% - 32px) !important;
+    margin: 0 !important;
+    padding: 18px !important;
+    transform: none !important;
+    overflow: auto !important;
+    pointer-events: auto;
+  }
+
+  .decision-panel-battlefield,
+  .decision-panel-return {
+    min-height: 38px;
+    padding: 7px 13px;
+    border: 1px solid rgba(132, 207, 218, .45);
+    border-radius: 999px;
+    background: rgba(6, 15, 21, .94);
+    color: #dff8fb;
+    font-size: 11px;
+    font-weight: 850;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .38);
+    pointer-events: auto;
+  }
+
+  .decision-panel-battlefield {
+    position: absolute;
+    top: 28px;
+    right: 30px;
+    z-index: 3;
+  }
+
+  .arena-center__main > .decision-dock.is-battlefield-view {
+    inset: 10px 10px auto auto !important;
+    width: auto !important;
+    height: auto;
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  .decision-panel-return {
+    position: relative;
+    z-index: 3;
+    border-color: rgba(229, 204, 121, .58);
+    color: #fff1bd;
+  }
+
+  .arena-center__main:has(> .decision-dock.is-effect-choice) {
+    grid-template-rows: minmax(0, .82fr) 38px minmax(0, 1.12fr) 78px;
+  }
 }
 
 @media (max-width: 1279px) {
