@@ -304,18 +304,11 @@ export function renderCard(
                   : `비용 ${displayCost}`
               }"
             >
-              <span class="game-card__cost">
-                ${displayCost}
-              </span>
+              <span class="game-card__cost">${displayCost}</span>
 
               ${costReduction > 0
                 ? `
-                  <span
-                    class="game-card__cost-reduction"
-                    aria-hidden="true"
-                  >
-                    −${costReduction}
-                  </span>
+                  <span class="game-card__cost-reduction" aria-hidden="true">−${costReduction}</span>
                 `
                 : ''}
             </span>
@@ -339,13 +332,9 @@ export function renderCard(
                   class="game-card__stats"
                   aria-label="공격력과 체력"
                 >
-                  <span class="game-card__attack">
-                    ${displayAttack}
-                  </span>
+                  <span class="game-card__attack">${displayAttack}</span>
 
-                  <span class="game-card__health">
-                    ${displayHealth}
-                  </span>
+                  <span class="game-card__health">${displayHealth}</span>
                 </div>
               `
               : `
