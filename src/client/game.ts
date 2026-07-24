@@ -1283,6 +1283,27 @@ function renderArenaResourcePanel(playerId: PlayerId, position: 'self' | 'oppone
   </section>`
 }
 
+function renderOpponentHandRack(handCount: number): string {
+  const visibleCount = Math.min(handCount, 14)
+  const midpoint = (visibleCount - 1) / 2
+  const cards = Array.from({ length: visibleCount }, (_, index) => {
+    const offset = index - midpoint
+    const rotation = offset * 1.35
+    const verticalOffset = Math.abs(offset) * .55
+    return `<span
+      class="opponent-hand-card"
+      style="--opponent-hand-rotation: ${rotation.toFixed(2)}deg; --opponent-hand-y: ${verticalOffset.toFixed(2)}px;"
+      aria-hidden="true"
+    ><span class="card-back-mark"></span></span>`
+  }).join('')
+  const extraCount = handCount - visibleCount
+
+  return `<div class="opponent-hand-rack" aria-label="상대 손패 ${handCount}장">
+    <div class="opponent-hand-fan">${cards || '<span class="opponent-hand-empty">손패 없음</span>'}</div>
+    ${extraCount > 0 ? `<span class="opponent-hand-extra">+${extraCount}</span>` : ''}
+  </div>`
+}
+
 function renderPlayerBoard(playerId: PlayerId, position: 'self' | 'opponent'): string {
   if (!game) return ''
   const player = game.players[playerId]
@@ -1295,7 +1316,11 @@ function renderPlayerBoard(playerId: PlayerId, position: 'self' | 'opponent'): s
   </section>`
 
   if (position === 'opponent') {
-    return `<section class="player-board player-board--opponent ${isActivePlayer ? 'is-active-player' : ''}">${strip}${field}</section>`
+    return `<section class="player-board player-board--opponent ${isActivePlayer ? 'is-active-player' : ''}">
+      ${strip}
+      ${renderOpponentHandRack(player.handCount)}
+      ${field}
+    </section>`
   }
 
   return `<section class="player-board player-board--self ${isActivePlayer ? 'is-active-player' : ''}">
