@@ -572,7 +572,6 @@ button.card-pile {
   gap: 12px;
   min-width: 0;
   padding: 5px 12px;
-  border-block: none;
   border-radius: 7px;
   background: #171a20;
 }
@@ -688,7 +687,7 @@ button.card-pile {
   inset: auto 8px 8px 8px;
   display: -webkit-box;
   overflow: hidden;
-  max-width: calc(100% - 62px);
+  max-width: calc(100% - 80px);
   color: #f5f1e5;
   font-size: .74rem;
   font-weight: 850;
