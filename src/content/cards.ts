@@ -245,8 +245,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
   ),
   blue_black_hound: u(
     'blue_black_hound', '검푸른 들개', 2, 4, 2, ['dark'],
-    '돌진. 이 몬스터는 직접 공격할 수 없다.',
-    ['charge'],
+    '어둠 공명 - 이 몬스터는 돌진을 얻는다. 이 몬스터는 직접 공격할 수 없다.',
   ),
   coffin_warrior: u(
     'coffin_warrior', '관 속의 전사', 4, 3, 3, ['dark'],
@@ -414,7 +413,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     '상대는 자신의 전장에서 몬스터 하나를 선택해 묘지로 보낸다. 자신의 전장에 몬스터가 있다면, 자신의 몬스터 하나를 묘지로 보낼 수 있다. 그렇게 했다면 상대는 몬스터 하나를 추가로 선택해 묘지로 보낸다.',
   ),
   blackwing_predator: u(
-    'blackwing_predator', '검은날개 포식자', 3, 3, 2, ['dark'],
+    'blackwing_predator', '검은날개 포식자', 3, 1, 4, ['dark'],
     '진화 - 어둠 몬스터. 암살. 출현 - 자신의 묘지에서 비용 1 이하인 어둠 몬스터 하나를 손으로 가져올 수 있다.',
     ['assassination'], 'rings', [], 'dark',
   ),

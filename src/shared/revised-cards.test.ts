@@ -271,17 +271,48 @@ describe('카드군 1 최신 능력', () => {
     expect(attacked.players.P2.life).toHaveLength(0)
   })
 
-  test('검푸른 들개는 준비된 몬스터도 공격할 수 있지만 직접 공격할 수 없다', () => {
-    const game = createTestGame()
-    game.players.P1.field = [unit('hound', 'blue_black_hound')]
-    game.players.P2.field = [unit('target', 'rock_armor_knight')]
+  test('검푸른 들개는 어둠 공명을 충족했을 때만 소환된 턴에 돌진하며 직접 공격할 수 없다', () => {
+    const resonant = createTestGame()
+    resonant.players.P1.hand = [{ instanceId: 'hound', cardId: 'blue_black_hound' }]
+    resonant.players.P1.mana = [
+      mana('dark', 'corpse_cat'),
+      mana('earth', 'tree_fairy'),
+    ]
+    resonant.players.P2.field = [unit('target', 'rock_armor_knight')]
 
-    const attacked = applyAction(game, 'P1', {
+    const summoned = applyAction(resonant, 'P1', {
+      type: 'PLAY_CARD',
+      cardInstanceId: 'hound',
+      manaIds: ['dark', 'earth'],
+      selection: { fieldSlot: 0 },
+    })
+    expect(summoned.players.P1.field[0]?.temporaryCharge).toBe(true)
+    const attacked = applyAction(summoned, 'P1', {
       type: 'ATTACK_UNIT',
       attackerId: 'hound',
       defenderId: 'target',
     })
     expect(attacked.players.P2.field).toHaveLength(0)
+
+    const nonResonant = createTestGame()
+    nonResonant.players.P1.hand = [{ instanceId: 'hound-2', cardId: 'blue_black_hound' }]
+    nonResonant.players.P1.mana = [
+      mana('earth-1', 'tree_fairy'),
+      mana('earth-2', 'seeding_fairy'),
+    ]
+    nonResonant.players.P2.field = [unit('target-2', 'rock_armor_knight')]
+    const noCharge = applyAction(nonResonant, 'P1', {
+      type: 'PLAY_CARD',
+      cardInstanceId: 'hound-2',
+      manaIds: ['earth-1', 'earth-2'],
+      selection: { fieldSlot: 0 },
+    })
+    expect(noCharge.players.P1.field[0]?.temporaryCharge).not.toBe(true)
+    expect(() => applyAction(noCharge, 'P1', {
+      type: 'ATTACK_UNIT',
+      attackerId: 'hound-2',
+      defenderId: 'target-2',
+    })).toThrow('이번 턴에 소환된 몬스터')
 
     const directGame = createTestGame()
     directGame.players.P1.field = [unit('direct-hound', 'blue_black_hound')]

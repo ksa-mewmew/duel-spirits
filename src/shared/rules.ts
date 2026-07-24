@@ -862,6 +862,10 @@ function resolveArrival(
       if (paidAttributes.has('fire')) unit.temporaryCharge = true
       break
 
+    case 'blue_black_hound':
+      if (paidAttributes.has('dark')) unit.temporaryCharge = true
+      break
+
     case 'wave_reader': {
       if (paidAttributes.has('water')) {
         const top = player.deck[0]
