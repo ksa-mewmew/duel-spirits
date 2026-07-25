@@ -513,7 +513,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     ].join('')
 
     return `<section class="card-set-tabs" aria-label="카드 세트 필터">
-      <div class="card-set-tabs__label"><strong>카드 세트</strong><span>SOF를 눌러 새 카드만 볼 수 있습니다.</span></div>
+      <div class="card-set-tabs__label"><strong>카드 세트</strong><span>EVO를 눌러 새 카드만 볼 수 있습니다.</span></div>
       <div class="card-set-tabs__buttons">${buttons}</div>
     </section>`
   }

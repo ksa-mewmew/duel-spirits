@@ -194,6 +194,170 @@
   }
 }
 
+/* 2026-07 unified card-face geometry --------------------------------------
+   These five surfaces use one coordinate system based on card width. `cqi`
+   keeps every anchor proportional even when the whole 5:7 card is resized. */
+:is(
+  .hand-card,
+  .field-card,
+  .card-preview-card,
+  .builder-hover-preview-card,
+  .builder-pool-card
+) {
+  container-type: inline-size;
+  --card-face-edge: 5cqi;
+  --card-face-orb: 18cqi;
+  --card-face-orb-bottom: 5cqi;
+  --card-face-name-bottom: 27cqi;
+  --card-face-name-height: 14cqi;
+}
+
+:is(
+  .hand-card,
+  .field-card,
+  .card-preview-card,
+  .builder-hover-preview-card,
+  .builder-pool-card
+) .game-card__illustration {
+  top: 14cqi;
+  right: 9cqi;
+  left: 9cqi;
+  width: auto;
+  aspect-ratio: 1;
+}
+
+:is(
+  .hand-card,
+  .field-card,
+  .card-preview-card,
+  .builder-hover-preview-card,
+  .builder-pool-card
+) .game-card__header {
+  inset: var(--card-face-edge) var(--card-face-edge) auto !important;
+  align-items: start;
+}
+
+:is(
+  .hand-card,
+  .field-card,
+  .card-preview-card,
+  .builder-hover-preview-card,
+  .builder-pool-card
+) :is(.game-card__cost-cluster, .game-card__cost, .game-card__attribute) {
+  box-sizing: border-box;
+  width: var(--card-face-orb) !important;
+  min-width: var(--card-face-orb) !important;
+  height: var(--card-face-orb) !important;
+  min-height: var(--card-face-orb) !important;
+  padding: 0 !important;
+  flex-basis: var(--card-face-orb) !important;
+  aspect-ratio: 1;
+  font-size: clamp(7px, 8cqi, 14px);
+  line-height: 1;
+}
+
+:is(
+  .hand-card,
+  .field-card,
+  .card-preview-card,
+  .builder-hover-preview-card,
+  .builder-pool-card
+) .game-card__attributes {
+  gap: 2cqi;
+}
+
+:is(
+  .hand-card,
+  .field-card,
+  .card-preview-card,
+  .builder-hover-preview-card,
+  .builder-pool-card
+) :is(.game-card__attack, .game-card__health) {
+  box-sizing: border-box;
+  bottom: var(--card-face-orb-bottom) !important;
+  width: var(--card-face-orb) !important;
+  min-width: var(--card-face-orb) !important;
+  height: var(--card-face-orb) !important;
+  min-height: var(--card-face-orb) !important;
+  padding: 0 !important;
+  aspect-ratio: 1;
+  font-size: clamp(7px, 8cqi, 14px);
+  line-height: 1;
+}
+
+:is(
+  .hand-card,
+  .field-card,
+  .card-preview-card,
+  .builder-hover-preview-card,
+  .builder-pool-card
+) .game-card__attack {
+  left: var(--card-face-edge) !important;
+}
+
+:is(
+  .hand-card,
+  .field-card,
+  .card-preview-card,
+  .builder-hover-preview-card,
+  .builder-pool-card
+) .game-card__health {
+  right: var(--card-face-edge) !important;
+}
+
+:is(
+  .hand-card,
+  .field-card,
+  .card-preview-card,
+  .builder-hover-preview-card,
+  .builder-pool-card
+).game-card:not(.game-card--name-only) .game-card__code {
+  inset:
+    auto
+    7cqi
+    var(--card-face-name-bottom)
+    7cqi !important;
+  box-sizing: border-box;
+  width: auto !important;
+  height: var(--card-face-name-height) !important;
+  min-height: 0 !important;
+  padding: 1cqi 3cqi !important;
+  font-size: clamp(7px, 8cqi, 14px);
+  line-height: 1;
+}
+
+:is(
+  .hand-card,
+  .field-card,
+  .card-preview-card,
+  .builder-hover-preview-card,
+  .builder-pool-card
+).game-card--name-long .game-card__code {
+  font-size: clamp(6px, 7cqi, 12px);
+}
+
+:is(
+  .hand-card,
+  .field-card,
+  .card-preview-card,
+  .builder-hover-preview-card,
+  .builder-pool-card
+):is(.game-card--name-xlong, .game-card--name-xxlong) .game-card__code {
+  font-size: clamp(5px, 6cqi, 10px);
+}
+
+:is(
+  .hand-card,
+  .field-card,
+  .card-preview-card,
+  .builder-hover-preview-card,
+  .builder-pool-card
+) .game-card__spell-type {
+  right: var(--card-face-edge);
+  bottom: var(--card-face-orb-bottom);
+  font-size: clamp(6px, 6cqi, 11px);
+}
+
 /* Server-authoritative timed draft */
 body.draft-active {
   overflow: hidden;
@@ -3545,7 +3709,7 @@ body.room-waiting-active { background: #030506; }
   display: none !important;
 }
 
-/* SOF visibility fix: card-set tabs remain visible above the scrolling pool. */
+/* EVO visibility fix: card-set tabs remain visible above the scrolling pool. */
 .card-pool-stage {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
@@ -6832,7 +6996,7 @@ h3,
   left: 9%;
   aspect-ratio: 1;
   overflow: hidden;
-  border-radius: 7%;
+  border-radius: 0;
   background:
     radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--card-accent) 22%, transparent), transparent 68%),
     rgba(4, 7, 10, .72);
@@ -6853,7 +7017,7 @@ h3,
   inset: 0;
   pointer-events: none;
   border: clamp(1px, .018em, 3px) solid color-mix(in srgb, var(--card-accent) 48%, #b9aa7d);
-  border-radius: inherit;
+  border-radius: 0;
   box-shadow:
     inset 0 0 0 1px rgba(0, 0, 0, .58),
     inset 0 0 10px rgba(0, 0, 0, .38),
@@ -6929,7 +7093,6 @@ h3,
   .arena-center__main:has(> .decision-dock.has-selection) {
     grid-template-rows:
       minmax(0, .82fr)
-      38px
       minmax(0, 1fr)
       78px
       minmax(148px, 20.5cqh) !important;
@@ -6941,7 +7104,6 @@ h3,
   .arena-center__main:not(:has(> .decision-dock.has-selection)) {
     grid-template-rows:
       minmax(0, .9fr)
-      38px
       minmax(0, 1fr)
       0
       minmax(148px, 20.5cqh) !important;
@@ -6953,18 +7115,18 @@ h3,
 
   .arena-center .player-board--self > .field-column {
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 2;
     min-height: 0;
   }
 
   .arena-center__main > .decision-dock {
     grid-column: 1;
-    grid-row: 4;
+    grid-row: 3;
   }
 
   .arena-center .player-board--self > .hand-area {
     grid-column: 1;
-    grid-row: 5;
+    grid-row: 4;
     min-height: 0;
   }
 
@@ -6979,4 +7141,411 @@ h3,
   .arena-center .hand-zone--self {
     padding-top: 34px !important;
   }
+
+  /* Turn state belongs with the viewer's mana and turn controls, leaving the
+     battlefield centre entirely available for cards. */
+  .mana-zone--self.mana-zone--summary {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  .mana-zone--self > .turn-ribbon {
+    position: static;
+    z-index: auto;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    min-height: 30px;
+    margin: 0;
+    padding: 5px 7px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    justify-self: stretch;
+    gap: 3px 7px;
+    border-color: rgba(169, 241, 215, .22);
+    border-radius: 9px;
+    background: rgba(2, 13, 17, .48);
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .mana-zone--self > .turn-ribbon strong {
+    min-width: 0;
+    color: #e9fff4;
+    font-size: 10px;
+    line-height: 1.15;
+  }
+
+  .mana-zone--self > .turn-ribbon .turn-timer {
+    color: #fff0b5;
+    font-size: 10px;
+    font-weight: 850;
+  }
+
+  .mana-zone--self > .turn-ribbon .turn-number {
+    grid-column: 1 / -1;
+    color: rgba(205, 238, 226, .6);
+    font-size: 7px;
+    line-height: 1;
+    text-align: right;
+  }
+
+  .mana-zone--self > .turn-ribbon .turn-message {
+    display: none;
+  }
+}
+
+/* Final cascade boundary for the shared card-face coordinate system. */
+:is(.hand-card, .field-card, .card-preview-card, .builder-hover-preview-card, .builder-pool-card) .game-card__illustration {
+  top: 14cqi;
+  right: 9cqi;
+  left: 9cqi;
+  width: auto;
+}
+
+:is(.hand-card, .field-card, .card-preview-card, .builder-hover-preview-card, .builder-pool-card) .game-card__header {
+  inset: var(--card-face-edge) var(--card-face-edge) auto !important;
+  align-items: start;
+}
+
+:is(.hand-card, .field-card, .card-preview-card, .builder-hover-preview-card, .builder-pool-card) :is(
+  .game-card__cost-cluster,
+  .game-card__cost,
+  .game-card__attribute,
+  .game-card__attack,
+  .game-card__health
+) {
+  box-sizing: border-box;
+  width: var(--card-face-orb) !important;
+  min-width: var(--card-face-orb) !important;
+  height: var(--card-face-orb) !important;
+  min-height: var(--card-face-orb) !important;
+  padding: 0 !important;
+  flex-basis: var(--card-face-orb) !important;
+  aspect-ratio: 1;
+  font-size: clamp(7px, 8cqi, 14px);
+  line-height: 1;
+}
+
+:is(.hand-card, .field-card, .card-preview-card, .builder-hover-preview-card, .builder-pool-card) .game-card__attributes {
+  gap: 2cqi;
+}
+
+:is(.hand-card, .field-card, .card-preview-card, .builder-hover-preview-card, .builder-pool-card) :is(
+  .game-card__attack,
+  .game-card__health
+) {
+  bottom: var(--card-face-orb-bottom) !important;
+}
+
+:is(.hand-card, .field-card, .card-preview-card, .builder-hover-preview-card, .builder-pool-card) .game-card__attack {
+  left: var(--card-face-edge) !important;
+}
+
+:is(.hand-card, .field-card, .card-preview-card, .builder-hover-preview-card, .builder-pool-card) .game-card__health {
+  right: var(--card-face-edge) !important;
+}
+
+:is(.hand-card, .field-card, .card-preview-card, .builder-hover-preview-card, .builder-pool-card).game-card:not(.game-card--name-only) .game-card__code {
+  inset: auto 7cqi var(--card-face-name-bottom) 7cqi !important;
+  box-sizing: border-box;
+  width: auto !important;
+  height: var(--card-face-name-height) !important;
+  min-height: 0 !important;
+  padding: 1cqi 3cqi !important;
+  font-size: clamp(7px, 8cqi, 14px);
+  line-height: 1;
+}
+
+:is(.hand-card, .field-card, .card-preview-card, .builder-hover-preview-card, .builder-pool-card).game-card--name-long .game-card__code {
+  font-size: clamp(6px, 7cqi, 12px);
+}
+
+:is(.hand-card, .field-card, .card-preview-card, .builder-hover-preview-card, .builder-pool-card):is(
+  .game-card--name-xlong,
+  .game-card--name-xxlong
+) .game-card__code {
+  font-size: clamp(5px, 6cqi, 10px);
+}
+
+:is(.hand-card, .field-card, .card-preview-card, .builder-hover-preview-card, .builder-pool-card) .game-card__spell-type {
+  right: var(--card-face-edge);
+  bottom: var(--card-face-orb-bottom);
+  font-size: clamp(6px, 6cqi, 11px);
+}
+
+/* 2026-07 card symbol asset slots -----------------------------------------
+   Drop transparent WebP files into public/ui/card-icons. Values stay in their
+   own foreground layer, so cost/attack/health remain readable above artwork. */
+:root {
+  --card-icon-fire: url('/ui/card-icons/attribute-fire.webp');
+  --card-icon-water: url('/ui/card-icons/attribute-water.webp');
+  --card-icon-earth: url('/ui/card-icons/attribute-earth.webp');
+  --card-icon-dark: url('/ui/card-icons/attribute-dark.webp');
+  --card-icon-light: url('/ui/card-icons/attribute-light.webp');
+  --card-icon-cost: url('/ui/card-icons/cost.webp');
+  --card-icon-attack: url('/ui/card-icons/attack.webp');
+  --card-icon-health: url('/ui/card-icons/health.webp');
+  --card-icon-spell: url('/ui/card-icons/spell.webp');
+}
+
+.game-card__cost-cluster,
+.game-card__attribute,
+.game-card__attack,
+.game-card__health,
+.game-card__spell-type {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+}
+
+.game-card__symbol-icon {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  width: 170%;
+  height: 170%;
+  pointer-events: none;
+  background-image: var(--card-symbol-image, none);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  opacity: 1 !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+  transform: translate(-50%, -50%);
+}
+
+.game-card__symbol-value,
+.game-card__cost,
+.game-card__cost-reduction {
+  position: relative;
+  z-index: 3;
+}
+
+.game-card__cost-cluster { --card-symbol-image: var(--card-icon-cost); }
+.game-card__attribute[data-attribute='fire'] { --card-symbol-image: var(--card-icon-fire); }
+.game-card__attribute[data-attribute='water'] { --card-symbol-image: var(--card-icon-water); }
+.game-card__attribute[data-attribute='earth'] { --card-symbol-image: var(--card-icon-earth); }
+.game-card__attribute[data-attribute='dark'] { --card-symbol-image: var(--card-icon-dark); }
+.game-card__attribute[data-attribute='light'] { --card-symbol-image: var(--card-icon-light); }
+.game-card__attack { --card-symbol-image: var(--card-icon-attack); }
+.game-card__health { --card-symbol-image: var(--card-icon-health); }
+.game-card__spell-type { --card-symbol-image: var(--card-icon-spell); }
+
+.game-card__cost-cluster > .game-card__symbol-icon {
+  display: block !important;
+  width: var(--card-icon-cost-size, 145%);
+  height: var(--card-icon-cost-size, 145%);
+  background-image: var(--card-icon-cost) !important;
+}
+
+.game-card__attribute[data-attribute='fire'] > .game-card__symbol-icon {
+  background-image: var(--card-icon-fire) !important;
+}
+
+.game-card__attribute[data-attribute='water'] > .game-card__symbol-icon {
+  background-image: var(--card-icon-water) !important;
+}
+
+.game-card__attribute[data-attribute='earth'] > .game-card__symbol-icon {
+  background-image: var(--card-icon-earth) !important;
+}
+
+.game-card__attribute[data-attribute='dark'] > .game-card__symbol-icon {
+  background-image: var(--card-icon-dark) !important;
+}
+
+.game-card__attribute[data-attribute='light'] > .game-card__symbol-icon {
+  background-image: var(--card-icon-light) !important;
+}
+
+.game-card__attribute > .game-card__symbol-icon {
+  width: 116%;
+  height: 116%;
+}
+
+.game-card__attack > .game-card__symbol-icon {
+  background-image: var(--card-icon-attack) !important;
+}
+
+.game-card__health > .game-card__symbol-icon {
+  background-image: var(--card-icon-health) !important;
+}
+
+.game-card__spell-type > .game-card__symbol-icon {
+  width: 100%;
+  height: 100%;
+  background-image: var(--card-icon-spell) !important;
+  transform: translate(-50%, -50%);
+}
+
+:is(.hand-card, .field-card, .card-preview-card, .builder-hover-preview-card, .builder-pool-card) .game-card__spell-type {
+  position: absolute !important;
+  right: auto !important;
+  bottom: 2cqi !important;
+  left: 50% !important;
+  width: 46cqi !important;
+  min-width: 0 !important;
+  height: 16cqi !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  overflow: visible;
+  border: 0 !important;
+  outline: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  transform: translateX(-50%) !important;
+}
+
+
+/* Final icon-layout correction. Generated icon artwork supplies the ornament,
+   so legacy coloured discs and borders must not compete with it. */
+:is(.hand-card, .field-card, .card-preview-card, .builder-hover-preview-card, .builder-pool-card) {
+  --card-face-value-orb: 22cqi;
+  --card-face-name-bottom: 30cqi;
+  --card-icon-cost-size: 110%;
+  --card-icon-combat-size: 120%;
+  --card-icon-combat-bottom: 6cqi;
+  --card-icon-combat-y: -51%;
+}
+
+.game-card__cost-cluster,
+.game-card__attribute {
+  position: relative !important;
+}
+
+.game-card__attack,
+.game-card__health,
+.game-card__spell-type {
+  position: absolute !important;
+  transform: none !important;
+}
+
+:is(.hand-card, .field-card, .card-preview-card, .builder-hover-preview-card, .builder-pool-card) :is(
+  .game-card__cost-cluster,
+  .game-card__attack,
+  .game-card__health
+) {
+  width: var(--card-face-value-orb) !important;
+  min-width: var(--card-face-value-orb) !important;
+  height: var(--card-face-value-orb) !important;
+  min-height: var(--card-face-value-orb) !important;
+  flex-basis: var(--card-face-value-orb) !important;
+  display: grid !important;
+  place-items: center !important;
+}
+
+:is(.hand-card, .field-card, .card-preview-card, .builder-hover-preview-card, .builder-pool-card) .game-card__cost {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  transform: none !important;
+  text-align: center !important;
+  font-size: clamp(9px, 10cqi, 18px) !important;
+  line-height: 1 !important;
+  transform: translate(0, -1cqi) !important;
+}
+
+:is(.hand-card, .field-card, .card-preview-card, .builder-hover-preview-card, .builder-pool-card) :is(
+  .game-card__attack,
+  .game-card__health
+) .game-card__symbol-value {
+  font-size: clamp(9px, 10cqi, 18px);
+  font-weight: 900;
+  line-height: 1;
+}
+
+:is(.hand-card, .field-card, .card-preview-card, .builder-hover-preview-card, .builder-pool-card) :is(
+  .game-card__attack,
+  .game-card__health
+) {
+  bottom: var(--card-icon-combat-bottom) !important;
+}
+
+:is(.hand-card, .field-card, .card-preview-card, .builder-hover-preview-card, .builder-pool-card) :is(
+  .game-card__attack,
+  .game-card__health
+) > .game-card__symbol-icon {
+  width: var(--card-icon-combat-size);
+  height: var(--card-icon-combat-size);
+  transform: translate(-50%, var(--card-icon-combat-y));
+}
+
+.game-card__attribute .game-card__symbol-value,
+.game-card__spell-type .game-card__symbol-value {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.game-card__cost-cluster,
+.game-card__cost,
+.game-card__attribute,
+.game-card__attack,
+.game-card__health,
+.game-card__spell-type,
+.game-card__code {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+.game-card__cost,
+.game-card__attribute,
+.game-card__attack,
+.game-card__health,
+.game-card__spell-type {
+  background: transparent !important;
+}
+
+.game-card__cost-cluster,
+.game-card__cost,
+.game-card__attack,
+.game-card__health {
+  filter: none !important;
+  backdrop-filter: none !important;
+}
+
+:is(.hand-card, .field-card, .card-preview-card, .builder-hover-preview-card, .builder-pool-card).game-card:not(.game-card--name-only) .game-card__code {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Card typography is independent from the surrounding interface. Replace
+   public/ui/fonts/card.woff2 or point this source at another WOFF2 file. */
+@font-face {
+  font-family: 'Duel Spirits Card';
+  src: url('/ui/fonts/card.woff2') format('woff2');
+  font-display: swap;
+}
+
+:root {
+  --font-card: 'Duel Spirits Card', 'Duel Spirits Display', 'Duel Spirits UI',
+    system-ui, 'Segoe UI', 'Noto Sans KR', sans-serif;
+}
+
+.game-card__code,
+.game-card__name-only,
+.game-card__cost,
+.game-card__cost-reduction,
+.game-card__symbol-value {
+  font-family: var(--font-card);
 }

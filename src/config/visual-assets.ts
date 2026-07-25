@@ -1,4 +1,5 @@
 import type { CardId } from '../shared/cards'
+import type { SetId } from '../content/schema'
 
 export interface CardArtPresentation {
   /** public/card-art 아래에서 사용할 파일명입니다. 기본값은 `<card id>.webp`입니다. */
@@ -25,7 +26,7 @@ function getPublicAssetUrl(relativePath: string): string {
   return `${base}${relativePath.replace(/^\/+/, '')}`
 }
 
-export function getCardArtPresentation(cardId: CardId): {
+export function getCardArtPresentation(cardId: CardId, setId: SetId): {
   url: string
   position: string
   scale: number
@@ -35,7 +36,7 @@ export function getCardArtPresentation(cardId: CardId): {
   const scale = presentation?.scale ?? 1
 
   return {
-    url: getPublicAssetUrl(`card-art/${fileName}`),
+    url: getPublicAssetUrl(`card-art/${setId}/${fileName}`),
     position: presentation?.position ?? '50% 42%',
     scale: Number.isFinite(scale) && scale > 0 ? scale : 1,
   }

@@ -93,7 +93,7 @@ function renderCardAttributes(
           class="game-card__attribute"
           data-attribute="${escapeHtml(attributeId)}"
         >
-          ${escapeHtml(attribute.shortName)}
+          <span class="game-card__symbol-icon" aria-hidden="true"></span>
         </span>
       `
     })
@@ -147,7 +147,7 @@ export function renderCard(
   }
 
   const card = CARDS[cardId]
-  const art = getCardArtPresentation(cardId)
+  const art = getCardArtPresentation(cardId, card.setId)
 
   const primaryAttribute = card.attributes[0]
   const isMultiAttribute = card.attributes.length > 1
@@ -317,6 +317,7 @@ export function renderCard(
                   : `비용 ${displayCost}`
               }"
             >
+              <span class="game-card__symbol-icon" aria-hidden="true"></span>
               <span class="game-card__cost">${displayCost}</span>
 
               ${costReduction > 0
@@ -345,14 +346,20 @@ export function renderCard(
                   class="game-card__stats"
                   aria-label="공격력과 체력"
                 >
-                  <span class="game-card__attack ${attackToneClass}">${displayAttack}</span>
+                  <span class="game-card__attack ${attackToneClass}">
+                    <span class="game-card__symbol-icon" aria-hidden="true"></span>
+                    <span class="game-card__symbol-value">${displayAttack}</span>
+                  </span>
 
-                  <span class="game-card__health ${healthToneClass}">${displayHealth}</span>
+                  <span class="game-card__health ${healthToneClass}">
+                    <span class="game-card__symbol-icon" aria-hidden="true"></span>
+                    <span class="game-card__symbol-value">${displayHealth}</span>
+                  </span>
                 </div>
               `
               : `
-                <span class="game-card__spell-type">
-                  주문
+                <span class="game-card__spell-type" aria-hidden="true">
+                  <span class="game-card__symbol-icon"></span>
                 </span>
               `}
           </footer>

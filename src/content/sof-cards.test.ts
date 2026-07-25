@@ -51,7 +51,7 @@ const SOF_BALANCE = {
   crematory_smoke: ['그림자 낀 산맥', 'spell', 3, null, null, ['dark', 'fire'], null],
 } as const
 
-describe('진화의 시작(SOF) 원고', () => {
+describe('evolution-begins(EVO) 원고', () => {
   test('정확히 40장이며 이름·종류·비용·공체·속성·진화 조건이 일치한다', () => {
     expect(SOF_CARD_IDS).toHaveLength(40)
     expect(Object.keys(SOF_BALANCE)).toHaveLength(40)
@@ -64,7 +64,7 @@ describe('진화의 시작(SOF) 원고', () => {
       expect(card.cost).toBe(cost)
       expect(card.attributes).toEqual(attributes)
       expect(card.setId).toBe('evolution-begins-001')
-      expect(card.collectorNumber).toMatch(/^SOF-\d{3}$/)
+      expect(card.collectorNumber).toMatch(/^EVO-\d{3}$/)
 
       if (card.type === 'unit') {
         expect(card.attack).toBe(attack)
@@ -86,10 +86,10 @@ describe('진화의 시작(SOF) 원고', () => {
     expect(counts).toEqual({ fire: 9, water: 9, earth: 9, dark: 9, light: 9 })
   })
 
-  test('세트 이름과 코드가 진화의 시작(SOF)이다', () => {
+  test('세트 이름과 코드가 evolution-begins(EVO)이다', () => {
     expect(CARD_SETS['evolution-begins-001']).toMatchObject({
-      name: '진화의 시작',
-      code: 'SOF',
+      name: 'evolution-begins',
+      code: 'EVO',
       unlockedByDefault: true,
     })
   })

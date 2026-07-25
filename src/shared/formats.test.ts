@@ -49,12 +49,12 @@ describe('콘텐츠와 포맷', () => {
     for (const cardId of ALL_CARD_IDS) {
       const card = CARDS[cardId]
       expect(card.setId).toBe(sofIds.has(cardId) ? 'evolution-begins-001' : 'foundations-001')
-      expect(card.collectorNumber).toMatch(sofIds.has(cardId) ? /^SOF-\d{3}$/ : /^DSF-\d{3}$/)
+      expect(card.collectorNumber).toMatch(sofIds.has(cardId) ? /^EVO-\d{3}$/ : /^FOU-\d{3}$/)
       expect(card.contentVersion).toBeTruthy()
     }
   })
 
-  test('전체 카드전 카드 풀에는 DSF 40종과 SOF 40종이 모두 보인다', () => {
+  test('전체 카드전 카드 풀에는 FOU 40종과 EVO 40종이 모두 보인다', () => {
     const pool = getFormatCardPool({
       formatId: 'open-v1',
       selectedSetIds: [],
@@ -89,7 +89,7 @@ describe('콘텐츠와 포맷', () => {
     expect(validateDeck(DEFAULT_DECK, evolutionSelection).valid).toBe(false)
   })
 
-  test('공개 카드 세트는 DSF와 SOF 두 종류뿐이다', () => {
+  test('공개 카드 세트는 FOU와 EVO 두 종류뿐이다', () => {
     expect(SET_IDS).toEqual(['foundations-001', 'evolution-begins-001'])
     expect(Object.keys(CARD_SETS)).toEqual(['foundations-001', 'evolution-begins-001'])
   })
@@ -100,14 +100,14 @@ describe('콘텐츠와 포맷', () => {
     }
   })
 
-  test('새 세트 한정 덱은 DSF와 SOF를 기본 카드 풀로 연다', () => {
+  test('새 세트 한정 덱은 FOU와 EVO를 기본 카드 풀로 연다', () => {
     expect(createDefaultFormatSelection('set-constructed-v1').selectedSetIds).toEqual([
       'foundations-001',
       'evolution-begins-001',
     ])
   })
 
-  test('삭제된 더미 세트가 저장 덱에 남아 있어도 DSF와 SOF로 복구한다', () => {
+  test('삭제된 더미 세트가 저장 덱에 남아 있어도 FOU와 EVO로 복구한다', () => {
     const normalized = normalizeDeckFormatSelection({
       formatId: 'set-constructed-v1',
       selectedSetIds: ['confluence-001'] as never[],

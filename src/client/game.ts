@@ -1324,6 +1324,7 @@ function renderArenaResourcePanel(playerId: PlayerId, position: 'self' | 'oppone
 
   return `<section class="arena-resource-panel arena-resource-panel--${position}" aria-label="${playerId} 자원">
     <section class="mana-zone mana-zone--summary ${isSelf ? 'mana-zone--self' : ''}" aria-label="${playerId} 마나">
+      ${isSelf ? renderTurnRibbon() : ''}
       <div class="mana-summary">
         <span class="mana-summary__label">MANA</span>
         <strong class="mana-summary__count">${readyMana}<small> / ${player.mana.length}</small></strong>
@@ -2148,7 +2149,6 @@ function render(): void {
           ${renderArenaLifeBlock(opponentId, 'opponent')}
           <div class="arena-center__main">
             ${renderPlayerBoard(opponentId, 'opponent')}
-            ${renderTurnRibbon()}
             ${renderPlayerBoard(game.viewer, 'self')}
             ${renderDecisionDock(opponentId)}
           </div>
