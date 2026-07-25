@@ -6823,7 +6823,10 @@ h3,
    appear consistently in the hand, battlefield, builder, and both inspectors. */
 .game-card__illustration {
   position: absolute;
-  z-index: 0;
+  /* Attribute frame PNGs currently include an opaque parchment centre.
+     Keep the square artwork above that surface, but below all card text and
+     number discs (z-index 4). */
+  z-index: 2;
   top: 10%;
   right: 9%;
   left: 9%;
@@ -6923,13 +6926,24 @@ h3,
 
   /* The self board wrapper becomes layout-transparent so the confirmation
      lane can sit between the battlefield and the hand without moving either. */
-  .arena-center__main,
   .arena-center__main:has(> .decision-dock.has-selection) {
     grid-template-rows:
       minmax(0, .82fr)
       38px
       minmax(0, 1fr)
       78px
+      minmax(148px, 20.5cqh) !important;
+  }
+
+  /* Do not squeeze the opponent battlefield for an empty confirmation lane.
+     The 78px row is introduced only while a play/attack choice actually
+     renders a decision dock. */
+  .arena-center__main:not(:has(> .decision-dock.has-selection)) {
+    grid-template-rows:
+      minmax(0, .9fr)
+      38px
+      minmax(0, 1fr)
+      0
       minmax(148px, 20.5cqh) !important;
   }
 
