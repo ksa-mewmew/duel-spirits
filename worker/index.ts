@@ -23,11 +23,9 @@ import type {
   ServerMessage,
 } from '../src/shared/messages'
 import {
-  areBothPlayersReady,
   createEmptyRematchReadiness,
   getRematchReadyPlayers,
   getRoomPhase,
-  setRematchReady,
 } from '../src/shared/room-lifecycle'
 import type { RematchReadiness } from '../src/shared/room-lifecycle'
 import {
@@ -875,24 +873,22 @@ export class Main extends Server<Env> {
       return
     }
 
-    this.roomState.rematchReady = setRematchReady(
-      this.roomState.rematchReady,
-      playerId,
-      ready,
-    )
+    if (!ready) return
 
-    if (
-      areBothPlayersReady(this.roomState.rematchReady)
-      && this.getConnectedPlayers().length === 2
-      && this.roomState.submittedDecks.P1
-      && this.roomState.submittedDecks.P2
-    ) {
-      this.startMatch()
-    }
+    this.broadcast(
+      JSON.stringify({
+        type: 'REMATCH_REQUESTED',
+        playerId,
+      } satisfies ServerMessage),
+      [sender.id],
+    )
+    this.clearCurrentGame()
 
     await this.persistAndSchedule()
+    this.broadcast(
+      JSON.stringify({ type: 'GAME_CLEARED' } satisfies ServerMessage),
+    )
     this.broadcastRoomState()
-    this.broadcastGameViews()
   }
 
   private async handleLeaveRoom(

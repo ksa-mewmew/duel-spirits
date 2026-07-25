@@ -394,8 +394,8 @@ export const CARDS: Record<CardId, CardDefinition> = {
   ),
   crystal_tsunami: u(
     'crystal_tsunami', '수정 해일', 5, 4, 4, ['water'],
-    '진화 - 물 몬스터. 비행. 출현 - 상대의 소진된 몬스터 하나를 그 소유자의 손으로 가져올 수 있다.',
-    ['flying'], 'waves', [], 'water',
+    '진화 - 물 몬스터. 출현 - 상대의 소진된 몬스터 하나를 그 소유자의 손으로 가져올 수 있다.',
+    [], 'waves', [], 'water',
   ),
 
   // 땅

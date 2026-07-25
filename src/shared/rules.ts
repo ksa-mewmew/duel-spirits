@@ -2251,7 +2251,12 @@ function resolveChoice(
               playerId: pending.sourcePlayerId, sourcePlayerId: pending.sourcePlayerId,
               sourceUnitId: pending.sourceUnitId,
               revealedCards: [{ ...lifeCard }], minChoices: 1, maxChoices: 1,
-              data: { stage: 'revealed', lifeId: lifeCard.instanceId, canAwaken },
+              data: {
+                stage: 'revealed',
+                lifeId: lifeCard.instanceId,
+                lifeSlotIndex: lifeCard.lifeSlotIndex ?? sourcePlayer.life.indexOf(lifeCard),
+                canAwaken,
+              },
             })
           }
           return game
@@ -2272,7 +2277,12 @@ function resolveChoice(
               sourceUnitId: pending.sourceUnitId,
               revealedCards: [{ ...lifeCard }, ...(top ? [{ ...top }] : [])],
               minChoices: 1, maxChoices: 1,
-              data: { stage: top ? 'both' : 'light-only', lifeId, topId: top?.instanceId ?? null },
+              data: {
+                stage: top ? 'both' : 'light-only',
+                lifeId,
+                lifeSlotIndex: lifeCard.lifeSlotIndex ?? sourcePlayer.life.indexOf(lifeCard),
+                topId: top?.instanceId ?? null,
+              },
             })
             return game
           }

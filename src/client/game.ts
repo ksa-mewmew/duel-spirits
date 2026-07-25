@@ -73,7 +73,6 @@ let game: GameView | null = null
 let assignedPlayerId: PlayerId | null = null
 let connectedPlayers: PlayerId[] = []
 let reservedPlayers: PlayerId[] = []
-let rematchReadyPlayers: PlayerId[] = []
 let roomPhase: RoomPhase = 'waiting'
 let roomSettings: RoomSettings = requestedSettings
 let turnDeadlineAt: number | null = null
@@ -88,6 +87,7 @@ let selectedAttackLifeSlotIndices: number[] = []
 let playDraft: PlayDraft | null = null
 let summonFromManaDraftId: string | null = null
 let pendingChoiceIds: string[] = []
+let gameNotice: string | null = null
 let message = '서버에 연결하는 중입니다.'
 let networkStatus = '연결 중'
 let awaitingServer = false
@@ -197,7 +197,6 @@ const socket = connectToRoom(
           roomPhase = serverMessage.phase
           connectedPlayers = serverMessage.connectedPlayers
           reservedPlayers = serverMessage.reservedPlayers
-          rematchReadyPlayers = serverMessage.rematchReadyPlayers
           deckStates = serverMessage.deckStates
           roomSettings = serverMessage.settings
           turnDeadlineAt = serverMessage.turnDeadlineAt
@@ -247,7 +246,7 @@ const socket = connectToRoom(
           pendingChoiceIds = []
           awaitingServer = false
           message = game.status === 'finished'
-            ? `${game.winner} 승리`
+            ? game.winner === game.viewer ? '승리했습니다.' : '패배했습니다.'
             : game.pendingChoice
               ? game.pendingChoice.playerId === game.viewer
                 ? '각성 또는 카드 효과를 선택해야 합니다.'
@@ -255,6 +254,11 @@ const socket = connectToRoom(
               : game.currentPlayer === game.viewer
                 ? '내 턴입니다.'
                 : '상대 턴입니다.'
+          gameNotice = game.status === 'finished'
+            ? game.winner === game.viewer
+              ? '승리했습니다!'
+              : '패배했습니다.'
+            : null
           break
 
         case 'ACTION_ERROR':
@@ -299,7 +303,11 @@ const socket = connectToRoom(
           pinnedPreviewInstanceId = null
           roomMenuOpen = false
           rulebookOpen = false
-          message = '현재 게임이 정리되었습니다.'
+          message = '방으로 돌아왔습니다. 덱을 변경한 뒤 다시 준비할 수 있습니다.'
+          break
+
+        case 'REMATCH_REQUESTED':
+          gameNotice = `${serverMessage.playerId} 플레이어가 재대전을 요청했습니다. 덱을 변경한 뒤 다시 준비해 주세요.`
           break
 
         case 'JOIN_REJECTED':
@@ -642,7 +650,6 @@ function renderLife(playerId: PlayerId, owner: 'self' | 'opponent'): string {
   if (!game) return ''
   const player = game.players[playerId]
   const pending = game.pendingChoice
-  const pendingMine = pending?.playerId === game.viewer
   const canAttackLife = owner === 'opponent'
     && pending === null
     && playDraft === null
@@ -667,11 +674,7 @@ function renderLife(playerId: PlayerId, owner: 'self' | 'opponent'): string {
 
     let action: string | null = null
     let selected = false
-    if (pendingMine && pending?.type === 'TEMPLE_PROSPECT_LIFE' && owner === 'self') {
-      action = 'resolve-life-choice'
-    } else if (pendingMine && pending?.type === 'HOLY_MIRROR_LIFE' && owner === 'opponent') {
-      action = 'resolve-life-choice'
-    } else if (playDraft && owner === 'opponent' && needsLifeTarget(selectedPlayCard()?.cardId ?? 'living_flame')) {
+    if (playDraft && owner === 'opponent' && needsLifeTarget(selectedPlayCard()?.cardId ?? 'living_flame')) {
       action = 'select-spell-life'
       selected = playDraft.lifeIndex === lifeIndex
     } else if (canAttackLife) {
@@ -687,11 +690,8 @@ function renderLife(playerId: PlayerId, owner: 'self' | 'opponent'): string {
       directAttackTarget ? 'is-direct-attack-target' : '',
       selected ? 'is-selected' : '',
     ].filter(Boolean))
-    const targetLabel = action && action !== 'select-attack-life'
-      ? '<span class="life-target-label">선택</span>'
-      : ''
     const content = action
-      ? `<button type="button" class="life-choice-button" data-action="${action}" data-life-index="${lifeIndex}" data-life-slot="${slotIndex}">${cardBack}${targetLabel}</button>`
+      ? `<button type="button" class="life-choice-button" data-action="${action}" data-life-index="${lifeIndex}" data-life-slot="${slotIndex}">${cardBack}</button>`
       : cardBack
     const frameClasses = [
       'life-card-frame',
@@ -1456,10 +1456,15 @@ function renderPlayDraftPanel(): string {
   const confirmLabel = definition.type === 'unit'
     ? definition.evolutionAttribute ? '진화 소환 확정' : '소환 확정'
     : '주문 사용 확정'
+  const lifeTargetPlayerId = game.viewer === 'P1' ? 'P2' : 'P1'
+  const lifeChoices = needsLifeTarget(card.cardId)
+    ? renderLargeLifeChoices(lifeTargetPlayerId, 'select-spell-life', playDraft.lifeIndex)
+    : ''
 
-  return `<div class="selection-panel selection-panel--play ${ready ? 'is-ready' : ''}">
+  return `<div class="selection-panel selection-panel--play ${lifeChoices ? 'has-life-target' : ''} ${ready ? 'is-ready' : ''}">
     <div class="selection-panel__title"><span>${definition.type === 'unit' ? '몬스터 소환' : '주문 사용'}</span><h3>${escapeHtml(definition.name)}</h3></div>
     <div class="selection-steps">${stepMarkup}</div>
+    ${lifeChoices}
     <div class="choice-actions">${actionButton(confirmLabel, 'confirm-play-card', undefined, undefined, !ready)}${actionButton('취소', 'cancel-play-card')}</div>
   </div>`
 }
@@ -1489,6 +1494,21 @@ function renderSofCandidateGrid(
   return `<div class="choice-card-grid">${candidateIds.map((id) => renderSofCandidateCard(id, 'resolve-simple-choice', actionLabel)).join('')}</div>`
 }
 
+function renderRevealedCard(card: CardInstance, location: string): string {
+  return `<div class="revealed-card"><span class="revealed-card__location">${escapeHtml(location)}</span>${renderCard(card.cardId, { compact: true, classNames: ['choice-card'] })}</div>`
+}
+
+function deckPositionLabel(index: number): string {
+  if (index === 0) return '덱 맨 위'
+  if (index === 1) return '덱 위에서 두 번째'
+  return `덱 위에서 ${index + 1}번째`
+}
+
+function lifePositionLabel(playerId: PlayerId, lifeIndex: number): string {
+  const slotIndex = game?.players[playerId].lifeSlotIndices[lifeIndex] ?? lifeIndex
+  return `라이프 ${slotIndex + 1}`
+}
+
 function sofChoicePanel(
   title: string,
   description: string,
@@ -1508,7 +1528,7 @@ function renderSofChoicePanel(pending: Extract<NonNullable<GameView['pendingChoi
       return sofChoicePanel('터지지 않은 폭탄쥐', '피해 2를 줄 상대 몬스터를 선택하세요.', renderSofCandidateGrid(candidates, '피해 2'))
     case 'UNDERWATER_OBSERVER_TOP': {
       const cards = pending.revealedCards
-      const content = `<div class="choice-card-grid">${cards.map((card) => renderCard(card.cardId, { compact: true, classNames: ['choice-card'] })).join('')}</div>`
+      const content = `<div class="choice-card-grid">${cards.map((card, index) => renderRevealedCard(card, deckPositionLabel(index))).join('')}</div>`
       const actions = [
         actionButton('현재 순서로 위에 둔다', 'resolve-simple-choice', 'choice-id', 'keep:normal'),
         actionButton('순서를 뒤집어 위에 둔다', 'resolve-simple-choice', 'choice-id', 'keep:reverse', cards.length < 2),
@@ -1577,18 +1597,25 @@ function renderSofChoicePanel(pending: Extract<NonNullable<GameView['pendingChoi
       const stage = String(pending.data.stage ?? 'choose')
       if (stage === 'revealed') {
         const card = pending.revealedCards[0]
-        const content = card ? renderCard(card.cardId, { compact: true, classNames: ['choice-card'] }) : ''
+        const slot = Number(pending.data.lifeSlotIndex ?? 0)
+        const content = card ? renderRevealedCard(card, `라이프 ${slot + 1}`) : ''
         const canAwaken = Boolean(pending.data.canAwaken)
         return sofChoicePanel('돌기둥의 성직자', canAwaken ? '각성 카드입니다. 손으로 가져와 각성을 발동할 수 있습니다.' : '확인한 카드는 각성 카드가 아닙니다.', content, actionButton('그대로 둔다', 'resolve-simple-choice', 'choice-id', 'keep') + actionButton('손으로 가져와 각성', 'resolve-simple-choice', 'choice-id', 'take', !canAwaken))
       }
-      return sofChoicePanel('돌기둥의 성직자', '확인할 자신의 라이프 카드 한 장을 선택할 수 있습니다.', `<div class="choice-card-grid">${candidates.map((id, index) => `<button type="button" class="choice-life-card" data-action="resolve-simple-choice" data-choice-id="${escapeHtml(id)}">${renderCardBack(['choice-card'])}<span>라이프 ${index + 1}</span></button>`).join('')}</div>`, optionalSkip)
+      return sofChoicePanel('돌기둥의 성직자', '확인할 자신의 라이프 카드 한 장을 선택할 수 있습니다.', `<div class="choice-card-grid">${candidates.map((id, index) => `<button type="button" class="choice-life-card" data-action="resolve-simple-choice" data-choice-id="${escapeHtml(id)}">${renderCardBack(['choice-card'])}<span>${lifePositionLabel(pending.sourcePlayerId, index)}</span></button>`).join('')}</div>`, optionalSkip)
     }
     case 'MIRROR_LAKE_RESOLVE': {
       const stage = String(pending.data.stage ?? '')
       if (stage === 'choose-life') {
-        return sofChoicePanel('거울 호수의 예언자', '확인할 자신의 라이프 카드 한 장을 선택하세요.', `<div class="choice-card-grid">${candidates.map((id, index) => `<button type="button" class="choice-life-card" data-action="resolve-simple-choice" data-choice-id="${escapeHtml(id)}">${renderCardBack(['choice-card'])}<span>라이프 ${index + 1}</span></button>`).join('')}</div>`)
+        return sofChoicePanel('거울 호수의 예언자', '확인할 자신의 라이프 카드 한 장을 선택하세요.', `<div class="choice-card-grid">${candidates.map((id, index) => `<button type="button" class="choice-life-card" data-action="resolve-simple-choice" data-choice-id="${escapeHtml(id)}">${renderCardBack(['choice-card'])}<span>${lifePositionLabel(pending.sourcePlayerId, index)}</span></button>`).join('')}</div>`)
       }
-      const content = `<div class="choice-card-grid">${pending.revealedCards.map((card) => renderCard(card.cardId, { compact: true, classNames: ['choice-card'] })).join('')}</div>`
+      const lifeSlot = Number(pending.data.lifeSlotIndex ?? 0)
+      const content = `<div class="choice-card-grid">${pending.revealedCards.map((card, index) => {
+        const location = stage === 'water-only'
+          ? '덱 맨 위'
+          : index === 0 ? `라이프 ${lifeSlot + 1}` : '덱 맨 위'
+        return renderRevealedCard(card, location)
+      }).join('')}</div>`
       if (stage === 'light-only') return sofChoicePanel('거울 호수의 예언자', '자신의 라이프 카드를 확인했습니다.', content, actionButton('확인 완료', 'resolve-simple-choice', 'choice-id', 'close'))
       const actions = actionButton('그대로 둔다', 'resolve-simple-choice', 'choice-id', 'keep')
         + actionButton('덱 위를 묘지로', 'resolve-simple-choice', 'choice-id', 'discard')
@@ -1599,9 +1626,24 @@ function renderSofChoicePanel(pending: Extract<NonNullable<GameView['pendingChoi
       return sofChoicePanel('가라앉은 관지기', '덱 맨 위에 놓을 묘지 카드 한 장을 선택할 수 있습니다.', renderSofCandidateGrid(candidates, '덱 위'), optionalSkip)
     case 'COFFIN_KEEPER_TOP': {
       const card = pending.revealedCards[0]
-      return sofChoicePanel('가라앉은 관지기', '덱 맨 위 카드를 묘지로 보낼 수 있습니다.', card ? renderCard(card.cardId, { compact: true, classNames: ['choice-card'] }) : '', actionButton('덱 위에 둔다', 'resolve-simple-choice', 'choice-id', 'keep') + actionButton('묘지로 보낸다', 'resolve-simple-choice', 'choice-id', 'discard'))
+      return sofChoicePanel('가라앉은 관지기', '덱 맨 위 카드를 묘지로 보낼 수 있습니다.', card ? renderRevealedCard(card, '덱 맨 위') : '', actionButton('덱 위에 둔다', 'resolve-simple-choice', 'choice-id', 'keep') + actionButton('묘지로 보낸다', 'resolve-simple-choice', 'choice-id', 'discard'))
     }
   }
+}
+
+function renderLargeLifeChoices(
+  playerId: PlayerId,
+  action = 'resolve-life-choice',
+  selectedLifeIndex?: number,
+): string {
+  if (!game) return ''
+  const player = game.players[playerId]
+  return `<div class="choice-card-grid choice-card-grid--life">${player.lifeSlotIndices.map((slotIndex, lifeIndex) => (
+    `<button type="button" class="choice-life-card choice-life-card--large ${selectedLifeIndex === lifeIndex ? 'is-selected' : ''}" data-action="${action}" data-life-index="${lifeIndex}">
+      ${renderCardBack(['choice-card'])}
+      <span class="choice-life-card__slot">라이프 ${slotIndex + 1}</span>
+    </button>`
+  )).join('')}</div>`
 }
 
 function renderPendingChoicePanel(): string {
@@ -1616,18 +1658,18 @@ function renderPendingChoicePanel(): string {
     case 'SOF_CHOICE':
       return renderSofChoicePanel(pending)
     case 'TEMPLE_PROSPECT_LIFE':
-      return '<div class="selection-panel selection-panel--urgent"><h3>신전의 유망주</h3><p>손으로 가져올 자신의 라이프를 선택하세요.</p></div>'
+      return `<div class="selection-panel selection-panel--urgent"><h3>신전의 유망주</h3><p>손으로 가져올 자신의 라이프를 선택하세요. 번호는 처음 놓인 라이프 슬롯을 뜻합니다.</p>${renderLargeLifeChoices(game.viewer)}</div>`
     case 'TEMPLE_PROSPECT_HAND':
       return `<div class="selection-panel selection-panel--urgent"><h3>신전의 유망주</h3><p>손 카드 한 장을 라이프로 놓거나 건너뛸 수 있습니다.</p>${actionButton('건너뛰기', 'skip-hand-choice')}</div>`
     case 'HOLY_MIRROR_LIFE':
-      return '<div class="selection-panel selection-panel--urgent"><h3>성스러운 거울의 벽</h3><p>묘지로 보낼 상대 라이프를 선택하세요.</p></div>'
+      return `<div class="selection-panel selection-panel--urgent"><h3>성스러운 거울의 벽</h3><p>묘지로 보낼 상대 라이프를 선택하세요. 번호는 처음 놓인 라이프 슬롯을 뜻합니다.</p>${renderLargeLifeChoices(game.viewer === 'P1' ? 'P2' : 'P1')}</div>`
     case 'AWAKEN_SUMMON_SLOT':
       return '<div class="selection-panel selection-panel--urgent"><h3>각성 소환</h3><p>각성한 카드를 소환할 빈 전장 슬롯을 선택하세요.</p></div>'
     case 'WAVE_READER_TOP':
-      return `<div class="selection-panel selection-panel--urgent"><h3>물결을 읽는 자</h3>${pending.revealedCard ? renderCard(pending.revealedCard.cardId, { compact: true, classNames: ['choice-card'] }) : ''}<div class="choice-actions">${actionButton('덱 위에 둔다', 'resolve-simple-choice', 'choice-id', 'keep')}${actionButton('묘지로 보낸다', 'resolve-simple-choice', 'choice-id', 'discard')}</div></div>`
+      return `<div class="selection-panel selection-panel--urgent"><h3>물결을 읽는 자</h3>${pending.revealedCard ? renderRevealedCard(pending.revealedCard, '덱 맨 위') : ''}<div class="choice-actions">${actionButton('덱 위에 둔다', 'resolve-simple-choice', 'choice-id', 'keep')}${actionButton('묘지로 보낸다', 'resolve-simple-choice', 'choice-id', 'discard')}</div></div>`
     case 'SURGING_WAVE_TOP': {
       const cards = pending.revealedCards
-      const summonOptions = cards.map((card) => {
+      const summonOptions = cards.map((card, cardIndex) => {
         const definition = CARDS[card.cardId]
         const canSummon = definition.type === 'unit'
           && definition.cost <= 2
@@ -1640,7 +1682,7 @@ function renderPendingChoicePanel(): string {
           `summon:${card.instanceId}@${slot}`,
           !canSummon,
         )).join('')
-        return `<div class="choice-card-with-slots">${renderCard(card.cardId, { compact: true, classNames: ['choice-card'] })}<div class="slot-choice-row">${slotButtons || '<span>빈 전장 슬롯 없음</span>'}</div></div>`
+        return `<div class="choice-card-with-slots"><span class="revealed-card__location">${escapeHtml(deckPositionLabel(cardIndex))}</span>${renderCard(card.cardId, { compact: true, classNames: ['choice-card'] })}<div class="slot-choice-row">${slotButtons || '<span>빈 전장 슬롯 없음</span>'}</div></div>`
       }).join('')
       return `<div class="selection-panel selection-panel--urgent"><h3>몰아치는 파도</h3><p>비용 2 이하의 물 몬스터 한 장을 출현 없이 소환하거나, 확인한 카드를 모두 덱 맨 아래에 놓습니다.</p><div class="choice-card-grid">${summonOptions}</div><div class="choice-actions">${actionButton('모두 아래 · 현재 순서', 'resolve-simple-choice', 'choice-id', 'bottom:normal')}${actionButton('모두 아래 · 순서 뒤집기', 'resolve-simple-choice', 'choice-id', 'bottom:reverse', cards.length < 2)}</div></div>`
     }
@@ -1881,7 +1923,7 @@ function renderTurnControl(): string {
 
   return `<aside class="turn-control" aria-label="턴 조작">
     <button id="end-turn-button" class="end-turn-button" type="button" ${canEndTurn && !awaitingServer ? '' : 'disabled'}><span>턴</span><strong>종료</strong></button>
-    ${game.status === 'finished' ? `<button id="rematch-button" type="button">${rematchReadyPlayers.includes(game.viewer) ? '재대전 취소' : '재대전 요청'}</button>` : ''}
+    ${game.status === 'finished' ? '<button id="rematch-button" type="button">방으로 돌아가 재대전</button>' : ''}
   </aside>`
 }
 
@@ -2109,7 +2151,10 @@ function render(): void {
       </header>`
     : `<header class="room-topbar"><div class="brand-cluster"><strong>Duel Spirits</strong><span class="connection-state">${escapeHtml(networkStatus)}</span></div><span>친구와 대전 준비</span><button id="rulebook-button" class="topbar-text-button" type="button">룰북</button></header>`
 
-  appElement.innerHTML = `<div class="room-screen ${game ? 'room-screen--game' : ''}">${gameTopbar}${content}</div>${renderRulebookModal()}`
+  const notice = gameNotice
+    ? `<div class="game-notice" role="alert" aria-live="assertive"><span>${escapeHtml(gameNotice)}</span><button type="button" data-action="dismiss-game-notice" aria-label="알림 닫기">×</button></div>`
+    : ''
+  appElement.innerHTML = `<div class="room-screen ${game ? 'room-screen--game' : ''}">${gameTopbar}${content}${notice}</div>${renderRulebookModal()}`
   bindEvents()
   updateClock()
 }
@@ -2794,7 +2839,14 @@ function bindEvents(): void {
   document.querySelector<HTMLButtonElement>('#end-turn-button')?.addEventListener('click', () => sendAction({ type: 'END_TURN' }))
   document.querySelector<HTMLButtonElement>('#surrender-button')?.addEventListener('click', () => sendAction({ type: 'SURRENDER' }))
   document.querySelector<HTMLButtonElement>('#rematch-button')?.addEventListener('click', () => {
-    if (game) sendRematchReady(socket, !rematchReadyPlayers.includes(game.viewer))
+    if (game) {
+      gameNotice = null
+      sendRematchReady(socket, true)
+    }
+  })
+  document.querySelector<HTMLButtonElement>('[data-action="dismiss-game-notice"]')?.addEventListener('click', () => {
+    gameNotice = null
+    render()
   })
   document.querySelector<HTMLButtonElement>('#leave-room-button')?.addEventListener('click', () => sendLeaveRoom(socket))
   document.querySelector<HTMLButtonElement>('#copy-invite-button')?.addEventListener('click', async () => {

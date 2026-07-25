@@ -104,3 +104,7 @@ export type ServerMessage =
   | {
       type: 'GAME_CLEARED'
     }
+  | {
+      type: 'REMATCH_REQUESTED'
+      playerId: PlayerId
+    }

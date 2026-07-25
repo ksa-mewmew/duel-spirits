@@ -6659,3 +6659,161 @@ h3,
     z-index: 90 !important;
   }
 }
+
+/* Battlefield target controls belong in the visual centre of the card so the
+   printed name rail and combat values remain readable. */
+.field-card .game-card__actions:has([data-action="select-spell-unit"]) {
+  inset: 50% 8px auto !important;
+  justify-content: center;
+  transform: translateY(-50%);
+}
+
+.field-card .game-card__actions:has([data-action="select-spell-unit"]) button {
+  width: min(100%, 112px);
+}
+
+.revealed-card,
+.choice-card-with-slots {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+}
+
+.revealed-card__location {
+  min-height: 22px;
+  padding: 4px 9px;
+  border: 1px solid rgba(114, 205, 214, .42);
+  border-radius: 999px;
+  background: rgba(5, 15, 21, .94);
+  color: #d9f5f3;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .02em;
+}
+
+.game-notice {
+  position: fixed;
+  top: max(64px, calc((100dvh - var(--stage-h)) / 2 + 58px));
+  left: 50%;
+  z-index: 240;
+  min-width: min(420px, calc(100vw - 32px));
+  max-width: min(680px, calc(100vw - 32px));
+  padding: 13px 14px 13px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(235, 205, 116, .72);
+  border-radius: 13px;
+  background: rgba(8, 15, 21, .98);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .62);
+  color: #fff0bd;
+  font-weight: 850;
+}
+
+.game-notice button {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+/* Life selection happens in the effect overlay. Do not place a red text badge
+   under the small battlefield stack; the enlarged cards carry stable slot
+   numbers instead. */
+.life-target-label {
+  display: none !important;
+}
+
+.choice-card-grid--life {
+  grid-template-columns: repeat(auto-fit, minmax(138px, 164px)) !important;
+  align-items: start;
+}
+
+.choice-life-card--large {
+  position: relative;
+  width: 154px;
+  padding: 0 0 34px;
+  display: grid;
+  justify-items: center;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+}
+
+.choice-life-card--large .choice-card {
+  width: 138px !important;
+}
+
+.choice-life-card__slot {
+  position: absolute;
+  right: 8px;
+  bottom: 0;
+  left: 8px;
+  min-height: 30px;
+  padding: 6px 8px;
+  border: 1px solid rgba(238, 205, 112, .66);
+  border-radius: 999px;
+  background: rgba(9, 15, 20, .98);
+  color: #ffeab0;
+  font-size: 13px;
+  font-weight: 900;
+  text-align: center;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .42);
+}
+
+.choice-life-card--large.is-selected .choice-card {
+  outline: 3px solid #f0cf70;
+  outline-offset: 3px;
+  box-shadow: 0 0 24px rgba(240, 207, 112, .42);
+}
+
+@media (min-width: 1080px) and (min-height: 640px) {
+  .selection-panel--play.has-life-target {
+    --life-choice-left:
+      calc(
+        (100vw - var(--stage-w)) / 2
+        + 12px
+        + clamp(250px, 18vw, 320px)
+        + clamp(10px, 1vw, 18px)
+      );
+    position: fixed !important;
+    inset: 50% auto auto
+      calc(
+        var(--life-choice-left)
+        + (
+          var(--stage-w)
+          - 12px
+          - clamp(250px, 18vw, 320px)
+          - clamp(10px, 1vw, 18px)
+        ) / 2
+      ) !important;
+    z-index: 175 !important;
+    width: min(
+      920px,
+      calc(
+        var(--stage-w)
+        - 12px
+        - clamp(250px, 18vw, 320px)
+        - clamp(10px, 1vw, 18px)
+        - 48px
+      )
+    ) !important;
+    max-height: min(82dvh, 760px) !important;
+    padding: 18px !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    justify-items: stretch;
+    gap: 14px;
+    overflow: auto !important;
+    transform: translate(-50%, -50%) !important;
+  }
+
+  .selection-panel--play.has-life-target .selection-steps,
+  .selection-panel--play.has-life-target .choice-actions {
+    justify-content: center;
+  }
+}
