@@ -77,7 +77,7 @@ describe('기본 행동', () => {
     expect(countPlayerCards(next.players.P1)).toBe(DECK_SIZE)
   })
 
-  test('턴 종료 시 상대의 턴이 시작되며 카드 두 장을 뽑는다', () => {
+  test('후공은 첫 턴에 한 장을 뽑고 이후 턴에는 두 장을 뽑는다', () => {
     const game = createGame({
       random: () => 0.5,
       idSource: createIdSource(),
@@ -85,11 +85,16 @@ describe('기본 행동', () => {
     const next = applyAction(game, 'P1', { type: 'END_TURN' })
 
     expect(next.currentPlayer).toBe('P2')
-    expect(next.players.P2.hand).toHaveLength(6)
-    expect(next.players.P2.deck).toHaveLength(10)
+    expect(next.players.P2.hand).toHaveLength(5)
+    expect(next.players.P2.deck).toHaveLength(11)
+
+    const following = applyAction(next, 'P2', { type: 'END_TURN' })
+    expect(following.currentPlayer).toBe('P1')
+    expect(following.players.P1.hand).toHaveLength(6)
+    expect(following.players.P1.deck).toHaveLength(10)
   })
 
-  test('턴 시작에 두 장을 뽑는 동안 덱이 비면 묘지를 섞어 계속 뽑는다', () => {
+  test('후공 첫 턴 드로우 때 덱이 비면 묘지를 섞어 한 장을 뽑는다', () => {
     const game = createGame({
       random: () => 0.5,
       idSource: createIdSource(),
@@ -104,12 +109,10 @@ describe('기본 행동', () => {
 
     const next = applyAction(game, 'P1', { type: 'END_TURN' })
 
-    expect(next.players.P2.hand).toHaveLength(handSizeBefore + 2)
-    expect(next.players.P2.hand.slice(-2).map((card) => card.instanceId).sort()).toEqual([
-      'recycled-draw-a',
-      'recycled-draw-b',
-    ])
-    expect(next.players.P2.deck).toHaveLength(0)
+    expect(next.players.P2.hand).toHaveLength(handSizeBefore + 1)
+    expect(['recycled-draw-a', 'recycled-draw-b'])
+      .toContain(next.players.P2.hand.at(-1)?.instanceId)
+    expect(next.players.P2.deck).toHaveLength(1)
     expect(next.players.P2.discard).toHaveLength(0)
   })
 })

@@ -50,7 +50,7 @@ export function createRulebookDocument(format: GameFormat<CardId>): RulebookDocu
     subtitle: '처음 하는 사람을 위한 기본 규칙',
     rulesVersion: RULES_VERSION,
     formatName: format.name,
-    formatSummary: `${format.description} 덱 ${format.deckSize}장 · 시작 라이프 ${format.startingLife}장 · 시작 손 ${format.startingHand}장 · 턴 시작 드로우 ${format.turnDrawCount}장 · 시작 덱 ${drawDeckSize}장 · 전장 ${format.fieldSlots}슬롯`,
+    formatSummary: `${format.description} 덱 ${format.deckSize}장 · 시작 라이프 ${format.startingLife}장 · 시작 손 ${format.startingHand}장 · 후공 첫 턴 드로우 1장 · 이후 턴 시작 드로우 ${format.turnDrawCount}장 · 시작 덱 ${drawDeckSize}장 · 전장 ${format.fieldSlots}슬롯`,
     sections: [
       {
         id: 'rules-goal',
@@ -89,7 +89,7 @@ export function createRulebookDocument(format: GameFormat<CardId>): RulebookDocu
               `덱 위에서 ${format.startingLife}장을 뒷면으로 놓아 라이프로 삼습니다. 자기 라이프도 어떤 카드인지 볼 수 없습니다.`,
               `그 다음 ${format.startingHand}장을 손으로 가져옵니다. 남은 ${drawDeckSize}장은 덱으로 둡니다.`,
               '선공은 무작위로 정합니다. 시작 손은 다시 뽑지 않습니다.',
-              '선공은 첫 턴에 카드를 뽑지 않습니다.',
+              '선공은 첫 턴에 카드를 뽑지 않고, 후공은 자신의 첫 턴에 카드 1장을 뽑습니다.',
             ],
           },
         ],
@@ -104,7 +104,7 @@ export function createRulebookDocument(format: GameFormat<CardId>): RulebookDocu
             ordered: true,
             items: [
               '내 마나와 몬스터를 모두 준비 상태로 돌립니다.',
-              `카드 ${format.turnDrawCount}장을 한 장씩 차례로 뽑습니다. 단, 경기의 첫 턴에는 뽑지 않습니다.`,
+              `후공의 첫 턴에는 카드 1장을 뽑습니다. 그 이후에는 턴마다 카드 ${format.turnDrawCount}장을 한 장씩 차례로 뽑습니다. 선공의 첫 턴에는 뽑지 않습니다.`,
               '원하는 순서로 카드를 사용하거나 공격합니다.',
               '할 일을 마쳤으면 턴을 종료합니다.',
             ],
@@ -304,7 +304,7 @@ export function createRulebookDocument(format: GameFormat<CardId>): RulebookDocu
           {
             type: 'list',
             items: [
-              `턴 시작에는 카드 ${format.turnDrawCount}장을 한 장씩 차례로 뽑습니다. 경기의 첫 턴은 예외입니다.`,
+              `선공의 첫 턴에는 카드를 뽑지 않습니다. 후공의 첫 턴에는 1장을 뽑고, 그 이후 턴 시작에는 카드 ${format.turnDrawCount}장을 한 장씩 차례로 뽑습니다.`,
               '카드를 뽑을 때는 덱 맨 위 카드를 손으로 가져옵니다.',
               '덱이 비어 있고 묘지에 카드가 있다면 묘지를 섞어 새 덱으로 만든 뒤 뽑습니다.',
               '덱과 묘지가 모두 비어 있으면 아무것도 뽑지 않습니다. 덱이 비었다는 이유로 패배하지는 않습니다.',

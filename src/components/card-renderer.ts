@@ -286,10 +286,10 @@ export function renderCard(
       ${renderDataAttributes(options.dataAttributes)}
       style="${styleVariables}"
     >
-      <div
-        class="game-card__art"
-        aria-hidden="true"
-      ></div>
+      <div class="game-card__illustration" aria-hidden="true">
+        <div class="game-card__art"></div>
+        <div class="game-card__illustration-frame"></div>
+      </div>
 
       <div
         class="game-card__overlay"

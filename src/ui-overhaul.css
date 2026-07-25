@@ -6817,3 +6817,140 @@ h3,
     justify-content: center;
   }
 }
+
+/* 2026-07 square illustration and card-scale pass -------------------------
+   All card surfaces share this slot, so artwork and its independent frame
+   appear consistently in the hand, battlefield, builder, and both inspectors. */
+.game-card__illustration {
+  position: absolute;
+  z-index: 0;
+  top: 10%;
+  right: 9%;
+  left: 9%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 7%;
+  background:
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--card-accent) 22%, transparent), transparent 68%),
+    rgba(4, 7, 10, .72);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .07);
+}
+
+.game-card__illustration .game-card__art {
+  position: absolute;
+  inset: -1px;
+  width: auto;
+  height: auto;
+  border-radius: inherit;
+}
+
+.game-card__illustration-frame {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+  border: clamp(1px, .018em, 3px) solid color-mix(in srgb, var(--card-accent) 48%, #b9aa7d);
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, .58),
+    inset 0 0 10px rgba(0, 0, 0, .38),
+    0 1px 5px rgba(0, 0, 0, .34);
+}
+
+.game-card--no-art .game-card__illustration {
+  opacity: .72;
+}
+
+/* Slightly larger physical cards, with the detailed views receiving the
+   largest increase. */
+.card-pool-grid {
+  grid-template-columns: repeat(auto-fill, minmax(142px, 1fr));
+}
+
+.builder-hover-preview {
+  grid-template-columns: minmax(174px, 47%) minmax(0, 1fr);
+  gap: .65cqh .65cqw;
+}
+
+.builder-hover-preview-card {
+  width: min(100%, 196px) !important;
+}
+
+.builder-hover-preview__copy {
+  gap: 3px;
+}
+
+.builder-hover-preview__copy h3 {
+  margin: 2px 0 3px;
+  font-size: 15px;
+  line-height: 1.08;
+}
+
+.builder-hover-preview__meta {
+  gap: 1px;
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.builder-hover-preview__stats {
+  margin-block: 2px;
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.builder-hover-preview__rules {
+  margin-block: 3px;
+  padding: 6px 7px;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.card-inspector__visual .card-preview-card,
+.card-preview-card {
+  width: clamp(148px, 11.2vw, 196px) !important;
+}
+
+@media (min-width: 1080px) and (min-height: 640px) {
+  .field-zone {
+    --arena-field-card: clamp(104px, 14.8vh, 142px);
+  }
+
+  .hand-zone--self .hand-card,
+  .hand-zone--self.is-dense .hand-card,
+  .hand-zone--self.is-very-dense .hand-card {
+    height: clamp(144px, 20.2vh, 198px) !important;
+  }
+
+  /* The self board wrapper becomes layout-transparent so the confirmation
+     lane can sit between the battlefield and the hand without moving either. */
+  .arena-center__main,
+  .arena-center__main:has(> .decision-dock.has-selection) {
+    grid-template-rows:
+      minmax(0, .82fr)
+      38px
+      minmax(0, 1fr)
+      78px
+      minmax(148px, 20.5cqh) !important;
+  }
+
+  .arena-center .player-board--self {
+    display: contents !important;
+  }
+
+  .arena-center .player-board--self > .field-column {
+    grid-column: 1;
+    grid-row: 3;
+    min-height: 0;
+  }
+
+  .arena-center__main > .decision-dock {
+    grid-column: 1;
+    grid-row: 4;
+  }
+
+  .arena-center .player-board--self > .hand-area {
+    grid-column: 1;
+    grid-row: 5;
+    min-height: 0;
+  }
+}

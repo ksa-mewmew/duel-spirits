@@ -2658,7 +2658,8 @@ function endTurn(
   }
   nextPlayer.manaPlacedThisTurn = false
   nextPlayer.attacksThisTurn = 0
-  const turnDrawCount = getFormat(game.matchConfig.formatId).turnDrawCount
+  const normalTurnDrawCount = getFormat(game.matchConfig.formatId).turnDrawCount
+  const turnDrawCount = game.turnNumber === 2 ? 1 : normalTurnDrawCount
   for (let drawIndex = 0; drawIndex < turnDrawCount; drawIndex += 1) {
     draw(nextPlayer, random)
   }

@@ -105,6 +105,27 @@ let decisionPanelKey: string | null = null
 let handScrollLeft = 0
 let lastCenteredHandCardId: string | null = null
 
+interface ManaDrawerScrollState {
+  groupScrollTops: number[]
+}
+
+function captureManaDrawerScrollState(): ManaDrawerScrollState | null {
+  if (!openManaPlayerId) return null
+  const grids = appElement.querySelectorAll<HTMLElement>('.mana-drawer__grid')
+  if (grids.length === 0) return null
+  return {
+    groupScrollTops: Array.from(grids, (grid) => grid.scrollTop),
+  }
+}
+
+function restoreManaDrawerScrollState(state: ManaDrawerScrollState | null): void {
+  if (!state) return
+  const grids = appElement.querySelectorAll<HTMLElement>('.mana-drawer__grid')
+  grids.forEach((grid, index) => {
+    grid.scrollTop = state.groupScrollTops[index] ?? 0
+  })
+}
+
 function escapeHtml(value: string): string {
   return value
     .replaceAll('&', '&amp;')
@@ -2102,6 +2123,7 @@ function renderWaitingRoom(): string {
 }
 
 function render(): void {
+  const manaDrawerScrollState = captureManaDrawerScrollState()
   const opponentId: PlayerId | null = game
     ? (game.viewer === 'P1' ? 'P2' : 'P1')
     : null
@@ -2156,6 +2178,7 @@ function render(): void {
     : ''
   appElement.innerHTML = `<div class="room-screen ${game ? 'room-screen--game' : ''}">${gameTopbar}${content}${notice}</div>${renderRulebookModal()}`
   bindEvents()
+  restoreManaDrawerScrollState(manaDrawerScrollState)
   updateClock()
 }
 
