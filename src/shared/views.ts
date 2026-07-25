@@ -6,6 +6,7 @@ import type {
   PlayerId,
   UnitInstance,
 } from './types'
+import type { CardId } from './cards'
 
 /**
  * 한 브라우저에 공개해도 되는 플레이어 상태입니다.
@@ -77,6 +78,7 @@ export type PendingChoiceView =
   | {
       type: 'DEMON_FINGER_DISCARD'
       playerId: PlayerId
+      sourceCardId: CardId
     }
   | {
       type: 'DEMON_BREATH_TARGET'
@@ -172,10 +174,16 @@ function createPendingChoiceView(
     case 'TEMPLE_PROSPECT_LIFE':
     case 'TEMPLE_PROSPECT_HAND':
     case 'HOLY_MIRROR_LIFE':
+      return {
+        type: pending.type,
+        playerId: pending.playerId,
+      }
+
     case 'DEMON_FINGER_DISCARD':
       return {
         type: pending.type,
         playerId: pending.playerId,
+        sourceCardId: pending.sourceCardId,
       }
 
     case 'AWAKEN_SUMMON_SLOT':

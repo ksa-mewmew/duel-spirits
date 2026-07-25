@@ -134,6 +134,7 @@ export type PendingChoice =
   | {
       type: 'DEMON_FINGER_DISCARD'
       playerId: PlayerId
+      sourceCardId: CardId
     }
   | {
       type: 'DEMON_BREATH_TARGET'

@@ -5685,7 +5685,7 @@ body.room-waiting-active { background: #030506; }
   min-height: 0;
   padding: 10px 12px 12px !important;
   display: grid !important;
-  grid-template-columns: clamp(250px, 18vw, 320px) minmax(560px, 1fr) clamp(164px, 11.5vw, 204px) !important;
+  grid-template-columns: clamp(250px, 18vw, 320px) minmax(560px, 1fr) clamp(196px, 13vw, 232px) !important;
   grid-template-rows: minmax(0, 1fr) !important;
   gap: clamp(10px, 1vw, 18px) !important;
   overflow: hidden;
@@ -7088,9 +7088,12 @@ h3,
     height: clamp(144px, 20.2vh, 198px) !important;
   }
 
-  /* The self board wrapper becomes layout-transparent so the confirmation
-     lane can sit between the battlefield and the hand without moving either. */
-  .arena-center__main:has(> .decision-dock.has-selection) {
+  /* Permanently reserve the confirmation lane. Previously this row collapsed
+     to 0px while idle and expanded to 78px for a play/attack choice, which
+     shifted both battlefields upward just as the player needed to select a
+     target. Keeping one geometry also gives the confirmation buttons their own
+     hit area instead of letting the hand overlap them. */
+  .arena-center__main {
     grid-template-rows:
       minmax(0, .82fr)
       minmax(0, 1fr)
@@ -7098,25 +7101,13 @@ h3,
       minmax(148px, 20.5cqh) !important;
   }
 
-  /* Do not squeeze the opponent battlefield for an empty confirmation lane.
-     The 78px row is introduced only while a play/attack choice actually
-     renders a decision dock. */
-  .arena-center__main:not(:has(> .decision-dock.has-selection)) {
-    grid-template-rows:
-      minmax(0, .9fr)
-      minmax(0, 1fr)
-      0
-      minmax(148px, 20.5cqh) !important;
-  }
-
-  /* Effect choices are fixed overlays, not confirmation-lane content.
-     Reserving the normal 78px lane here moved both battlefields upward every
-     time an effect opened. Keep the underlying board on its idle geometry. */
+  /* Effect choices are fixed overlays. They use the same permanently reserved
+     board geometry, so opening or closing one cannot move the battlefield. */
   .arena-center__main:has(> .decision-dock.has-selection.is-effect-choice) {
     grid-template-rows:
-      minmax(0, .9fr)
+      minmax(0, .82fr)
       minmax(0, 1fr)
-      0
+      78px
       minmax(148px, 20.5cqh) !important;
   }
 
@@ -7204,6 +7195,147 @@ h3,
 
   .mana-zone--self > .turn-ribbon .turn-message {
     display: none;
+  }
+}
+
+/* Resource rail readability pass. */
+@media (min-width: 1080px) and (min-height: 640px) {
+  .arena-resource-panel {
+    grid-template-rows: minmax(0, 1fr) 66px;
+    gap: 10px;
+  }
+
+  .arena-resource-panel .mana-zone.mana-zone--summary {
+    padding: 12px 11px 10px !important;
+    gap: 8px;
+    border-color: rgba(137, 225, 206, .42) !important;
+    background:
+      radial-gradient(circle at 50% 22%, rgba(122, 222, 186, .13), transparent 48%),
+      linear-gradient(155deg, rgba(15, 59, 61, .96), rgba(4, 18, 24, .98)) !important;
+  }
+
+  .mana-summary {
+    gap: 5px;
+  }
+
+  .mana-summary__label {
+    color: #c8f6df;
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: .08em;
+  }
+
+  .mana-summary__count {
+    font-family: var(--font-display);
+    font-size: clamp(34px, 4.8vh, 50px);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mana-summary__count small {
+    font-size: .48em;
+  }
+
+  .mana-summary__state {
+    color: rgba(224, 248, 238, .76);
+    font-size: 11px;
+    font-weight: 750;
+  }
+
+  .mana-summary__pips {
+    grid-template-columns: repeat(10, 9px);
+    gap: 4px;
+    min-height: 9px;
+  }
+
+  .mana-summary__pips i {
+    width: 9px;
+    height: 9px;
+  }
+
+  .mana-zone--summary .mana-open-button {
+    min-height: 34px;
+    padding-inline: 9px;
+    border: 1px solid rgba(180, 239, 218, .3);
+    border-radius: 8px;
+    background: rgba(143, 226, 196, .08);
+    color: #d9faec;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 850;
+  }
+
+  .mana-zone--summary .mana-open-button b {
+    font-size: 18px;
+  }
+
+  .arena-resource-panel .pile-row {
+    height: 66px;
+    gap: 8px;
+  }
+
+  .arena-resource-panel .card-pile {
+    height: 66px !important;
+    padding: 9px 10px !important;
+    border-color: rgba(151, 207, 211, .32);
+    background: linear-gradient(145deg, rgba(7, 19, 26, .96), rgba(3, 9, 14, .92));
+  }
+
+  .arena-resource-panel .card-pile__label {
+    color: #d9e9e8;
+    font-family: var(--font-display);
+    font-size: 13px !important;
+    font-weight: 850;
+    letter-spacing: .02em;
+  }
+
+  .arena-resource-panel .card-pile__count {
+    color: #fff1bc;
+    font-family: var(--font-display);
+    font-size: 22px !important;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mana-zone--self > .turn-ribbon {
+    min-height: 48px;
+    padding: 8px 10px;
+    gap: 5px 10px;
+    border-color: rgba(169, 241, 215, .38);
+    background: rgba(1, 12, 17, .72);
+  }
+
+  .mana-zone--self > .turn-ribbon strong {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 900;
+  }
+
+  .mana-zone--self > .turn-ribbon .turn-timer {
+    padding: 3px 7px;
+    border-radius: 6px;
+    background: rgba(255, 226, 133, .1);
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mana-zone--self > .turn-ribbon .turn-number {
+    color: rgba(214, 240, 232, .72);
+    font-size: 10px;
+    font-weight: 750;
+  }
+
+  .turn-ribbon--mine {
+    box-shadow: inset 3px 0 0 #8fe2b3, 0 0 18px rgba(94, 224, 174, .1);
+  }
+
+  .turn-ribbon--opponent {
+    box-shadow: inset 3px 0 0 rgba(177, 192, 203, .65);
+  }
+
+  .turn-ribbon--response {
+    box-shadow: inset 3px 0 0 #f0cc6e, 0 0 18px rgba(240, 204, 110, .12);
   }
 }
 

@@ -1237,8 +1237,9 @@ function renderField(player: PlayerView, isSelf: boolean): string {
         unit.instanceId,
       )
     } else if (canSpellTarget) {
+      const targetLabel = CARDS[draftCard.cardId].type === 'unit' ? '효과 대상' : '주문 대상'
       actions = actionButton(
-        selectedForSpell ? '대상 취소' : '주문 대상',
+        selectedForSpell ? '대상 선택 취소' : targetLabel,
         'select-spell-unit',
         'unit-id',
         unit.instanceId,
@@ -1338,7 +1339,7 @@ function renderArenaResourcePanel(playerId: PlayerId, position: 'self' | 'oppone
     <section class="mana-zone mana-zone--summary ${isSelf ? 'mana-zone--self' : ''}" aria-label="${playerId} 마나">
       ${isSelf ? renderTurnRibbon() : ''}
       <div class="mana-summary">
-        <span class="mana-summary__label">MANA</span>
+        <span class="mana-summary__label">마나</span>
         <strong class="mana-summary__count">${readyMana}<small> / ${player.mana.length}</small></strong>
         <span class="mana-summary__state">준비 / 전체</span>
         <span class="mana-summary__pips" aria-hidden="true">${manaPips}</span>
@@ -1459,8 +1460,9 @@ function renderPlayDraftPanel(): string {
     })
   }
   if (targetMode && playDraftNeedsUnitTarget(card)) {
+    const targetKind = definition.type === 'unit' ? '효과' : '주문'
     steps.push({
-      label: playDraft.unitId ? '몬스터 대상 선택됨' : '몬스터 대상 선택',
+      label: playDraft.unitId ? `${targetKind} 대상 선택됨` : `${targetKind} 대상 선택`,
       complete: Boolean(playDraft.unitId),
       attention: !playDraft.unitId,
     })
@@ -1726,7 +1728,7 @@ function renderPendingChoicePanel(): string {
       return `<div class="selection-panel selection-panel--urgent"><h3>파묘</h3><p>묘지에서 최대 ${pending.maxCards}장을 손으로 가져옵니다. 선택하지 않고 끝낼 수도 있습니다.</p><div class="choice-card-grid">${discardCards.map((card) => renderCard(card.cardId, { compact: true, selected: pendingChoiceIds.includes(card.instanceId), classNames: ['choice-card'], actionsHtml: actionButton(pendingChoiceIds.includes(card.instanceId) ? '선택 취소' : '선택', 'toggle-pending-card', 'card-instance-id', card.instanceId) })).join('')}</div><div class="choice-actions">${actionButton(`확정 (${pendingChoiceIds.length})`, 'confirm-pending-cards')}</div></div>`
     }
     case 'DEMON_FINGER_DISCARD':
-      return '<div class="selection-panel selection-panel--urgent"><h3>악마의 손가락</h3><p>손에서 묘지로 보낼 카드 한 장을 선택하세요.</p></div>'
+      return `<div class="selection-panel selection-panel--urgent"><h3>${escapeHtml(CARDS[pending.sourceCardId].name)}</h3><p>이 효과로 손에서 묘지로 보낼 카드 한 장을 선택하세요.</p></div>`
     case 'DEMON_BREATH_TARGET':
       return '<div class="selection-panel selection-panel--urgent"><h3>악마의 숨결</h3><p>남은 체력이 가장 높은 상대 몬스터 중 한 장을 선택하세요.</p></div>'
     case 'BURNING_PROCESSION': {
@@ -1958,7 +1960,7 @@ function renderTurnControl(): string {
 
   return `<aside class="turn-control" aria-label="턴 조작">
     <button id="end-turn-button" class="end-turn-button" type="button" ${canEndTurn && !awaitingServer ? '' : 'disabled'}><span>턴</span><strong>종료</strong></button>
-    ${game.status === 'finished' ? '<button id="rematch-button" type="button">방으로 돌아가 재대전</button>' : ''}
+    ${game.status === 'finished' ? '<button id="rematch-button" type="button">재대전</button>' : ''}
   </aside>`
 }
 

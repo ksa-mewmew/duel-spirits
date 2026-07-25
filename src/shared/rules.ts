@@ -465,7 +465,11 @@ function triggerUnitLastWords(
   if (unit.cardId === 'demon_finger' || unit.cardId === 'funeral_inviter') {
     const chooser = opponent(owner)
     if (game.players[chooser].hand.length > 0) {
-      enqueueChoice(game, { type: 'DEMON_FINGER_DISCARD', playerId: chooser })
+      enqueueChoice(game, {
+        type: 'DEMON_FINGER_DISCARD',
+        playerId: chooser,
+        sourceCardId: unit.cardId,
+      })
     }
   }
   if (unit.cardId === 'unexploded_bomb_mouse') {
