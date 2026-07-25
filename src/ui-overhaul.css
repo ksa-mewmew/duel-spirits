@@ -1221,8 +1221,9 @@ body.room-waiting-active { background: #030506; }
 .hand-area {
   min-height: 0;
   display: grid;
-  grid-template-rows: 2cqh minmax(0,1fr);
+  grid-template-rows: 2.5cqh minmax(0,1fr);
   padding: 0 10cqw;
+  padding-top: 1.5cqh;
   border: 0;
   background: linear-gradient(180deg, transparent, rgba(2,4,7,.78));
 }
@@ -1312,7 +1313,7 @@ body.room-waiting-active { background: #030506; }
 /* The hand is a row of real cards, never a row of compressed tiles. Density
    changes card height only; width is always derived from the 5:7 ratio. */
 .player-board--self {
-  grid-template-rows: minmax(0, 1fr) 3.2cqh 18.5cqh;
+  grid-template-rows: minmax(0, 1fr) 3.2cqh 22cqh;
 }
 
 .hand-area {
