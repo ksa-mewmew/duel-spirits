@@ -16,7 +16,12 @@ if (compiled.status !== 0) process.exit(compiled.status ?? 1)
 mkdirSync(buildDirectory, { recursive: true })
 writeFileSync(resolve(buildDirectory, 'package.json'), '{"type":"commonjs"}\n', 'utf8')
 
-const entry = process.argv[2] === 'self-test' ? 'self-test' : 'cli'
+const requestedEntry = process.argv[2]
+const entry = requestedEntry === 'self-test'
+  ? 'self-test'
+  : requestedEntry === 'sample-decks'
+    ? 'sample-decks-cli'
+    : 'cli'
 const args = process.argv.slice(3)
 const executed = spawnSync(process.execPath, [resolve(buildDirectory, 'simulator', `${entry}.js`), ...args], {
   cwd: root,

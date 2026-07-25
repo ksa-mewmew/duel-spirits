@@ -327,6 +327,9 @@ describe('SOF 불·물 전투', () => {
     game.players.P1.mana = [mana('w1', 'wave_reader'), mana('w2', 'ripple_spirit'), mana('w3', 'high_tide')]
     game.players.P2.field = [
       unit('ready-small', 'living_flame', 0, { ownerId: 'P2', controllerId: 'P2', exhausted: false }),
+      unit('summoning-small', 'ripple_spirit', 3, {
+        ownerId: 'P2', controllerId: 'P2', exhausted: false, summonedThisTurn: true,
+      }),
       unit('tired-small', 'ash_hound', 1, { ownerId: 'P2', controllerId: 'P2', exhausted: true }),
       unit('tired-large', 'rock_armor_knight', 2, { ownerId: 'P2', controllerId: 'P2', exhausted: true }),
     ]
@@ -335,7 +338,7 @@ describe('SOF 불·물 전투', () => {
     })
     expect(choosing.pendingChoices[0]).toMatchObject({
       effect: 'ICE_MIRROR_FREEZE',
-      candidateIds: ['tired-small'],
+      candidateIds: ['summoning-small', 'tired-small'],
     })
   })
 
@@ -346,6 +349,78 @@ describe('SOF 불·물 전투', () => {
     const next = applyAction(game, 'P1', { type: 'ATTACK_UNIT', attackerId: 'jelly', defenderId: 'target' })
     expect(next.players.P1.field).toHaveLength(0)
     expect(next.players.P1.hand).toContainEqual(expect.objectContaining({ instanceId: 'jelly' }))
+  })
+
+  test('마지막 기도는 이번 턴에 소환된 몬스터도 공격할 수 있게 한다', () => {
+    const game = createTestGame()
+    game.players.P1.life = game.players.P1.life.slice(0, 2)
+    game.players.P1.hand = [card('prayer', 'last_prayer')]
+    game.players.P1.mana = [
+      mana('l1', 'last_prayer'),
+      mana('l2', 'last_prayer'),
+      mana('l3', 'last_prayer'),
+      mana('l4', 'last_prayer'),
+      mana('l5', 'last_prayer'),
+    ]
+    game.players.P1.field = [
+      unit('new-unit', 'living_flame', 0, {
+        exhausted: true,
+        summonedThisTurn: true,
+      }),
+    ]
+
+    const prayed = applyAction(game, 'P1', {
+      type: 'PLAY_CARD',
+      cardInstanceId: 'prayer',
+      manaIds: ['l1', 'l2', 'l3', 'l4', 'l5'],
+    })
+    expect(prayed.players.P1.field[0]).toMatchObject({
+      exhausted: false,
+      summonedThisTurn: true,
+      temporaryRush: true,
+    })
+    expect(() => applyAction(prayed, 'P1', {
+      type: 'ATTACK_PLAYER',
+      attackerId: 'new-unit',
+      lifeSlotIndices: [prayed.players.P2.life[0]!.lifeSlotIndex ?? 0],
+    })).not.toThrow()
+  })
+
+  test('천공의 백마기사로 준비한 몬스터는 한 번 더 공격할 수 있다', () => {
+    const game = createTestGame()
+    game.players.P1.field = [
+      unit('target', 'living_flame', 0, {
+        exhausted: true,
+        summonedThisTurn: true,
+        attacksThisTurn: 1,
+      }),
+      unit('knight', 'sky_white_horse_knight', 1, { evolvedThisTurn: true }),
+    ]
+    game.pendingChoices = [{
+      type: 'SOF_CHOICE',
+      effect: 'SKY_KNIGHT_READY',
+      playerId: 'P1',
+      sourcePlayerId: 'P1',
+      sourceUnitId: 'knight',
+      candidateIds: ['target'],
+      minChoices: 0,
+      maxChoices: 1,
+    }]
+
+    const readied = applyAction(game, 'P1', {
+      type: 'RESOLVE_CHOICE',
+      choiceIds: ['target'],
+    })
+    expect(readied.players.P1.field[0]).toMatchObject({
+      exhausted: false,
+      attacksThisTurn: 0,
+      temporaryRush: true,
+    })
+    expect(() => applyAction(readied, 'P1', {
+      type: 'ATTACK_PLAYER',
+      attackerId: 'target',
+      lifeSlotIndices: [readied.players.P2.life[0]!.lifeSlotIndex ?? 0],
+    })).not.toThrow()
   })
 })
 

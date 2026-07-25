@@ -482,7 +482,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
   ),
   last_prayer: s(
     'last_prayer', '마지막 기도', 5, ['light'],
-    '자신의 라이프가 2장 이하일 때만 사용할 수 있다. 상대의 모든 몬스터를 소진한다. 자신의 모든 몬스터를 준비한다.',
+    '자신의 라이프가 2장 이하일 때만 사용할 수 있다. 상대의 모든 몬스터를 소진한다. 자신의 모든 몬스터를 준비한다. 이번 턴에 소환된 몬스터도 이번 턴에 공격할 수 있다.',
   ),
   sky_white_horse_knight: u(
     'sky_white_horse_knight', '천공의 백마기사', 4, 3, 4, ['light'],

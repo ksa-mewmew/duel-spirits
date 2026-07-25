@@ -264,6 +264,24 @@ function hasKeyword(
   return false
 }
 
+function isEffectivelyExhausted(
+  game: GameState,
+  owner: PlayerId,
+  unit: UnitInstance,
+): boolean {
+  if (unit.exhausted) return true
+  return unit.summonedThisTurn
+    && !unit.evolvedThisTurn
+    && !hasKeyword(game, owner, unit, 'rush')
+    && !hasKeyword(game, owner, unit, 'charge')
+}
+
+function readyUnitForExtraAttack(unit: UnitInstance): void {
+  unit.exhausted = false
+  unit.attacksThisTurn = 0
+  unit.temporaryRush = true
+}
+
 function attackValue(
   game: GameState,
   owner: PlayerId,
@@ -646,7 +664,7 @@ function summonCard(
     slotIndex,
     battlefieldEntrySeq: game.nextBattlefieldEntrySeq += 1,
     damage: 0,
-    exhausted: false,
+    exhausted: summonedThisTurn,
     summonedThisTurn,
     attacksThisTurn: 0,
     attackModifier: 0,
@@ -656,6 +674,12 @@ function summonCard(
   }
   player.field.push(unit)
   player.field.sort((left, right) => left.slotIndex - right.slotIndex)
+  if (
+    summonedThisTurn
+    && (hasKeyword(game, owner, unit, 'rush') || hasKeyword(game, owner, unit, 'charge'))
+  ) {
+    unit.exhausted = false
+  }
   return unit
 }
 
@@ -858,15 +882,22 @@ function resolveArrival(
       }
       if (paidAttributes.has('water')) {
         unit.temporaryRush = true
+        unit.exhausted = false
       }
       break
 
     case 'iron_horn_boar':
-      if (paidAttributes.has('fire')) unit.temporaryCharge = true
+      if (paidAttributes.has('fire')) {
+        unit.temporaryCharge = true
+        unit.exhausted = false
+      }
       break
 
     case 'blue_black_hound':
-      if (paidAttributes.has('dark')) unit.temporaryCharge = true
+      if (paidAttributes.has('dark')) {
+        unit.temporaryCharge = true
+        unit.exhausted = false
+      }
       break
 
     case 'wave_reader': {
@@ -933,8 +964,9 @@ function resolveArrival(
     }
 
     case 'ice_mirror_spirit': {
-      const candidateIds = game.players[opponent(actor)].field
-        .filter((target) => target.exhausted && unitDefinition(target).cost <= 2)
+      const enemyId = opponent(actor)
+      const candidateIds = game.players[enemyId].field
+        .filter((target) => isEffectivelyExhausted(game, enemyId, target) && unitDefinition(target).cost <= 2)
         .map((target) => target.instanceId)
       if (candidateIds.length > 0) {
         enqueueChoice(game, {
@@ -947,8 +979,9 @@ function resolveArrival(
     }
 
     case 'wave_fin': {
-      const candidateIds = game.players[opponent(actor)].field
-        .filter((target) => target.exhausted && unitDefinition(target).cost <= 2)
+      const enemyId = opponent(actor)
+      const candidateIds = game.players[enemyId].field
+        .filter((target) => isEffectivelyExhausted(game, enemyId, target) && unitDefinition(target).cost <= 2)
         .map((target) => target.instanceId)
       if (candidateIds.length > 0) {
         enqueueChoice(game, {
@@ -961,8 +994,9 @@ function resolveArrival(
     }
 
     case 'crystal_tsunami': {
-      const candidateIds = game.players[opponent(actor)].field
-        .filter((target) => target.exhausted)
+      const enemyId = opponent(actor)
+      const candidateIds = game.players[enemyId].field
+        .filter((target) => isEffectivelyExhausted(game, enemyId, target))
         .map((target) => target.instanceId)
       if (candidateIds.length > 0) {
         enqueueChoice(game, {
@@ -1050,7 +1084,10 @@ function resolveArrival(
 
     case 'sky_white_horse_knight': {
       const candidateIds = player.field
-        .filter((ally) => ally.instanceId !== unit.instanceId && ally.exhausted)
+        .filter((ally) => (
+          ally.instanceId !== unit.instanceId
+          && isEffectivelyExhausted(game, actor, ally)
+        ))
         .map((ally) => ally.instanceId)
       if (candidateIds.length > 0) {
         enqueueChoice(game, {
@@ -1230,7 +1267,10 @@ function resolveSpell(
       }
       const targetId = requireUnitTarget(selection)
       const index = enemy.field.findIndex(
-        (unit) => unit.instanceId === targetId && unit.exhausted,
+        (unit) => (
+          unit.instanceId === targetId
+          && isEffectivelyExhausted(game, enemyId, unit)
+        ),
       )
       if (index < 0) {
         throw new GameRuleError('선택한 소진 몬스터를 대상으로 삼을 수 없습니다.')
@@ -1410,7 +1450,10 @@ function resolveSpell(
       requireSummonCondition(game, actor, mana)
       player.mana.splice(manaIndex, 1)
       const summoned = summonCard(game, actor, mana, true, slot, true)
-      if (definition.attributes.includes('earth')) summoned.temporaryCharge = true
+      if (definition.attributes.includes('earth')) {
+        summoned.temporaryCharge = true
+        summoned.exhausted = false
+      }
       cleanupDead(game, random)
       break
     }
@@ -1431,10 +1474,7 @@ function resolveSpell(
         throw new GameRuleError('라이프가 2장 이하일 때만 사용할 수 있습니다.')
       }
       enemy.field.forEach((unit) => { unit.exhausted = true })
-      player.field.forEach((unit) => {
-        unit.exhausted = false
-        unit.attacksThisTurn = 0
-      })
+      player.field.forEach(readyUnitForExtraAttack)
       break
 
     case 'crematory_smoke':
@@ -1541,9 +1581,6 @@ function assertCanAttack(
   if (unit.cardId === 'silent_shield_soldier' || unit.cardId === 'boulder_carrier') {
     throw new GameRuleError(`${unitDefinition(unit).name}은 공격할 수 없습니다.`)
   }
-  if (unit.exhausted) {
-    throw new GameRuleError('소진된 몬스터는 공격할 수 없습니다.')
-  }
   if (unit.summonedThisTurn && !unit.evolvedThisTurn) {
     const hasRush = hasKeyword(game, actor, unit, 'rush')
     const hasCharge = hasKeyword(game, actor, unit, 'charge')
@@ -1554,6 +1591,9 @@ function assertCanAttack(
           : '이번 턴에 소환된 몬스터는 공격할 수 없습니다.',
       )
     }
+  }
+  if (unit.exhausted) {
+    throw new GameRuleError('소진된 몬스터는 공격할 수 없습니다.')
   }
   const maxAttacks = hasKeyword(game, actor, unit, 'windfury') ? 2 : 1
   if (unit.attacksThisTurn >= maxAttacks) {
@@ -1701,12 +1741,10 @@ function attackUnit(
 
   const livingAttacker = player.field.find((unit) => unit.instanceId === attackerId)
   if (livingAttacker && attacker.cardId === 'flame_mane_captain' && defenderDiedInCombat) {
-    livingAttacker.exhausted = false
-    livingAttacker.attacksThisTurn = 0
+    readyUnitForExtraAttack(livingAttacker)
   }
   if (livingAttacker && attacker.cardId === 'returning_paladin') {
-    livingAttacker.exhausted = false
-    livingAttacker.attacksThisTurn = 0
+    readyUnitForExtraAttack(livingAttacker)
   }
 
   // 전투 후 살아 있는 해파리는 손으로 돌아갑니다.
@@ -1879,7 +1917,11 @@ function resolveChoice(
           const id = oneRequired()
           assertCandidate(id)
           const target = sourceEnemy.field.find((unit) => unit.instanceId === id)
-          if (!target || !target.exhausted || unitDefinition(target).cost > 2) {
+          if (
+            !target
+            || !isEffectivelyExhausted(game, enemyId, target)
+            || unitDefinition(target).cost > 2
+          ) {
             throw new GameRuleError('소진된 비용 2 이하인 상대 몬스터를 선택해야 합니다.')
           }
           target.skipNextReady = true
@@ -1892,7 +1934,10 @@ function resolveChoice(
           const id = oneOptional()
           if (id) {
             assertCandidate(id)
-            const index = sourceEnemy.field.findIndex((unit) => unit.instanceId === id && unit.exhausted)
+            const index = sourceEnemy.field.findIndex((unit) => (
+              unit.instanceId === id
+              && isEffectivelyExhausted(game, enemyId, unit)
+            ))
             if (index < 0) throw new GameRuleError('되돌릴 소진 몬스터를 찾지 못했습니다.')
             moveFieldUnitToHand(game, enemyId, index, pending.sourcePlayerId)
           }
@@ -2139,10 +2184,12 @@ function resolveChoice(
           const id = oneOptional()
           if (id) {
             assertCandidate(id)
-            const unit = sourcePlayer.field.find((ally) => ally.instanceId === id && ally.exhausted)
+            const unit = sourcePlayer.field.find((ally) => (
+              ally.instanceId === id
+              && isEffectivelyExhausted(game, pending.sourcePlayerId, ally)
+            ))
             if (!unit) throw new GameRuleError('준비할 소진 몬스터를 찾지 못했습니다.')
-            unit.exhausted = false
-            unit.attacksThisTurn = 0
+            readyUnitForExtraAttack(unit)
           }
           shift()
           return game

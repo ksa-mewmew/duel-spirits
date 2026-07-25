@@ -427,6 +427,14 @@ function hasChargeView(player: PlayerView, unit: UnitInstance): boolean {
   return unit.cardId === 'last_ember' && player.field.length === 1
 }
 
+function isEffectivelyExhaustedView(player: PlayerView, unit: UnitInstance): boolean {
+  if (unit.exhausted) return true
+  return unit.summonedThisTurn
+    && !unit.evolvedThisTurn
+    && !hasRushView(unit)
+    && !hasChargeView(player, unit)
+}
+
 function hasWindfuryView(_player: PlayerView, unit: UnitInstance): boolean {
   const definition = CARDS[unit.cardId]
   return definition.type === 'unit' && definition.keywords?.includes('windfury') === true
@@ -980,7 +988,10 @@ function hasLegalPlayTarget(card: CardInstance, self: PlayerView, enemy: PlayerV
   if (!meetsSummonConditionView(self, card.cardId)) return false
   const targetMode = unitTargetMode(card.cardId)
   if (targetMode !== null && !['lava_gardener', 'crematory_smoke'].includes(card.cardId) && enemy.field.length === 0) return false
-  if (targetMode === 'exhausted' && !enemy.field.some((unit) => unit.exhausted)) return false
+  if (
+    targetMode === 'exhausted'
+    && !enemy.field.some((unit) => isEffectivelyExhaustedView(enemy, unit))
+  ) return false
   if (needsLifeTarget(card.cardId) && enemy.lifeCount === 0) return false
   if (card.cardId === 'grave_digging'
     && self.mana.filter((mana) => !mana.exhausted).length < effectiveCost(card) + 1) return false
@@ -1153,7 +1164,7 @@ function renderField(player: PlayerView, isSelf: boolean): string {
       && !awaitingServer
       && (
         targetMode === 'any'
-        || (targetMode === 'exhausted' && unit.exhausted)
+        || (targetMode === 'exhausted' && isEffectivelyExhaustedView(player, unit))
         || (targetMode === 'highest-health' && healthValueView(player, unit) - unit.damage === maxRemainingHealth)
       )
     const canAttackTarget = !isSelf
@@ -1220,13 +1231,10 @@ function renderField(player: PlayerView, isSelf: boolean): string {
       instanceId: unit.instanceId,
       selected: selectedForAttack || selectedForSpell || selectedForEvolution,
       targetable: canPendingDemonBreathTarget || canEvolutionTarget || canSpellTarget || canAttackTarget,
-      exhausted: unit.exhausted,
+      exhausted: isEffectivelyExhaustedView(player, unit),
       // 소환된 턴이라도 기습·돌진으로 실제 공격할 수 있다면
       // 공격 불가 필터를 씌우지 않습니다.
-      summonedThisTurn: unit.summonedThisTurn
-        && !unit.evolvedThisTurn
-        && !hasRushView(unit)
-        && !hasChargeView(player, unit),
+      summonedThisTurn: false,
       remainingHealth: healthValueView(player, unit) - unit.damage,
       displayAttack: attackValueView(player, unit),
       classNames: ['field-card', 'game-card--center-name'],

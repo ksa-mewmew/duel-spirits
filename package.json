@@ -13,6 +13,7 @@
     "test:run": "vitest run",
     "sim:test": "node scripts/run-simulator.mjs self-test",
     "sim:meta": "node scripts/run-simulator.mjs cli",
+    "sim:samples": "node scripts/run-simulator.mjs sample-decks",
     "check": "npm run test:run && npm run build",
     "server:deploy": "wrangler deploy",
     "server:tail": "wrangler tail",

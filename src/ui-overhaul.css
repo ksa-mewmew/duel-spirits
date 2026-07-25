@@ -180,6 +180,41 @@
   pointer-events: none !important;
 }
 
+/* Keep raised hand cards inside their reserved lane. The scroll shell still
+   clips horizontally, but cards now retain enough headroom when selected. */
+@media (min-width: 1080px) and (min-height: 640px) {
+  .hand-zone--self .hand-card,
+  .hand-zone--self.is-dense .hand-card,
+  .hand-zone--self.is-very-dense .hand-card {
+    max-height: calc(100% - 24px) !important;
+  }
+
+  .hand-zone--self .hand-card:hover,
+  .hand-zone--self .hand-card:focus-within,
+  .hand-zone--self .hand-card.is-selected {
+    transform: translateY(-8px) scale(1.04) !important;
+  }
+
+  /* Effect choices use the battlefield area beside the card inspector. The
+     board remains sharp and fully visible behind the non-modal surface. */
+  .arena-center__main > .decision-dock.has-selection.is-effect-choice {
+    background: transparent !important;
+    backdrop-filter: none !important;
+  }
+
+  body:has(.card-inspector.is-visible:not(.is-empty))
+    .arena-center__main > .decision-dock.has-selection.is-effect-choice,
+  body:has(.card-inspector.is-pinned:not(.is-empty))
+    .arena-center__main > .decision-dock.has-selection.is-effect-choice {
+    padding-left: calc(min(620px, 44vw) + 44px) !important;
+  }
+
+  .effect-choice-overlay {
+    width: min(920px, 100%) !important;
+    backdrop-filter: none !important;
+  }
+}
+
 /* Server-authoritative timed draft */
 body.draft-active {
   overflow: hidden;
