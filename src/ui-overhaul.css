@@ -1221,9 +1221,8 @@ body.room-waiting-active { background: #030506; }
 .hand-area {
   min-height: 0;
   display: grid;
-  grid-template-rows: 2.5cqh minmax(0,1fr);
+  grid-template-rows: 2zzcqh minmax(0,1fr);
   padding: 0 10cqw;
-  padding-top: 1.5cqh;
   border: 0;
   background: linear-gradient(180deg, transparent, rgba(2,4,7,.78));
 }
@@ -1313,7 +1312,7 @@ body.room-waiting-active { background: #030506; }
 /* The hand is a row of real cards, never a row of compressed tiles. Density
    changes card height only; width is always derived from the 5:7 ratio. */
 .player-board--self {
-  grid-template-rows: minmax(0, 1fr) 3.2cqh 22cqh;
+  grid-template-rows: minmax(0, 1fr) 3.2cqh 18.5cqh;
 }
 
 .hand-area {
@@ -6953,5 +6952,17 @@ h3,
     grid-column: 1;
     grid-row: 5;
     min-height: 0;
+  }
+
+  /* A focused card grows by 9% and rises 16px. The horizontal hand scroller
+     must therefore reserve that space inside its own vertical clipping area;
+     z-index alone cannot reveal pixels clipped by overflow-y. */
+  .arena-center .hand-scroll-shell {
+    height: calc(100% + 40px) !important;
+    margin-top: -40px;
+  }
+
+  .arena-center .hand-zone--self {
+    padding-top: 34px !important;
   }
 }
