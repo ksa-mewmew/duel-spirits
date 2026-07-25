@@ -180,33 +180,12 @@
   pointer-events: none !important;
 }
 
-/* Keep raised hand cards inside their reserved lane. The scroll shell still
-   clips horizontally, but cards now retain enough headroom when selected. */
 @media (min-width: 1080px) and (min-height: 640px) {
-  .hand-zone--self .hand-card,
-  .hand-zone--self.is-dense .hand-card,
-  .hand-zone--self.is-very-dense .hand-card {
-    max-height: calc(100% - 24px) !important;
-  }
-
-  .hand-zone--self .hand-card:hover,
-  .hand-zone--self .hand-card:focus-within,
-  .hand-zone--self .hand-card.is-selected {
-    transform: translateY(-8px) scale(1.04) !important;
-  }
-
   /* Effect choices use the battlefield area beside the card inspector. The
      board remains sharp and fully visible behind the non-modal surface. */
   .arena-center__main > .decision-dock.has-selection.is-effect-choice {
     background: transparent !important;
     backdrop-filter: none !important;
-  }
-
-  body:has(.card-inspector.is-visible:not(.is-empty))
-    .arena-center__main > .decision-dock.has-selection.is-effect-choice,
-  body:has(.card-inspector.is-pinned:not(.is-empty))
-    .arena-center__main > .decision-dock.has-selection.is-effect-choice {
-    padding-left: calc(min(620px, 44vw) + 44px) !important;
   }
 
   .effect-choice-overlay {
@@ -6627,4 +6606,56 @@ h3,
   transform: translateX(-50%) !important;
   background: transparent !important;
   pointer-events: none !important;
+}
+
+/* Hand cards keep their original 5:7 size. Raise the whole hand stacking
+   context above the battlefield and extend its clipping box upward by the
+   same distance used by the hover/selection lift. */
+@media (min-width: 1080px) and (min-height: 640px) {
+  /* The inspector rail is a permanent board column. Anchor effect choices to
+     the remaining viewport, regardless of whether that rail currently shows
+     a card or its placeholder, so opening/closing details never moves them. */
+  .arena-center__main > .decision-dock.has-selection.is-effect-choice {
+    inset:
+      0
+      calc((100vw - var(--stage-w)) / 2)
+      0
+      calc(
+        (100vw - var(--stage-w)) / 2
+        + 12px
+        + clamp(250px, 18vw, 320px)
+        + clamp(10px, 1vw, 18px)
+      )
+      !important;
+    width: auto !important;
+    padding: clamp(10px, 3vh, 28px) clamp(10px, 3vw, 34px) !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+  }
+
+  .arena-center .player-board--self,
+  .hand-area {
+    position: relative;
+    z-index: 80;
+    overflow: visible !important;
+  }
+
+  .hand-scroll-shell {
+    z-index: 81;
+    height: calc(100% + 24px) !important;
+    margin-top: -24px;
+    overflow: visible !important;
+  }
+
+  .hand-zone--self {
+    position: relative;
+    z-index: 82;
+    height: 100% !important;
+  }
+
+  .hand-zone--self .hand-card:hover,
+  .hand-zone--self .hand-card:focus-within,
+  .hand-zone--self .hand-card.is-selected {
+    z-index: 90 !important;
+  }
 }
