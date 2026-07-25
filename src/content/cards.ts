@@ -95,6 +95,8 @@ export interface CardBase {
   attributes: CardAttributeId[]
   families: CardFamilyId[]
   rulesText: string
+  /** 덱빌더와 게임 내 상세 보기에서 규칙 문구 아래에 표시되는 서사 문구입니다. */
+  flavorText: string
   visualKey: string
   setId: SetId
   collectorNumber: string

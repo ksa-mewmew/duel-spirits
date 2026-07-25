@@ -24,7 +24,13 @@ function effectiveCost(card: CardInstance, view: GameView, actor: PlayerId): num
   return Math.max(0, CARDS[card.cardId].cost - (card.costReduction ?? 0))
 }
 
-function paymentSignature(manaIds: readonly string[], view: GameView, actor: PlayerId): string {
+function paymentSignature(
+  manaIds: readonly string[],
+  view: GameView,
+  actor: PlayerId,
+  preserveManaIdentity: boolean,
+): string {
+  if (preserveManaIdentity) return [...manaIds].sort().join('|')
   const manaById = new Map(view.players[actor].mana.map((mana) => [mana.instanceId, mana]))
   const attributes = new Set<string>()
   for (const manaId of manaIds) {
@@ -43,6 +49,7 @@ function enumeratePayments(
   actor: PlayerId,
   cost: number,
   limit: number,
+  preserveManaIdentity = false,
 ): string[][] {
   if (cost === 0) return [[]]
   const ready = view.players[actor].mana.filter((mana) => !mana.exhausted)
@@ -54,7 +61,7 @@ function enumeratePayments(
   const diverse: string[][] = []
   const seenSignatures = new Set<string>()
   for (const manaIds of raw) {
-    const signature = paymentSignature(manaIds, view, actor)
+    const signature = paymentSignature(manaIds, view, actor, preserveManaIdentity)
     if (seenSignatures.has(signature)) continue
     seenSignatures.add(signature)
     diverse.push(manaIds)
@@ -345,10 +352,8 @@ function rawTurnActions(
     if (enemy.lifeCount === 0) {
       attackActions.push({ type: 'ATTACK_PLAYER', attackerId: attacker.instanceId, lifeSlotIndices: [] })
     } else {
-      for (const lifeSlots of combinations(enemy.lifeSlotIndices, 1)) {
-        attackActions.push({ type: 'ATTACK_PLAYER', attackerId: attacker.instanceId, lifeSlotIndices: lifeSlots })
-      }
-      for (const lifeSlots of combinations(enemy.lifeSlotIndices, 2)) {
+      const requiredLifeCount = Math.min(own.extraLifeLossOnDirectAttack ? 2 : 1, enemy.lifeCount)
+      for (const lifeSlots of combinations(enemy.lifeSlotIndices, requiredLifeCount)) {
         attackActions.push({ type: 'ATTACK_PLAYER', attackerId: attacker.instanceId, lifeSlotIndices: lifeSlots })
       }
     }
@@ -371,6 +376,7 @@ function rawTurnActions(
       actor,
       cost,
       Math.min(limits.maxPaymentVariantsPerCard, perCardBudget),
+      card.cardId === 'rising_earth' || card.cardId === 'lava_gardener',
     )
     const selections = playSelections(
       state,

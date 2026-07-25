@@ -442,14 +442,21 @@ function moveFieldUnitToMana(
   return placeCardInMana(game, owner, unitAsCard(unit), exhausted, random, 'non-hand')
 }
 
-function handleUnitDeath(
+function moveDeadUnitCardsToDiscard(
+  game: GameState,
+  owner: PlayerId,
+  unit: UnitInstance,
+): void {
+  sendToDiscard(game, owner, unitAsCard(unit))
+  discardEvolutionStack(game, owner, unit)
+}
+
+function triggerUnitLastWords(
   game: GameState,
   owner: PlayerId,
   unit: UnitInstance,
   random: RandomSource,
 ): void {
-  sendToDiscard(game, owner, unitAsCard(unit))
-  discardEvolutionStack(game, owner, unit)
 
   // 유언은 전장에서 묘지로 보내진 직후 발동합니다.
   if (unit.cardId === 'last_ember') {
@@ -496,6 +503,29 @@ function handleUnitDeath(
   }
 }
 
+function handleUnitDeath(
+  game: GameState,
+  owner: PlayerId,
+  unit: UnitInstance,
+  random: RandomSource,
+): void {
+  moveDeadUnitCardsToDiscard(game, owner, unit)
+  triggerUnitLastWords(game, owner, unit, random)
+}
+
+function handleSimultaneousUnitDeaths(
+  game: GameState,
+  removedUnits: Array<{ ownerId: PlayerId, unit: UnitInstance }>,
+  random: RandomSource,
+): void {
+  for (const removed of removedUnits) {
+    moveDeadUnitCardsToDiscard(game, removed.ownerId, removed.unit)
+  }
+  for (const removed of removedUnits) {
+    triggerUnitLastWords(game, removed.ownerId, removed.unit, random)
+  }
+}
+
 function moveFieldToDiscard(
   game: GameState,
   owner: PlayerId,
@@ -509,16 +539,96 @@ function moveFieldToDiscard(
   handleUnitDeath(game, owner, unit, random)
 }
 
+function moveFieldUnitsToDiscardSimultaneously(
+  game: GameState,
+  targets: Array<{ ownerId: PlayerId, instanceId: string }>,
+  random: RandomSource,
+): void {
+  const removedUnits: Array<{ ownerId: PlayerId, unit: UnitInstance }> = []
+  for (const target of targets) {
+    const field = game.players[target.ownerId].field
+    const index = field.findIndex((unit) => unit.instanceId === target.instanceId)
+    if (index < 0) continue
+    const [unit] = field.splice(index, 1)
+    if (unit) removedUnits.push({ ownerId: target.ownerId, unit })
+  }
+  handleSimultaneousUnitDeaths(game, removedUnits, random)
+}
+
 function cleanupDead(game: GameState, random: RandomSource): void {
   const deadUnits = collectDeadUnitsInResolutionOrder(game)
+  const removedUnits: Array<{ ownerId: PlayerId, unit: UnitInstance }> = []
 
+  // Simultaneously defeated units must all leave the field before any last
+  // words inspect it. Otherwise a last word can target a unit that is already
+  // scheduled to die during this cleanup.
   for (const deadUnit of deadUnits) {
     const player = game.players[deadUnit.ownerId]
     const index = player.field.findIndex((unit) => unit.instanceId === deadUnit.instanceId)
     if (index >= 0) {
-      moveFieldToDiscard(game, deadUnit.ownerId, index, random)
+      const [unit] = player.field.splice(index, 1)
+      if (unit) removedUnits.push({ ownerId: deadUnit.ownerId, unit })
     }
   }
+
+  handleSimultaneousUnitDeaths(game, removedUnits, random)
+}
+
+function normalizePendingChoices(game: GameState): void {
+  game.pendingChoices = game.pendingChoices.filter((choice) => {
+    if (choice.type !== 'SOF_CHOICE' || choice.candidateIds === undefined) return true
+    const source = game.players[choice.sourcePlayerId]
+    const enemy = game.players[opponent(choice.sourcePlayerId)]
+    let currentIds: Set<string> | null = null
+
+    switch (choice.effect) {
+      case 'BOMB_MOUSE_DAMAGE':
+      case 'ICE_MIRROR_FREEZE':
+      case 'WAVE_FIN_BOUNCE':
+      case 'CRYSTAL_TSUNAMI_BOUNCE':
+      case 'MASS_BURIAL_ENEMY_FIRST':
+      case 'MASS_BURIAL_ENEMY_SECOND':
+      case 'MOURNER_DESTROY':
+        currentIds = new Set(enemy.field.map((unit) => unit.instanceId))
+        break
+      case 'MASS_BURIAL_SELF':
+      case 'MOURNER_SACRIFICE':
+      case 'SKY_KNIGHT_READY':
+        currentIds = new Set(source.field.map((unit) => unit.instanceId))
+        break
+      case 'WAVE_FIN_BOTTOM':
+      case 'TREE_FAIRY_HAND_MANA':
+      case 'MANA_FLIP_PLACE':
+      case 'STONE_PRIEST_HAND_MANA':
+        currentIds = new Set(source.hand.map((card) => card.instanceId))
+        break
+      case 'MANA_FLIP_RETURN':
+      case 'EARTH_GUARDIAN_SUMMON':
+        currentIds = new Set(source.mana.map((card) => card.instanceId))
+        break
+      case 'GRAVE_MERCHANT_RETURN':
+      case 'BLACKWING_RETURN':
+      case 'MOURNER_LAST_WORDS':
+      case 'COFFIN_KEEPER_BOTTOM':
+        currentIds = new Set(source.discard.map((card) => card.instanceId))
+        break
+      case 'STONE_PRIEST_LIFE':
+        if (choice.data?.stage !== 'revealed') {
+          currentIds = new Set(source.life.map((card) => card.instanceId))
+        }
+        break
+      default:
+        break
+    }
+
+    if (!currentIds) return true
+    choice.candidateIds = choice.candidateIds.filter((candidateId) => currentIds.has(candidateId))
+    if (choice.candidateIds.length > 0) return true
+    if (choice.sourceCard && choice.effect.startsWith('MASS_BURIAL_')) {
+      sendToDiscard(game, choice.sourcePlayerId, choice.sourceCard)
+    }
+    return false
+  })
 }
 
 export function collectDeadUnitsInResolutionOrder(game: GameState): Array<{
@@ -1279,17 +1389,18 @@ function resolveSpell(
       break
     }
 
-    case 'ash_clearing_rain':
-      for (const playerId of ['P1', 'P2'] as const) {
-        const current = game.players[playerId]
-        for (let index = current.field.length - 1; index >= 0; index -= 1) {
-          const unit = current.field[index]!
-          if (attackValue(game, playerId, unit) === 1 || remainingHealth(game, playerId, unit) === 1) {
-            moveFieldToDiscard(game, playerId, index, random)
-          }
-        }
-      }
+    case 'ash_clearing_rain': {
+      const targets = (['P1', 'P2'] as const).flatMap((playerId) => (
+        game.players[playerId].field
+          .filter((unit) => (
+            attackValue(game, playerId, unit) === 1
+            || remainingHealth(game, playerId, unit) === 1
+          ))
+          .map((unit) => ({ ownerId: playerId, instanceId: unit.instanceId }))
+      ))
+      moveFieldUnitsToDiscardSimultaneously(game, targets, random)
       break
+    }
 
     case 'high_tide':
       draw(player, random)
@@ -1357,14 +1468,12 @@ function resolveSpell(
         }
       }
       if (paidAttributes.has('dark')) {
-        for (const playerId of ['P1', 'P2'] as const) {
-          const current = game.players[playerId]
-          for (let index = current.field.length - 1; index >= 0; index -= 1) {
-            if (current.field[index]!.exhausted) {
-              moveFieldToDiscard(game, playerId, index, random)
-            }
-          }
-        }
+        const targets = (['P1', 'P2'] as const).flatMap((playerId) => (
+          game.players[playerId].field
+            .filter((unit) => unit.exhausted)
+            .map((unit) => ({ ownerId: playerId, instanceId: unit.instanceId }))
+        ))
+        moveFieldUnitsToDiscardSimultaneously(game, targets, random)
       }
       break
 
@@ -1733,11 +1842,14 @@ function attackUnit(
   }).filter((target): target is { owner: PlayerId; instanceId: string; battlefieldEntrySeq: number } => target !== null)
     .sort((left, right) => left.battlefieldEntrySeq - right.battlefieldEntrySeq)
 
-  for (const target of assassinationTargets) {
-    const targetPlayer = game.players[target.owner]
-    const targetIndex = targetPlayer.field.findIndex((unit) => unit.instanceId === target.instanceId)
-    if (targetIndex >= 0) moveFieldToDiscard(game, target.owner, targetIndex, random)
-  }
+  moveFieldUnitsToDiscardSimultaneously(
+    game,
+    assassinationTargets.map((target) => ({
+      ownerId: target.owner,
+      instanceId: target.instanceId,
+    })),
+    random,
+  )
 
   const livingAttacker = player.field.find((unit) => unit.instanceId === attackerId)
   if (livingAttacker && attacker.cardId === 'flame_mane_captain' && defenderDiedInCombat) {
@@ -1798,7 +1910,10 @@ function attackPlayer(
     throw new GameRuleError('공격 가능한 상대 몬스터가 있습니다.')
   }
 
-  const selectableLoss = Math.min(1, enemy.life.length)
+  const selectableLoss = Math.min(
+    player.extraLifeLossOnDirectAttack ? 2 : 1,
+    enemy.life.length,
+  )
 
   const selectedLifeCards = lifeSlotIndices.map((slotIndex) => enemy.life.find(
     (card, index) => (card.lifeSlotIndex ?? index) === slotIndex,
@@ -2674,6 +2789,7 @@ export function applyAction(
 ): GameState {
   const game = clone(state)
   normalizeState(game)
+  normalizePendingChoices(game)
   const random = suppliedRandom
     ?? createSeededRandom(
       `${game.matchConfig.randomSeed}:action:${game.actionSequence + 1}`,
@@ -2740,6 +2856,7 @@ export function applyAction(
       break
   }
 
+  normalizePendingChoices(result)
   result.actionSequence += 1
   return result
 }

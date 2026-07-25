@@ -10,6 +10,20 @@ import type {
 } from './cards'
 import type { SetId } from './schema'
 
+export interface UnitCardOptions {
+  keywords?: CardKeyword[]
+  visualKey?: string
+  families?: CardFamilyId[]
+  evolutionAttribute?: CardAttributeId
+  flavorText?: string
+}
+
+export interface SpellCardOptions {
+  visualKey?: string
+  families?: CardFamilyId[]
+  flavorText?: string
+}
+
 export function createCardFactory(setId: SetId) {
   let collectorIndex = 0
 
@@ -30,25 +44,25 @@ export function createCardFactory(setId: SetId) {
     health: number,
     attributes: CardAttributeId[],
     rulesText = '',
-    keywords: CardKeyword[] = [],
-    visualKey = 'rings',
-    families: CardFamilyId[] = [],
-    evolutionAttribute?: CardAttributeId,
-  ): UnitCard => ({
-    id,
-    name,
-    type: 'unit',
-    cost,
-    attack,
-    health,
-    attributes,
-    families,
-    rulesText,
-    keywords,
-    visualKey,
-    evolutionAttribute,
-    ...getMetadata(),
-  })
+    options: UnitCardOptions = {},
+  ): UnitCard => {
+    return {
+      id,
+      name,
+      type: 'unit',
+      cost,
+      attack,
+      health,
+      attributes,
+      families: options.families ?? [],
+      rulesText,
+      flavorText: options.flavorText ?? '',
+      keywords: options.keywords ?? [],
+      visualKey: options.visualKey ?? 'rings',
+      evolutionAttribute: options.evolutionAttribute,
+      ...getMetadata(),
+    }
+  }
 
   const spell = (
     id: CardId,
@@ -56,19 +70,21 @@ export function createCardFactory(setId: SetId) {
     cost: number,
     attributes: CardAttributeId[],
     rulesText: string,
-    visualKey = 'waves',
-    families: CardFamilyId[] = [],
-  ): SpellCard => ({
-    id,
-    name,
-    type: 'spell',
-    cost,
-    attributes,
-    families,
-    rulesText,
-    visualKey,
-    ...getMetadata(),
-  })
+    options: SpellCardOptions = {},
+  ): SpellCard => {
+    return {
+      id,
+      name,
+      type: 'spell',
+      cost,
+      attributes,
+      families: options.families ?? [],
+      rulesText,
+      flavorText: options.flavorText ?? '',
+      visualKey: options.visualKey ?? 'waves',
+      ...getMetadata(),
+    }
+  }
 
   return { unit, spell }
 }

@@ -104,6 +104,7 @@ describe('플레이어별 비공개 게임 뷰', () => {
     game.players.P2.field.push({
       ...fieldCard,
       slotIndex: 2,
+      battlefieldEntrySeq: game.nextBattlefieldEntrySeq += 1,
       damage: 0,
       exhausted: false,
       summonedThisTurn: false,

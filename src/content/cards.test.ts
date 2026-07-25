@@ -72,6 +72,7 @@ describe('카드군 1 개정 원고', () => {
 
   test('규칙 변화가 큰 카드의 능력 문구를 보존한다', () => {
     expect(CARDS.volcano_mouse.rulesText).toContain('불 카드가 2장 이상')
+    expect(CARDS.volcano_mouse.flavorText).toContain('작은 발자국')
     expect(CARDS.last_ember.rulesText).toContain('고립 - 이 몬스터는 돌진')
     expect(CARDS.last_ember.rulesText).not.toContain('공격력 +')
     expect(CARDS.tree_fairy.rulesText).toContain('손에서 마나에 카드를 한 장')

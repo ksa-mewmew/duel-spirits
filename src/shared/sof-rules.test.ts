@@ -226,6 +226,27 @@ describe('SOF 불·물 전투', () => {
     expect(twice.players.P2.field).toHaveLength(0)
   })
 
+  test('화산 폭발의 후속 피해로 폭탄쥐 유언 대상이 사라지면 선택 없이 진행한다', () => {
+    const game = createTestGame()
+    game.players.P1.hand = [card('eruption', 'volcanic_eruption')]
+    game.players.P1.mana = Array.from(
+      { length: 5 },
+      (_, index) => mana(`fire-${index}`, 'living_flame'),
+    )
+    game.players.P1.field = [unit('bomb', 'unexploded_bomb_mouse')]
+    setEnemyUnit(game, unit('target', 'rock_armor_knight'))
+
+    const resolved = applyAction(game, 'P1', {
+      type: 'PLAY_CARD',
+      cardInstanceId: 'eruption',
+      manaIds: ['fire-0', 'fire-1', 'fire-2', 'fire-3', 'fire-4'],
+    })
+
+    expect(resolved.players.P1.field).toHaveLength(0)
+    expect(resolved.players.P2.field).toHaveLength(0)
+    expect(resolved.pendingChoices).toHaveLength(0)
+  })
+
   test('터지지 않은 폭탄쥐 유언은 상대 몬스터에게 피해 2를 준다', () => {
     const game = createTestGame()
     game.players.P1.field = [unit('bomb', 'unexploded_bomb_mouse', 0, { damage: 1 })]
@@ -548,7 +569,51 @@ test('여러 폭탄쥐의 유언 중 뒤 효과는 피해 대상이 사라지면
   expect(firstChoice.pendingChoices).toHaveLength(2)
   const afterFirst = applyAction(firstChoice, 'P1', { type: 'RESOLVE_CHOICE', choiceIds: ['target'] })
   expect(afterFirst.players.P2.field).toHaveLength(0)
-  expect(afterFirst.pendingChoices).toHaveLength(1)
-  const completed = applyAction(afterFirst, 'P1', { type: 'RESOLVE_CHOICE', choiceIds: [] })
+  expect(afterFirst.pendingChoices).toHaveLength(0)
+})
+
+test('집단 매장으로 폭탄쥐 유언 대상이 사라지면 불가능한 선택을 자동으로 끝낸다', () => {
+  const game = createTestGame()
+  game.players.P1.hand = [card('burial', 'mass_burial')]
+  game.players.P1.mana = Array.from(
+    { length: 4 },
+    (_, index) => mana(`dark-${index}`, 'corpse_cat'),
+  )
+  game.players.P1.field = [unit('bomb', 'unexploded_bomb_mouse')]
+  game.players.P2.field = [
+    unit('target-a', 'living_flame', 0, { ownerId: 'P2', controllerId: 'P2' }),
+    unit('target-b', 'living_flame', 1, { ownerId: 'P2', controllerId: 'P2' }),
+  ]
+
+  const first = applyAction(game, 'P1', {
+    type: 'PLAY_CARD',
+    cardInstanceId: 'burial',
+    manaIds: ['dark-0', 'dark-1', 'dark-2', 'dark-3'],
+  })
+  const self = applyAction(first, 'P2', { type: 'RESOLVE_CHOICE', choiceIds: ['target-a'] })
+  const secondEnemy = applyAction(self, 'P1', { type: 'RESOLVE_CHOICE', choiceIds: ['bomb'] })
+  const completed = applyAction(secondEnemy, 'P2', {
+    type: 'RESOLVE_CHOICE',
+    choiceIds: ['target-b'],
+  })
+
+  expect(completed.players.P1.field).toHaveLength(0)
+  expect(completed.players.P2.field).toHaveLength(0)
   expect(completed.pendingChoices).toHaveLength(0)
+})
+
+test('동시에 죽은 카드는 모두 묘지로 이동한 뒤 유언 후보를 계산한다', () => {
+  const game = createTestGame()
+  game.players.P1.field = [
+    unit('mourner', 'mourner', 0, { damage: 5 }),
+    unit('cat', 'corpse_cat', 1, { damage: 2 }),
+  ]
+
+  const next = applyAction(game, 'P1', { type: 'END_TURN' })
+
+  expect(next.pendingChoices[0]).toMatchObject({
+    type: 'SOF_CHOICE',
+    effect: 'MOURNER_LAST_WORDS',
+    candidateIds: expect.arrayContaining(['cat']),
+  })
 })

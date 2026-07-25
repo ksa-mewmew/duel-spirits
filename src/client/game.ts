@@ -2,7 +2,7 @@ import { CARD_ATTRIBUTES, CARDS } from '../shared/cards'
 import { DECK_SCHEMA_VERSION, isDeckCompatibleWithFormat, validateDeck } from '../shared/decks'
 import { getFormat } from '../content/formats'
 import { createRulebookDocument } from '../content/rulebook'
-import { FIELD_LIMIT, LIFE_SIZE } from '../shared/rules'
+import { LIFE_SIZE } from '../shared/rules'
 import {
   parseRoomFormatId,
   parseDraftLimitSeconds,
@@ -641,7 +641,7 @@ function requiredAttackLifeCount(opponentPlayer: PlayerView): number {
   const self = game.players[game.viewer]
   const attacker = self.field.find((unit) => unit.instanceId === selectedAttackerId)
   if (!attacker) return 0
-  return Math.min(1, opponentPlayer.lifeCount)
+  return Math.min(self.extraLifeLossOnDirectAttack ? 2 : 1, opponentPlayer.lifeCount)
 }
 
 function renderCardBacks(count: number, className: string): string {
@@ -650,8 +650,13 @@ function renderCardBacks(count: number, className: string): string {
 
 function getOpenFieldSlotsView(player: PlayerView): number[] {
   const occupied = new Set(player.field.map((unit) => unit.slotIndex))
-  return Array.from({ length: FIELD_LIMIT }, (_, index) => index)
+  const fieldSlots = currentFieldLimit()
+  return Array.from({ length: fieldSlots }, (_, index) => index)
     .filter((index) => !occupied.has(index))
+}
+
+function currentFieldLimit(): number {
+  return game ? getFormat(game.matchConfig.formatId).fieldSlots : 4
 }
 
 function isSlotSelectionActive(isSelf: boolean): boolean {
@@ -1073,7 +1078,11 @@ function renderHand(player: PlayerView, isSelf: boolean): string {
         'card-instance-id',
         card.instanceId,
         readyMana < effectiveCost(card)
-          || (definition.type === 'unit' && !definition.evolutionAttribute && player.field.length >= FIELD_LIMIT)
+          || (
+            definition.type === 'unit'
+            && !definition.evolutionAttribute
+            && player.field.length >= currentFieldLimit()
+          )
           || !hasLegalPlayTarget(card, player, enemy),
       ))
     }
@@ -1143,7 +1152,9 @@ function renderField(player: PlayerView, isSelf: boolean): string {
     healthValueView(player, candidate) - candidate.damage
   )), -1)
 
-  return Array.from({ length: FIELD_LIMIT }, (_, slotIndex) => {
+  return Array.from(
+    { length: currentFieldLimit() },
+    (_, slotIndex) => {
     const unit = unitsBySlot.get(slotIndex)
     if (!unit) {
       if (slotSelectionActive) {
@@ -1262,7 +1273,8 @@ function renderField(player: PlayerView, isSelf: boolean): string {
       actionsHtml: actions,
       dataAttributes: { 'field-slot': String(slotIndex) },
     })}${statusMarkup}</div>`
-  }).join('')
+    },
+  ).join('')
 }
 
 function renderCardPile(playerId: PlayerId, kind: 'deck' | 'discard'): string {
@@ -1834,6 +1846,7 @@ function renderCardInspectorContent(cardId: CardId, instanceId: string | null = 
       ${keywords.length > 0 ? `<div class="card-inspector__keywords">${keywords.map((keyword) => `<span>${escapeHtml(keyword)}</span>`).join('')}</div>` : ''}
       ${costReduced ? `<p class="card-inspector__cost-notice"><strong>${coffinFree ? '무료 사용 조건 충족' : '비용 감소 적용 중'}</strong><span>${card.cost} → ${currentCost}</span></p>` : ''}
       <p class="card-inspector__rules">${escapeHtml(card.rulesText || '능력 없음')}</p>
+      ${card.flavorText ? `<p class="card-inspector__flavor">${escapeHtml(card.flavorText)}</p>` : ''}
       <p class="card-inspector__hint">마우스를 떼면 닫히며, 카드를 클릭하면 고정됩니다.</p>
     </div>
   </div>`

@@ -57,6 +57,45 @@ describe('4 · 4 · 12 게임 시작', () => {
   })
 })
 
+test('라이프 2장 손실 공격은 서로 다른 라이프 두 장을 요구하고 처리한다', () => {
+  const game = createGame({
+    random: () => 0.5,
+    idSource: createIdSource(),
+    startingPlayer: 'P1',
+  })
+  game.players.P1.field = [{
+    instanceId: 'double-breaker',
+    cardId: 'living_flame',
+    slotIndex: 0,
+    battlefieldEntrySeq: 1,
+    damage: 0,
+    exhausted: false,
+    summonedThisTurn: false,
+    attacksThisTurn: 0,
+    temporaryAttackModifier: 0,
+    temporaryHealthModifier: 0,
+  }]
+  game.players.P1.extraLifeLossOnDirectAttack = true
+  game.players.P2.field = []
+  const selectedSlots = game.players.P2.life
+    .slice(0, 2)
+    .map((card, index) => card.lifeSlotIndex ?? index)
+
+  expect(() => applyAction(game, 'P1', {
+    type: 'ATTACK_PLAYER',
+    attackerId: 'double-breaker',
+    lifeSlotIndices: selectedSlots.slice(0, 1),
+  })).toThrow('2장')
+
+  const attacked = applyAction(game, 'P1', {
+    type: 'ATTACK_PLAYER',
+    attackerId: 'double-breaker',
+    lifeSlotIndices: selectedSlots,
+  })
+  expect(attacked.players.P2.life).toHaveLength(2)
+  expect(attacked.players.P2.hand).toHaveLength(game.players.P2.hand.length + 2)
+})
+
 describe('기본 행동', () => {
   test('손의 카드를 마나로 놓으면 즉시 준비된다', () => {
     const game = createGame({

@@ -72,6 +72,33 @@ describe('MatchHost', () => {
     expect(restored.getActionLog()).toHaveLength(1)
   })
 
+  it('rejects snapshots with duplicate card instance ids', () => {
+    const snapshot = createTestHost().getSnapshot()
+    snapshot.game.players.P2.deck[0]!.instanceId = snapshot.game.players.P1.deck[0]!.instanceId
+
+    expect(() => MatchHost.restore(snapshot)).toThrow('중복')
+  })
+
+  it('migrates a missing battlefield entry sequence', () => {
+    const host = createTestHost()
+    const snapshot = host.getSnapshot()
+    const card = snapshot.game.players.P1.hand.pop()!
+    snapshot.game.players.P1.field.push({
+      ...card,
+      slotIndex: 0,
+      battlefieldEntrySeq: undefined as unknown as number,
+      damage: 0,
+      exhausted: false,
+      summonedThisTurn: false,
+      attacksThisTurn: 0,
+      temporaryAttackModifier: 0,
+      temporaryHealthModifier: 0,
+    })
+
+    const restored = MatchHost.restore(snapshot)
+    expect(restored.getState().players.P1.field[0]!.battlefieldEntrySeq).toBeGreaterThan(0)
+  })
+
   it('reproduces the same state from the same seed and actions', () => {
     const first = createTestHost()
     const second = createTestHost()

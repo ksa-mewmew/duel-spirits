@@ -285,6 +285,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
         <h3>${escapeHtml(card.name)}</h3>
         ${card.type === 'unit' ? `<p class="builder-hover-preview__stats">공격력 ${card.attack} · 체력 ${card.health}</p>` : ''}
         <p class="builder-hover-preview__rules">${escapeHtml(card.rulesText || '능력 없음')}</p>
+        ${card.flavorText ? `<p class="builder-hover-preview__flavor">${escapeHtml(card.flavorText)}</p>` : ''}
         <p class="builder-hover-preview__hint">마우스를 올리면 바뀌고, 카드를 클릭하면 고정됩니다. 더블 클릭하거나 ＋를 누르면 덱에 추가됩니다.</p>
       </div>`
   }
@@ -579,6 +580,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
       const matchesQuery = normalizedQuery.length === 0
         || card.name.toLocaleLowerCase('ko-KR').includes(normalizedQuery)
         || card.rulesText.toLocaleLowerCase('ko-KR').includes(normalizedQuery)
+        || card.flavorText.toLocaleLowerCase('ko-KR').includes(normalizedQuery)
       return matchesQuery
         && (state.setFilter === 'all' || card.setId === state.setFilter)
         && (state.attributeFilter === 'all' || card.attributes.includes(state.attributeFilter))

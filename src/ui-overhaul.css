@@ -7109,6 +7109,17 @@ h3,
       minmax(148px, 20.5cqh) !important;
   }
 
+  /* Effect choices are fixed overlays, not confirmation-lane content.
+     Reserving the normal 78px lane here moved both battlefields upward every
+     time an effect opened. Keep the underlying board on its idle geometry. */
+  .arena-center__main:has(> .decision-dock.has-selection.is-effect-choice) {
+    grid-template-rows:
+      minmax(0, .9fr)
+      minmax(0, 1fr)
+      0
+      minmax(148px, 20.5cqh) !important;
+  }
+
   .arena-center .player-board--self {
     display: contents !important;
   }
@@ -7380,17 +7391,23 @@ h3,
   width: 100%;
   height: 100%;
   background-image: var(--card-icon-spell) !important;
-  transform: translate(-50%, -50%);
+  transform:
+    translate(-50%, -50%)
+    translate(
+      var(--card-spell-icon-art-x, 0),
+      var(--card-spell-icon-art-y, 0)
+    )
+    scale(var(--card-spell-icon-art-scale, 1));
 }
 
 :is(.hand-card, .field-card, .card-preview-card, .builder-hover-preview-card, .builder-pool-card) .game-card__spell-type {
   position: absolute !important;
   right: auto !important;
-  bottom: 2cqi !important;
-  left: 50% !important;
-  width: 46cqi !important;
+  bottom: var(--card-spell-icon-bottom, 12cqi) !important;
+  left: var(--card-spell-icon-x, 50%) !important;
+  width: var(--card-spell-icon-width, 46cqi) !important;
   min-width: 0 !important;
-  height: 16cqi !important;
+  height: var(--card-spell-icon-height, 16cqi) !important;
   min-height: 0 !important;
   padding: 0 !important;
   display: block !important;
@@ -7402,6 +7419,28 @@ h3,
   filter: none !important;
   backdrop-filter: none !important;
   transform: translateX(-50%) !important;
+}
+
+/* Detail-only flavor text. It occupies the spare area below rules text and
+   remains absent for cards that do not define flavorText. */
+.card-inspector__flavor,
+.builder-hover-preview__flavor {
+  margin-block: auto 0;
+  padding: 9px 10px 2px;
+  border-top: 1px solid rgba(216, 190, 120, .22);
+  color: rgba(226, 218, 198, .72);
+  font-family: var(--card-text-font, inherit);
+  font-size: 11px;
+  font-style: italic;
+  line-height: 1.55;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.builder-hover-preview__flavor {
+  padding: 6px 7px 1px;
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 
