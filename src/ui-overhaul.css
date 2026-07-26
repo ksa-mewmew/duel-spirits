@@ -9936,3 +9936,219 @@ body.fixed-stage-active #app {
   background: linear-gradient(180deg, #65562f, #302613);
   transform: translateY(-2px);
 }
+
+/* Turn change announcement: the same mana-panel artwork is rotated into a
+   compact horizontal herald, matching the duel result treatment. */
+.turn-announcement {
+  position: fixed;
+  z-index: 1550;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  animation: turn-announcement-fade 1.5s ease both;
+}
+
+.turn-announcement__panel {
+  position: relative;
+  isolation: isolate;
+  width: 430px;
+  height: 230px;
+  display: grid;
+  place-content: center;
+  gap: 8px;
+  overflow: hidden;
+  color: #fff5d4;
+  text-align: center;
+  filter: drop-shadow(0 24px 40px rgba(0, 0, 0, .62));
+  animation: turn-announcement-rise .42s cubic-bezier(.2, .85, .25, 1.12) both;
+}
+
+.turn-announcement__panel::before {
+  content: '';
+  position: absolute;
+  z-index: -2;
+  top: 50%;
+  left: 50%;
+  width: 300px;
+  height: 450px;
+  background: var(--mana-panel-image) center / 100% 100% no-repeat;
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.turn-announcement__panel::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 12px;
+  background: radial-gradient(circle, rgba(20, 52, 61, .16), rgba(2, 8, 12, .62));
+}
+
+.turn-announcement__panel span {
+  color: #d9c27f;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: .28em;
+}
+
+.turn-announcement__panel strong {
+  font-family: 'Duel Spirits Display', 'Duel Spirits UI', system-ui, sans-serif;
+  font-size: 52px;
+  line-height: 1;
+  text-shadow: 0 5px 18px #000;
+}
+
+@keyframes turn-announcement-rise {
+  from { opacity: 0; transform: translateY(24px) scale(.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes turn-announcement-fade {
+  0%, 72% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Match log */
+.match-log-backdrop {
+  z-index: 1800;
+  display: grid;
+  place-items: center;
+  background: rgba(2, 5, 8, .7);
+  backdrop-filter: blur(5px);
+}
+
+.match-log-dialog {
+  width: min(680px, calc(100vw - 48px));
+  max-height: min(760px, calc(100dvh - 72px));
+  padding: 24px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 18px;
+  border: 1px solid rgba(218, 196, 132, .48);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(17, 23, 31, .99), rgba(5, 9, 14, .99));
+  box-shadow: 0 32px 90px rgba(0, 0, 0, .72);
+}
+
+.match-log-dialog > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255,255,255,.1);
+}
+
+.match-log-dialog h2 { margin: 3px 0 0; font-size: 30px; }
+.match-log-dialog header button { min-width: 86px; min-height: 42px; }
+
+.match-log-list {
+  min-height: 180px;
+  margin: 0;
+  padding: 0 6px 0 0;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.match-log-entry {
+  min-height: 52px;
+  padding: 10px 13px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px;
+  background: rgba(255,255,255,.035);
+}
+
+.match-log-entry__sequence {
+  color: #dbc680;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.match-log-entry strong { font-size: 16px; }
+.match-log-entry time { color: #969891; font-size: 12px; }
+.match-log-empty { padding: 52px 12px; color: #aaa; text-align: center; }
+
+/* Battlefield keyword signatures. The frame, not the artwork, carries the
+   state so stealth remains bright and readable. */
+.room-screen--game .field-slot-frame[class*="has-keyword-"] {
+  position: relative;
+  isolation: isolate;
+}
+
+.room-screen--game .field-slot-frame[class*="has-keyword-"]::after {
+  content: '';
+  position: absolute;
+  z-index: 17;
+  inset: -4px;
+  border: 2px solid var(--keyword-color, rgba(255,255,255,.5));
+  border-radius: 13px;
+  box-shadow: 0 0 9px var(--keyword-color), inset 0 0 8px var(--keyword-color);
+  opacity: .82;
+  pointer-events: none;
+}
+
+.room-screen--game .field-slot-frame.has-keyword-stealth {
+  --keyword-color: rgba(180, 112, 255, .92);
+}
+
+.room-screen--game .field-slot-frame.has-keyword-stealth::after {
+  border-style: double;
+  border-width: 4px;
+  animation: stealth-pulse 1.8s ease-in-out infinite;
+}
+
+.room-screen--game .field-slot-frame.has-keyword-rush { --keyword-color: rgba(255, 135, 58, .94); }
+.room-screen--game .field-slot-frame.has-keyword-charge { --keyword-color: rgba(255, 211, 79, .96); }
+.room-screen--game .field-slot-frame.has-keyword-windfury { --keyword-color: rgba(91, 228, 177, .94); }
+.room-screen--game .field-slot-frame.has-keyword-flying { --keyword-color: rgba(93, 194, 255, .96); }
+.room-screen--game .field-slot-frame.has-keyword-assassination { --keyword-color: rgba(244, 72, 104, .96); }
+
+.field-card-status__badge--stealth { background: #4d256d !important; border-color: #c68cff !important; color: #fff !important; }
+.field-card-status__badge--rush { background: #722f16 !important; border-color: #ff9b59 !important; color: #fff1df !important; }
+.field-card-status__badge--charge { background: #665016 !important; border-color: #ffe16f !important; color: #fff9d4 !important; }
+.field-card-status__badge--windfury { background: #135744 !important; border-color: #69e8b6 !important; color: #e4fff4 !important; }
+.field-card-status__badge--flying { background: #174c70 !important; border-color: #72cfff !important; color: #e8f8ff !important; }
+.field-card-status__badge--assassination { background: #681b2d !important; border-color: #ff6689 !important; color: #fff0f4 !important; }
+
+@keyframes stealth-pulse {
+  0%, 100% { opacity: .68; filter: hue-rotate(0deg); }
+  50% { opacity: 1; filter: hue-rotate(24deg); }
+}
+
+/* Deck choice is the primary lobby action; selecting is sufficient. */
+.room-screen:not(.room-screen--game) .match-deck-controls {
+  grid-template-columns: minmax(520px, 1fr) auto;
+}
+
+.room-screen:not(.room-screen--game) .match-deck-picker {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 5px 14px;
+}
+
+.room-screen:not(.room-screen--game) .match-deck-picker strong {
+  justify-self: end;
+  color: #d8c47f;
+  font-size: 14px;
+}
+
+.room-screen:not(.room-screen--game) .match-deck-picker select {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turn-announcement,
+  .turn-announcement__panel,
+  .room-screen--game .field-slot-frame.has-keyword-stealth::after {
+    animation: none;
+  }
+}

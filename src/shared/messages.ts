@@ -6,6 +6,7 @@ import type { DraftPlayerView } from './room-draft'
 import type { SeatExpiryState } from './room-timing'
 import type { PlayerId } from './types'
 import type { GameView } from './views'
+import type { LoggedAction } from './match-log'
 
 export interface PublicDeckState {
   submitted: boolean
@@ -76,6 +77,7 @@ export type ServerMessage =
   | {
       type: 'GAME_VIEW'
       game: GameView
+      actionLog: LoggedAction[]
     }
   | {
       type: 'DRAFT_STATE'

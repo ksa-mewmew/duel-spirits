@@ -21,6 +21,7 @@ import type { DraftPlayerView } from '../shared/room-draft'
 import type { SeatExpiryState } from '../shared/room-timing'
 import type { CardInstance, PlayerId, SofChoiceEffect, UnitInstance } from '../shared/types'
 import type { GameView, PlayerView } from '../shared/views'
+import type { LoggedAction } from '../shared/match-log'
 
 import { getActiveDeck, loadDecks, setActiveDeckId } from './deck-storage'
 import {
@@ -113,6 +114,12 @@ let pinnedPreviewCardId: CardId | null = null
 let pinnedPreviewInstanceId: string | null = null
 let roomMenuOpen = false
 let rulebookOpen = false
+let matchLogOpen = false
+let matchLog: LoggedAction[] = []
+let autoReadyAfterDeckAcceptance = false
+let turnAnnouncementKey: string | null = null
+let lastObservedTurnKey: string | null = null
+let turnAnnouncementTimer: number | null = null
 let decisionPanelCollapsed = false
 let decisionPanelKey: string | null = null
 let handScrollLeft = 0
@@ -172,6 +179,7 @@ function submitSelectedDeck(): void {
   }
 
   setActiveDeckId(deck.id)
+  autoReadyAfterDeckAcceptance = true
   awaitingServer = true
   sendDeck(socket, {
     schemaVersion: DECK_SCHEMA_VERSION,
@@ -265,11 +273,34 @@ const socket = connectToRoom(
 
         case 'DECK_ACCEPTED':
           awaitingServer = false
-          message = `${serverMessage.deckName} 덱을 서버가 확인했습니다.`
+          message = `${serverMessage.deckName} 덱을 선택했습니다. 자동으로 준비합니다.`
+          if (autoReadyAfterDeckAcceptance) {
+            autoReadyAfterDeckAcceptance = false
+            sendDeckReady(socket, true)
+          }
           break
 
         case 'GAME_VIEW':
           game = serverMessage.game
+          matchLog = serverMessage.actionLog
+          {
+            const nextTurnKey = `${game.turnNumber}:${game.currentPlayer}`
+            if (
+              nextTurnKey !== lastObservedTurnKey
+              && game.status === 'playing'
+              && game.currentPlayer === game.viewer
+            ) {
+              turnAnnouncementKey = nextTurnKey
+              if (turnAnnouncementTimer !== null) window.clearTimeout(turnAnnouncementTimer)
+              turnAnnouncementTimer = window.setTimeout(() => {
+                if (turnAnnouncementKey === nextTurnKey) {
+                  turnAnnouncementKey = null
+                  render()
+                }
+              }, 1500)
+            }
+            lastObservedTurnKey = nextTurnKey
+          }
           draftView = null
           assignedPlayerId ??= game.viewer
           selectedAttackerId = null
@@ -293,6 +324,7 @@ const socket = connectToRoom(
 
         case 'ACTION_ERROR':
           awaitingServer = false
+          autoReadyAfterDeckAcceptance = false
           message = serverMessage.message
           break
 
@@ -316,6 +348,7 @@ const socket = connectToRoom(
           pinnedPreviewInstanceId = null
           roomMenuOpen = false
           rulebookOpen = false
+          matchLogOpen = false
           socket.close()
           break
 
@@ -333,7 +366,11 @@ const socket = connectToRoom(
           pinnedPreviewInstanceId = null
           roomMenuOpen = false
           rulebookOpen = false
-          message = '방으로 돌아왔습니다. 덱을 변경한 뒤 다시 준비할 수 있습니다.'
+          matchLogOpen = false
+          matchLog = []
+          lastObservedTurnKey = null
+          turnAnnouncementKey = null
+          message = '방으로 돌아왔습니다. 덱을 선택하면 자동으로 준비됩니다.'
           break
 
         case 'REMATCH_REQUESTED':
@@ -1113,11 +1150,11 @@ function renderHand(player: PlayerView, isSelf: boolean): string {
 function getUnitStatusBadges(
   player: PlayerView,
   unit: UnitInstance,
-): Array<{ label: string; tone?: 'active' | 'inactive' | 'warning' }> {
+): Array<{ label: string; tone?: 'active' | 'inactive' | 'warning'; keyword?: string }> {
   const definition = CARDS[unit.cardId]
   if (definition.type !== 'unit') return []
 
-  const badges: Array<{ label: string; tone?: 'active' | 'inactive' | 'warning' }> = []
+  const badges: Array<{ label: string; tone?: 'active' | 'inactive' | 'warning'; keyword?: string }> = []
   const isolated = player.field.length === 1
 
   if ((unit.evolutionStack?.length ?? 0) > 0) badges.push({ label: `진화 ${unit.evolutionStack!.length}`, tone: 'warning' })
@@ -1133,18 +1170,18 @@ function getUnitStatusBadges(
   if (unit.cardId === 'cliff_hunter') badges.push({ label: '대 몬스터 +2' })
   if (unit.cardId === 'hard_seed_bug' && healthValueView(player, unit) > (CARDS[unit.cardId] as any).health) badges.push({ label: '+1/+1', tone: 'warning' })
   if (unit.cardId === 'salvation_lancer' && player.lifeCount <= 2) badges.push({ label: '공격 +1', tone: 'warning' })
-  if (hasRushView(unit)) badges.push({ label: '기습' })
-  if (hasChargeView(player, unit)) badges.push({ label: '돌진', tone: 'warning' })
-  if (hasWindfuryView(player, unit)) badges.push({ label: '질풍' })
-  if (hasFlyingView(player, unit)) badges.push({ label: '비행' })
-  if (hasStealthView(player, unit)) badges.push({ label: '잠행' })
+  if (hasRushView(unit)) badges.push({ label: '기습', keyword: 'rush' })
+  if (hasChargeView(player, unit)) badges.push({ label: '돌진', tone: 'warning', keyword: 'charge' })
+  if (hasWindfuryView(player, unit)) badges.push({ label: '질풍', keyword: 'windfury' })
+  if (hasFlyingView(player, unit)) badges.push({ label: '비행', keyword: 'flying' })
+  if (hasStealthView(player, unit)) badges.push({ label: '잠행', keyword: 'stealth' })
   if (unit.cardId === 'nameless_shadow') {
     const discardCount = Math.min(3, player.discard.length)
     badges.push({
       label: discardCount >= 3 ? '암살' : `암살 ${discardCount}/3`,
       tone: discardCount >= 3 ? 'warning' : 'inactive',
     })
-  } else if (hasAssassinationView(player, unit)) badges.push({ label: '암살', tone: 'warning' })
+  } else if (hasAssassinationView(player, unit)) badges.push({ label: '암살', tone: 'warning', keyword: 'assassination' })
   return badges
 }
 
@@ -1245,8 +1282,12 @@ function renderField(player: PlayerView, isSelf: boolean): string {
 
     const statusBadges = getUnitStatusBadges(player, unit)
     const statusMarkup = statusBadges.length > 0
-      ? `<div class="field-card-status" aria-label="현재 상태">${statusBadges.map((badge) => `<span class="field-card-status__badge field-card-status__badge--${badge.tone ?? 'active'}">${escapeHtml(badge.label)}</span>`).join('')}</div>`
+      ? `<div class="field-card-status" aria-label="현재 상태">${statusBadges.map((badge) => `<span class="field-card-status__badge field-card-status__badge--${badge.tone ?? 'active'}${badge.keyword ? ` field-card-status__badge--${badge.keyword}` : ''}">${escapeHtml(badge.label)}</span>`).join('')}</div>`
       : ''
+    const keywordClasses = statusBadges
+      .filter((badge) => badge.keyword)
+      .map((badge) => ` has-keyword-${badge.keyword}`)
+      .join('')
 
     const cardSelectionAction = canPendingDemonBreathTarget || canPendingSofUnitTarget
       ? `data-action="resolve-simple-choice" data-choice-id="${escapeHtml(unit.instanceId)}"`
@@ -1264,7 +1305,7 @@ function renderField(player: PlayerView, isSelf: boolean): string {
       : ''
     const cardSelectionClass = cardSelectionAction ? ' is-card-actionable' : ''
 
-    return `<div class="field-slot-frame${cardSelectionClass}" data-field-slot="${slotIndex}" ${cardSelectionAction} ${cardSelectionAccessibility}>${renderCard(unit.cardId, {
+    return `<div class="field-slot-frame${cardSelectionClass}${keywordClasses}" data-field-slot="${slotIndex}" ${cardSelectionAction} ${cardSelectionAccessibility}>${renderCard(unit.cardId, {
       instanceId: unit.instanceId,
       selected: selectedForAttack || selectedForSpell || selectedForEvolution,
       targetable: canPendingDemonBreathTarget || canPendingSofUnitTarget || canEvolutionTarget || canSpellTarget || canAttackTarget,
@@ -2035,6 +2076,58 @@ function renderRoomMenu(): string {
   </div>`
 }
 
+function describeLoggedAction(entry: LoggedAction): string {
+  const actor = entry.playerId === assignedPlayerId ? '나' : '상대'
+  switch (entry.action.type) {
+    case 'PLACE_MANA':
+      return `${actor} — 카드를 마나에 놓음`
+    case 'PLAY_CARD':
+      return `${actor} — 카드 사용`
+    case 'SUMMON_FROM_MANA':
+      return `${actor} — 마나에서 몬스터 소환`
+    case 'ATTACK_UNIT':
+      return `${actor} — 몬스터 공격`
+    case 'ATTACK_PLAYER':
+      return `${actor} — 플레이어 공격`
+    case 'RESOLVE_CHOICE':
+      return `${actor} — 카드 효과 선택`
+    case 'END_TURN':
+      return `${actor} — 턴 종료`
+    case 'SURRENDER':
+      return `${actor} — 항복`
+  }
+}
+
+function renderMatchLogModal(): string {
+  if (!matchLogOpen) return ''
+  const entries = [...matchLog].reverse().map((entry) => (
+    `<li class="match-log-entry">
+      <span class="match-log-entry__sequence">${entry.sequence}</span>
+      <strong>${escapeHtml(describeLoggedAction(entry))}</strong>
+      <time>${new Date(entry.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time>
+    </li>`
+  )).join('')
+  return `<div class="modal-backdrop match-log-backdrop" data-modal="match-log">
+    <section class="match-log-dialog" role="dialog" aria-modal="true" aria-labelledby="match-log-title">
+      <header>
+        <div><p class="eyebrow">MATCH HISTORY</p><h2 id="match-log-title">대전 로그</h2></div>
+        <button type="button" data-action="close-match-log">닫기</button>
+      </header>
+      <ol class="match-log-list">${entries || '<li class="match-log-empty">아직 기록된 행동이 없습니다.</li>'}</ol>
+    </section>
+  </div>`
+}
+
+function renderTurnAnnouncement(): string {
+  if (!game || game.status !== 'playing' || turnAnnouncementKey === null) return ''
+  return `<div class="turn-announcement" role="status" aria-live="assertive">
+    <div class="turn-announcement__panel">
+      <span>YOUR TURN</span>
+      <strong>내 턴</strong>
+    </div>
+  </div>`
+}
+
 function renderTurnRibbon(): string {
   if (!game) return ''
   const needsMyChoice = game.pendingChoice?.playerId === game.viewer
@@ -2178,9 +2271,7 @@ function renderWaitingRoom(): string {
           <p class="match-lobby__message" role="status">두 번째 플레이어가 들어오면 ${roomSettings.draftLimitSeconds}초 드래프트가 자동으로 시작됩니다. 각자 ${waitingFormat.draft?.poolSize ?? 0}장 중 ${waitingFormat.draft?.deckSize ?? waitingFormat.deckSize}장을 고릅니다.</p>
         </div>`
       : `<div class="match-deck-controls">
-          <label>사용할 덱<select id="room-deck-select">${options}</select></label>
-          <button id="submit-deck-button" type="button">선택 덱 적용</button>
-          <button id="deck-ready-button" class="ready-primary" type="button" ${myDeckState?.submitted ? '' : 'disabled'}>${ready ? '준비 취소' : '이 덱으로 준비'}</button>
+          <label class="match-deck-picker"><span>사용할 덱</span><strong>${ready ? '준비 완료' : awaitingServer ? '덱 확인 중' : '선택 즉시 준비됩니다'}</strong><select id="room-deck-select" ${awaitingServer ? 'disabled' : ''}>${options}</select></label>
           <a class="button-link" href="./#decks" target="_blank">덱 편집</a>
           <p class="match-lobby__message" role="status">${escapeHtml(message || (connectedPlayers.length < 2 ? '초대 링크를 친구에게 보내세요.' : '두 플레이어가 준비하면 대전이 시작됩니다.'))}</p>
         </div>`}
@@ -2232,6 +2323,7 @@ function render(): void {
       ${renderManaDrawer()}
       ${renderDiscardModal()}
       ${renderEffectChoiceLayer()}
+      ${renderTurnAnnouncement()}
     </section>`
   }
 
@@ -2242,6 +2334,7 @@ function render(): void {
         <div class="brand-cluster"><strong>Duel Spirits</strong><span class="connection-state">${escapeHtml(networkStatus)}</span></div>
         <div class="match-state"><span>${escapeHtml(getFormat(game.matchConfig.formatId).shortName)}</span><span>${game.viewer} 시점</span><span>방 ${escapeHtml(roomId)}</span></div>
         <button id="rulebook-button" class="topbar-text-button" type="button">룰북</button>
+        <button id="match-log-button" class="topbar-text-button" type="button">로그 보기</button>
         <div class="room-menu-anchor">
           <button id="room-menu-button" class="icon-button" type="button" aria-expanded="${roomMenuOpen}" aria-label="방 메뉴">⋮</button>
           ${renderRoomMenu()}
@@ -2252,7 +2345,7 @@ function render(): void {
   const notice = gameNotice
     ? `<div class="game-notice" role="alert" aria-live="assertive"><span>${escapeHtml(gameNotice)}</span><button type="button" data-action="dismiss-game-notice" aria-label="알림 닫기">×</button></div>`
     : ''
-  appElement.innerHTML = `<div class="room-screen ${game ? 'room-screen--game' : ''} ${game?.status === 'finished' ? 'room-screen--finished' : ''}">${gameTopbar}${content}${notice}</div>${renderRulebookModal()}`
+  appElement.innerHTML = `<div class="room-screen ${game ? 'room-screen--game' : ''} ${game?.status === 'finished' ? 'room-screen--finished' : ''}">${gameTopbar}${content}${notice}</div>${renderRulebookModal()}${renderMatchLogModal()}`
   updateFixedStageScale()
   bindEvents()
   restoreManaDrawerScrollState(manaDrawerScrollState)
@@ -2376,6 +2469,11 @@ function setCardInspector(cardId: CardId | null, pinned: boolean, instanceId: st
 }
 
 function closeTransientLayers(): boolean {
+  if (matchLogOpen) {
+    matchLogOpen = false
+    render()
+    return true
+  }
   if (rulebookOpen) {
     rulebookOpen = false
     render()
@@ -2443,6 +2541,25 @@ function bindRulebookEvents(): void {
   document.querySelector<HTMLElement>('[data-modal="rulebook"]')?.addEventListener('click', (event) => {
     if (event.target === event.currentTarget) {
       rulebookOpen = false
+      render()
+    }
+  })
+}
+
+function bindMatchLogEvents(): void {
+  bindClick<HTMLButtonElement>('#match-log-button', () => {
+    matchLogOpen = true
+    rulebookOpen = false
+    roomMenuOpen = false
+    render()
+  })
+  bindClicks<HTMLElement>('[data-action="close-match-log"]', () => {
+    matchLogOpen = false
+    render()
+  })
+  document.querySelector<HTMLElement>('[data-modal="match-log"]')?.addEventListener('click', (event) => {
+    if (event.target === event.currentTarget) {
+      matchLogOpen = false
       render()
     }
   })
@@ -2663,10 +2780,7 @@ function bindWaitingRoomEvents(): void {
   document.querySelector<HTMLSelectElement>('#room-deck-select')?.addEventListener('change', (event) => {
     selectedDeckId = (event.currentTarget as HTMLSelectElement).value
     setActiveDeckId(selectedDeckId)
-  })
-  document.querySelector<HTMLButtonElement>('#submit-deck-button')?.addEventListener('click', submitSelectedDeck)
-  document.querySelector<HTMLButtonElement>('#deck-ready-button')?.addEventListener('click', () => {
-    if (assignedPlayerId) sendDeckReady(socket, !deckStates[assignedPlayerId].ready)
+    submitSelectedDeck()
   })
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="toggle-draft-card"]')) {
     button.addEventListener('click', () => {
@@ -3070,6 +3184,7 @@ function bindRoomActionEvents(): void {
 
 function bindEvents(): void {
   bindRulebookEvents()
+  bindMatchLogEvents()
   bindRoomMenuEvents()
   bindHandScrollEvents()
   bindZoneModalEvents()

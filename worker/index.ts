@@ -1201,6 +1201,7 @@ export class Main extends Server<Env> {
       this.send(connection, {
         type: 'GAME_VIEW',
         game: authority.getView(state.playerId),
+        actionLog: [...this.roomState.actionLog],
       })
     }
   }
