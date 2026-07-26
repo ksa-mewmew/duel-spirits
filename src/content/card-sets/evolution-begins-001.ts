@@ -8,35 +8,35 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     'spark_chasing_lizard', '불똥을 쫓는 도마뱀', 1, 0, 1, ['fire'],
     '이 몬스터가 공격하는 동안 공격력 +3을 얻는다.',
     {
-      flavorText: '만지면 의외로 뜨겁지 않다.',
+      flavorText: '만지면 의외로 뜨겁지 않다. 물리면 손가락을 잃겠지만.',
     },
   ),
   unexploded_bomb_mouse: u(
     'unexploded_bomb_mouse', '터지지 않은 폭탄쥐', 2, 2, 1, ['fire'],
     '유언 - 상대 몬스터 하나에게 피해 2를 준다.', {
       keywords: ['last_words'],
-      flavorText: '언젠가 터지는 걸 알면서도 많이 기르는 생물.',
+      flavorText: '언젠가 터지는 걸 알면서도 기르는 이가 많다.',
     },
   ),
   iron_horn_boar: u(
     'iron_horn_boar', '쇠뿔 멧돼지', 2, 4, 2, ['fire'],
     '불 공명 - 돌진. 이 몬스터는 직접 공격할 수 없다.',
     {
-      flavorText: '쇠뿔처럼 보이는 게 엄니라는 말이 있다.',
+      flavorText: '쇠뿔처럼 보이는 게 뚫고 나온 엄니라는 말이 있다.',
     },
   ),
   flame_javelin_soldier: u(
     'flame_javelin_soldier', '화염 투창병', 3, 1, 4, ['fire'],
     '이 몬스터가 전투할 때, 전투 전에 상대 몬스터에게 피해 1을 준다. 그 피해로 상대 몬스터가 묘지로 보내졌다면 전투는 일어나지 않는다.',
     {
-      flavorText: '바늘로도 죽일 수 있는 화염의 힘.',
+      flavorText: '바늘로도 죽일 수 있습니다!',
     },
   ),
   volcanic_eruption: s(
     'volcanic_eruption', '화산 폭발', 5, ['fire'],
     '모든 몬스터에게 피해 2를 준다. 이 효과로 자신의 불 몬스터가 묘지로 보내졌다면, 한 번 더 발동한다.',
     {
-      flavorText: '결국 이 앞에서 모두 무의미한.',
+      flavorText: '결국 이 앞에서 모두 무의미하다.',
     },
   ),
   flame_mane_captain: u(
@@ -44,7 +44,7 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     '진화 - 불 몬스터. 이 몬스터가 전투로 상대 몬스터를 묘지로 보냈다면, 이 몬스터를 준비한다.',
     {
       evolutionAttribute: 'fire',
-      flavorText: '불꽃처럼 타오르는 욕망을 들고 일어난 존재.',
+      flavorText: '불꽃을 두르고 일어난 존재.',
     },
   ),
   exploding_mountain_dragon: u(
@@ -52,7 +52,7 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     '진화 - 불 몬스터. 출현 - 상대의 모든 몬스터에게 피해 2를 준다.',
     {
       evolutionAttribute: 'fire',
-      flavorText: '화산 안에서 태어났다고 전해진다. 화산보다도 강한 무언가가.',
+      flavorText: '화산보다 강한 무언가가 화산 안에서 태어났다고 전해진다.',
     },
   ),
 
@@ -61,35 +61,35 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     'scale_diver', '비늘 잠수부', 1, 1, 2, ['water'],
     '이 몬스터는 공격력이 3 이상인 몬스터에게 공격받지 않는다. 이 효과로 인해 공격할 수 있는 몬스터가 없는 경우, 상대는 직접 공격할 수 있다.',
     {
-      flavorText: '물에서 살아남기.',
+      flavorText: '물에서 살아남기!',
     },
   ),
   underwater_observer: u(
     'underwater_observer', '물밑을 살피는 자', 2, 2, 3, ['water'],
     '출현 - 자신의 덱 맨 위 카드 2장을 확인한다. 원하는 순서로 덱 맨 위에 되돌리거나, 그중 한 장을 묘지로 보낼 수 있다.',
     {
-      flavorText: '어디든 생명은 존재한다.',
+      flavorText: '어디든 생명은 존재하니까.',
     },
   ),
   returning_jellyfish: u(
     'returning_jellyfish', '되돌아오는 해파리', 2, 2, 4, ['water'],
     '이 몬스터가 전투한 뒤 살아 있다면, 이 몬스터를 소유자의 손으로 가져온다.',
     {
-      flavorText: '다시 보고 싶지 않았는데.',
+      flavorText: '다시 보고 싶지 않았어.',
     },
   ),
   ice_mirror_spirit: u(
     'ice_mirror_spirit', '얼음거울 정령', 3, 2, 3, ['water'],
     '출현 - 상대의 소진된 비용 2 이하인 몬스터 하나를 선택한다. 그 몬스터는 다음 턴에 준비되지 않는다.',
     {
-      flavorText: '얼음을 섬세하게 깎았다고 생각한 순간이 있었다.',
+      flavorText: '얼음을 섬세하게 깎았다고 탐험가들은 생각했다.',
     },
   ),
   grand_reverse_current: s(
     'grand_reverse_current', '대환류', 5, ['water'],
     '전장의 모든 소진된 몬스터를 각각 그 소유자의 손으로 가져온다.',
     {
-      flavorText: '물과 시간은 멈추지 않는다.',
+      flavorText: '물도 시간도 멈추지 않으므로.',
     },
   ),
   wave_fin: u(
@@ -98,7 +98,7 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     {
       visualKey: 'waves',
       evolutionAttribute: 'water',
-      flavorText: '파도에 씹힌 적이 있을까?',
+      flavorText: '파도에 찢긴 적이 있는가?',
     },
   ),
   crystal_tsunami: u(
@@ -107,7 +107,7 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     {
       visualKey: 'waves',
       evolutionAttribute: 'water',
-      flavorText: '그것이 몰려온다.',
+      flavorText: '온다.',
     },
   ),
 
@@ -160,7 +160,7 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     '진화 - 땅 몬스터. 이 몬스터가 진화해서 소환되었을 때, 자신의 마나에서 비용 2 이하인 몬스터를 최대 2장까지 빈 전장에 소환할 수 있다. 그 몬스터들의 출현은 발동하지 않는다.',
     {
       evolutionAttribute: 'earth',
-      flavorText: '수호자인데 왜 우리더러 싸우게 시킵니까?',
+      flavorText: '당신이 수호자인데 왜 우리가 싸웁니까?',
     },
   ),
 
@@ -169,7 +169,7 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     'poisoned_skeleton', '독이 발린 해골', 2, 1, 1, ['dark'],
     '암살.', {
       keywords: ['assassination'],
-      flavorText: '그 독에 스스로 죽어버렸다.',
+      flavorText: '그 독에 스스로 죽어버렸다고 한다.',
     },
   ),
   grave_merchant: u(
@@ -183,7 +183,7 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     'weakened_giant', '쇠약한 거인', 2, 3, 3, ['dark'],
     '이 몬스터는 직접 공격할 수 없다. 자신의 턴 종료 시 자신의 묘지에 어둠 카드가 없다면 이 몬스터를 묘지로 보낸다.',
     {
-      flavorText: '문드러지고 있다. 하지만 아직 살아있다.',
+      flavorText: '문드러지고 있다. 아직 살아있다.',
     },
   ),
   funeral_inviter: u(
@@ -198,7 +198,7 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     'mass_burial', '집단 매장', 4, ['dark'],
     '상대는 자신의 전장에서 몬스터 하나를 선택해 묘지로 보낸다. 자신의 전장에 몬스터가 있다면, 자신의 몬스터 하나를 묘지로 보낼 수 있다. 그렇게 했다면 상대는 몬스터 하나를 추가로 선택해 묘지로 보낸다.',
     {
-      flavorText: '모두가 죽고 나서야 진정한 평화가 온다.',
+      flavorText: '모두가 죽어야 진정한 평화가 옵니다.',
     },
   ),
   blackwing_predator: u(
@@ -216,7 +216,7 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     {
       keywords: ['last_words'],
       evolutionAttribute: 'dark',
-      flavorText: '결국 다음에 보고 말았군.',
+      flavorText: '결국 보고 말았군.',
     },
   ),
 
@@ -225,7 +225,7 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     'silent_shield_soldier', '침묵하는 방패병', 2, 2, 4, ['light'],
     '이 몬스터는 공격할 수 없다.',
     {
-      flavorText: '침묵은 힘이다.',
+      flavorText: '침묵은 힘.',
     },
   ),
   returning_paladin: u(
@@ -239,21 +239,21 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     'little_judge', '작은 심판관', 2, 2, 3, ['light'],
     '상대의 비용 1 이하인 몬스터는 이 몬스터를 공격할 수 없다.',
     {
-      flavorText: '당신을 격리합니다!',
+      flavorText: '정숙!',
     },
   ),
   salvation_lancer: u(
     'salvation_lancer', '구원의 창기사', 2, 2, 3, ['light'],
     '자신의 라이프가 2장 이하라면, 이 몬스터는 공격력 +1을 얻는다.',
     {
-      flavorText: '위기에 빠진 병사는 늘 누군가를 기다린다고 한다.',
+      flavorText: '위기에 빠진 병사는 늘 누군가를 기다린다.',
     },
   ),
   last_prayer: s(
     'last_prayer', '마지막 기도', 5, ['light'],
     '자신의 라이프가 2장 이하일 때만 사용할 수 있다. 상대의 모든 몬스터를 소진한다. 자신의 모든 몬스터를 준비한다. 이번 턴에 소환된 몬스터도 이번 턴에 공격할 수 있다.',
     {
-      flavorText: '마지막 기도는 항상 마지막이다.',
+      flavorText: '마지막이라는 건 이전에도 기도했다는 것이지요.',
     },
   ),
   sky_white_horse_knight: u(
@@ -279,21 +279,21 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     'lava_gardener', '용암 정원사', 3, 2, 3, ['fire', 'earth'],
     '출현 - 불 공명 - 상대 몬스터 하나에게 피해 1을 준다. 출현 - 땅 공명 - 자신의 소진된 마나 하나를 준비한다.',
     {
-      flavorText: '용암은 따뜻하다.',
+      flavorText: '용암은 따뜻하죠.',
     },
   ),
   stone_pillar_priest: u(
     'stone_pillar_priest', '돌기둥의 성직자', 3, 1, 4, ['earth', 'light'],
     '출현 - 땅 공명 - 자신의 손에서 카드 한 장을 소진된 상태로 마나에 놓을 수 있다. 출현 - 빛 공명 - 자신의 라이프 카드 하나를 확인할 수 있다. 각성 카드일 경우, 그 카드를 손으로 가져온 후 각성 효과를 발동할 수 있다.',
     {
-      flavorText: '돌은 말한다. 돌은 듣지 않는다.',
+      flavorText: '돌은 무엇도 듣지 않는다.',
     },
   ),
   mirror_lake_prophet: u(
     'mirror_lake_prophet', '거울 호수의 예언자', 3, 2, 3, ['light', 'water'],
     '출현 - 빛 공명 - 자신의 라이프 카드 하나를 확인한다. 출현 - 물 공명 - 자신의 덱 맨 위 카드를 확인하고 덱 맨 위로 되돌리거나 묘지로 보낸다. 두 공명을 모두 충족했다면 확인한 라이프 카드와 덱 맨 위 카드를 서로 바꿀 수 있다.',
     {
-      flavorText: '비친 게 늘 진실은 아니지요.',
+      flavorText: '비친 게 늘 진실은 아니다.',
     },
   ),
   sunken_coffin_keeper: u(
@@ -307,7 +307,7 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     'crematory_smoke', '그림자 낀 산맥', 3, ['dark', 'fire'],
     '불 공명 - 상대 몬스터 하나에게 피해 2를 준다. 어둠 공명을 충족했다면, 대신 상대의 모든 몬스터에게 준다.',
     {
-      flavorText: '그림자는 진실입니다. 일부라서 문제일 뿐.',
+      flavorText: '그림자는 진실입니다. 일부라서 그렇지.',
     },
   ),
 } satisfies Partial<Record<CardId, CardDefinition>>

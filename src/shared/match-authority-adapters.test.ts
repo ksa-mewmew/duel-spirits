@@ -70,4 +70,29 @@ describe('match authority adapters', () => {
     expect(restored.getSnapshot()).toEqual(first.getSnapshot())
     expect(restored.getView('P2').currentPlayer).toBe('P2')
   })
+
+  it('keeps deck-top pending choices visible after Worker restore and dispatch', () => {
+    const first = WorkerMatchAuthorityAdapter.create(createOptions())
+    const snapshot = first.getSnapshot()
+    const reader = snapshot.game.players.P1.hand[0]!
+    const topCard = snapshot.game.players.P1.deck[0]!
+    const manaCard = snapshot.game.players.P1.deck.pop()!
+    reader.cardId = 'wave_reader'
+    topCard.cardId = 'ash_hound'
+    manaCard.cardId = 'ripple_spirit'
+    snapshot.game.players.P1.mana.push({ ...manaCard, exhausted: false })
+
+    const restored = WorkerMatchAuthorityAdapter.restore(snapshot)
+    restored.dispatch('P1', {
+      type: 'PLAY_CARD',
+      cardInstanceId: reader.instanceId,
+      manaIds: [manaCard.instanceId],
+      selection: { fieldSlot: 0 },
+    }, { createdAt: 2_000 })
+
+    expect(restored.getView('P1').pendingChoice).toMatchObject({
+      type: 'WAVE_READER_TOP',
+      revealedCard: { instanceId: topCard.instanceId },
+    })
+  })
 })

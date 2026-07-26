@@ -79,6 +79,40 @@ describe('MatchHost', () => {
     expect(() => MatchHost.restore(snapshot)).toThrow('중복')
   })
 
+  it('restores snapshots with pending revealed card copies', () => {
+    const snapshot = createTestHost().getSnapshot()
+    const topCard = snapshot.game.players.P1.deck[0]!
+    snapshot.game.pendingChoices.push({
+      type: 'WAVE_READER_TOP',
+      playerId: 'P1',
+      revealedCard: { ...topCard },
+    })
+
+    const restored = MatchHost.restore(snapshot)
+
+    expect(restored.getState().pendingChoices[0]).toMatchObject({
+      type: 'WAVE_READER_TOP',
+      revealedCard: { instanceId: topCard.instanceId },
+    })
+  })
+
+  it('restores snapshots with pending revealed card lists', () => {
+    const snapshot = createTestHost().getSnapshot()
+    const revealedCards = snapshot.game.players.P1.deck.slice(0, 2).map((card) => ({ ...card }))
+    snapshot.game.pendingChoices.push({
+      type: 'SURGING_WAVE_TOP',
+      playerId: 'P1',
+      revealedCards,
+    })
+
+    const restored = MatchHost.restore(snapshot)
+
+    expect(restored.getState().pendingChoices[0]).toMatchObject({
+      type: 'SURGING_WAVE_TOP',
+      revealedCards: revealedCards.map((card) => ({ instanceId: card.instanceId })),
+    })
+  })
+
   it('migrates a missing battlefield entry sequence', () => {
     const host = createTestHost()
     const snapshot = host.getSnapshot()

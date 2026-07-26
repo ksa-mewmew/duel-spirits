@@ -1,17 +1,40 @@
 import {
   DECK_SCHEMA_VERSION,
   MAX_SAVED_DECKS,
-  createDefaultSavedDeck,
   normalizeDeckFormatSelection,
   validateDeck,
 } from '../shared/decks'
 import { isCardId } from '../shared/cards'
+import { SAMPLE_DECK_LIST } from '../content/sample-decks'
 
 import type { CardId } from '../shared/cards'
 import type { SavedDeck } from '../shared/decks'
 
 const STORAGE_KEY = 'card-duel:decks:v1'
 const ACTIVE_DECK_KEY = 'card-duel:active-deck:v1'
+const LEGACY_DEFAULT_DECK_ID = 'default-deck'
+
+function createInitialDecks(createdAt = Date.now()): SavedDeck[] {
+  return SAMPLE_DECK_LIST.map((sampleDeck, index) => ({
+    schemaVersion: DECK_SCHEMA_VERSION,
+    id: `sample-${sampleDeck.id}`,
+    name: sampleDeck.name,
+    cardIds: [...sampleDeck.cardIds],
+    formatId: sampleDeck.formatId,
+    selectedSetIds: [],
+    draftPool: null,
+    createdAt: createdAt + index,
+    updatedAt: createdAt + index,
+  }))
+}
+
+function saveInitialDecks(): SavedDeck[] {
+  const decks = createInitialDecks()
+  saveDecks(decks)
+  const firstDeck = decks[0]
+  if (firstDeck) setActiveDeckId(firstDeck.id)
+  return decks
+}
 
 function parseSavedDeck(value: unknown): SavedDeck | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
@@ -50,10 +73,7 @@ export function loadDecks(): SavedDeck[] {
     const raw = window.localStorage.getItem(STORAGE_KEY)
 
     if (!raw) {
-      const defaultDeck = createDefaultSavedDeck()
-      saveDecks([defaultDeck])
-      setActiveDeckId(defaultDeck.id)
-      return [defaultDeck]
+      return saveInitialDecks()
     }
 
     const parsed: unknown = JSON.parse(raw)
@@ -62,33 +82,27 @@ export function loadDecks(): SavedDeck[] {
     const decks = parsed
       .map(parseSavedDeck)
       .filter((deck): deck is SavedDeck => deck !== null)
-      .map((deck) => {
-        if (deck.id !== 'default-deck' || validateDeck(deck.cardIds, deck).valid) {
-          return deck
-        }
-
-        const migrated = createDefaultSavedDeck(deck.createdAt)
-        return {
-          ...migrated,
-          name: deck.name,
-          updatedAt: Date.now(),
-        }
-      })
 
     if (decks.length === 0) {
-      const defaultDeck = createDefaultSavedDeck()
-      saveDecks([defaultDeck])
-      setActiveDeckId(defaultDeck.id)
-      return [defaultDeck]
+      return saveInitialDecks()
     }
 
-    saveDecks(decks)
-    return decks.slice(0, MAX_SAVED_DECKS)
+    const hasLegacyDefault = decks.some((deck) => deck.id === LEGACY_DEFAULT_DECK_ID)
+    const nextDecks = hasLegacyDefault
+      ? [
+          ...createInitialDecks(),
+          ...decks.filter((deck) => deck.id !== LEGACY_DEFAULT_DECK_ID),
+        ].slice(0, MAX_SAVED_DECKS)
+      : decks.slice(0, MAX_SAVED_DECKS)
+
+    saveDecks(nextDecks)
+    if (hasLegacyDefault && getActiveDeckId() === LEGACY_DEFAULT_DECK_ID) {
+      const firstDeck = nextDecks[0]
+      if (firstDeck) setActiveDeckId(firstDeck.id)
+    }
+    return nextDecks
   } catch {
-    const defaultDeck = createDefaultSavedDeck()
-    saveDecks([defaultDeck])
-    setActiveDeckId(defaultDeck.id)
-    return [defaultDeck]
+    return saveInitialDecks()
   }
 }
 
@@ -113,10 +127,10 @@ export function getActiveDeck(): SavedDeck {
   const activeDeck = decks.find((deck) => deck.id === activeId) ?? decks[0]
 
   if (!activeDeck) {
-    const defaultDeck = createDefaultSavedDeck()
-    saveDecks([defaultDeck])
-    setActiveDeckId(defaultDeck.id)
-    return defaultDeck
+    const initialDecks = saveInitialDecks()
+    const firstDeck = initialDecks[0]
+    if (!firstDeck) throw new Error('기본 덱을 만들지 못했습니다.')
+    return firstDeck
   }
 
   if (getActiveDeckId() !== activeDeck.id) setActiveDeckId(activeDeck.id)

@@ -174,6 +174,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     const sampleDeck = SAMPLE_DECKS[sampleDeckId]
     const selection = createDefaultFormatSelection(sampleDeck.formatId)
 
+    pinnedSampleDeckGuideId = null
     state.editingDeckId = crypto.randomUUID()
     state.name = sampleDeck.name
     state.cardIds = [...sampleDeck.cardIds]
@@ -272,6 +273,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
 
 
   let previewFallbackCardId: CardId | null = null
+  let pinnedSampleDeckGuideId: SampleDeckId | null = null
 
   function renderCardPreviewContent(cardId: CardId): string {
     const card = CARDS[cardId]
@@ -313,7 +315,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
   }
 
   function setHoverPreview(cardId: CardId | null): void {
-    state.hoverPreviewCardId = cardId
+    if (cardId) state.hoverPreviewCardId = cardId
     updatePreviewPanel(currentPreviewCardId())
   }
 
@@ -398,15 +400,14 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
       return `<button
         type="button"
         class="sample-deck-button sample-deck-button--${sampleDeck.style}"
-        data-load-sample-deck="${sampleDeck.id}"
         data-preview-sample-deck="${sampleDeck.id}"
-        aria-label="${escapeHtml(sampleDeck.styleLabel)} 견본 덱: ${escapeHtml(sampleDeck.name)}"
+        aria-label="${escapeHtml(sampleDeck.styleLabel)} 견본 덱 운영법: ${escapeHtml(sampleDeck.name)}"
         aria-controls="${guideId}"
         aria-expanded="false"
       ><span>${escapeHtml(sampleDeck.buttonLabel)}</span></button>`
     }).join('')
     return `<section class="sample-deck-panel" aria-labelledby="sample-deck-title">
-      <header><div><span class="sample-deck-panel__eyebrow">QUICK START</span><h3 id="sample-deck-title">견본 덱</h3></div><small>다섯 가지 운영 중 하나를 골라 안내를 보고 불러옵니다.</small></header>
+      <header><div><span class="sample-deck-panel__eyebrow">QUICK START</span><h3 id="sample-deck-title">견본 덱</h3></div><small>네 가지 운영 중 하나를 골라 안내를 보고 불러옵니다.</small></header>
       <div class="sample-deck-grid">${decks}</div>
     </section>`
   }
@@ -435,6 +436,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
       >
         <header class="sample-deck-guide__header">
           <div><span class="sample-deck-guide__attribute">${escapeHtml(attributeLabel)}</span><span class="sample-deck-guide__label">${escapeHtml(sampleDeck.styleLabel)} · ${escapeHtml(sampleDeck.difficulty)}</span></div>
+          <button type="button" class="sample-deck-guide__close" data-close-sample-deck-guide aria-label="${escapeHtml(sampleDeck.name)} 운영법 닫기">×</button>
           <h3>${escapeHtml(sampleDeck.name)}</h3>
           <p>${escapeHtml(sampleDeck.goal)}</p>
         </header>
@@ -455,7 +457,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
             <p>${escapeHtml(sampleDeck.manaGuide)}</p>
           </section>
         </div>
-        <footer>버튼을 클릭하면 이 구성으로 새 덱을 불러옵니다.</footer>
+        <footer><span>이 구성으로 바로 덱을 만들 수 있습니다.</span><button type="button" data-apply-sample-deck="${sampleDeck.id}">덱 불러오기</button></footer>
       </article>`
     }).join('')
 
@@ -718,7 +720,8 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     }
 
     const sampleGuideLayer = document.querySelector<HTMLElement>('#sample-deck-guide-layer')
-    const hideSampleDeckGuide = (): void => {
+    const hideSampleDeckGuide = (force = false): void => {
+      if (pinnedSampleDeckGuideId && !force) return
       sampleGuideLayer?.classList.remove('is-visible')
       for (const guide of document.querySelectorAll<HTMLElement>('[data-sample-deck-guide]')) guide.hidden = true
       for (const button of document.querySelectorAll<HTMLButtonElement>('[data-preview-sample-deck]')) button.setAttribute('aria-expanded', 'false')
@@ -737,15 +740,42 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
       }
     }
 
-    for (const button of document.querySelectorAll<HTMLButtonElement>('[data-load-sample-deck]')) {
-      const sampleDeckId = button.dataset.loadSampleDeck as SampleDeckId | undefined
+    for (const button of document.querySelectorAll<HTMLButtonElement>('[data-preview-sample-deck]')) {
+      const sampleDeckId = button.dataset.previewSampleDeck as SampleDeckId | undefined
+      if (!sampleDeckId) continue
+      button.addEventListener('click', () => {
+        pinnedSampleDeckGuideId = sampleDeckId
+        showSampleDeckGuide(sampleDeckId)
+      })
+      button.addEventListener('pointerenter', () => {
+        if (!pinnedSampleDeckGuideId) showSampleDeckGuide(sampleDeckId)
+      })
+      button.addEventListener('pointerleave', () => hideSampleDeckGuide())
+      button.addEventListener('focus', () => {
+        if (!pinnedSampleDeckGuideId) showSampleDeckGuide(sampleDeckId)
+      })
+      button.addEventListener('blur', () => hideSampleDeckGuide())
+    }
+    for (const button of document.querySelectorAll<HTMLButtonElement>('[data-close-sample-deck-guide]')) {
+      button.addEventListener('click', () => {
+        const previouslyPinned = pinnedSampleDeckGuideId
+        pinnedSampleDeckGuideId = null
+        hideSampleDeckGuide(true)
+        document.querySelector<HTMLButtonElement>(`[data-preview-sample-deck="${previouslyPinned}"]`)?.focus()
+      })
+    }
+    for (const button of document.querySelectorAll<HTMLButtonElement>('[data-apply-sample-deck]')) {
+      const sampleDeckId = button.dataset.applySampleDeck as SampleDeckId | undefined
       if (!sampleDeckId) continue
       button.addEventListener('click', () => loadSampleDeck(sampleDeckId))
-      button.addEventListener('pointerenter', () => showSampleDeckGuide(sampleDeckId))
-      button.addEventListener('pointerleave', hideSampleDeckGuide)
-      button.addEventListener('focus', () => showSampleDeckGuide(sampleDeckId))
-      button.addEventListener('blur', hideSampleDeckGuide)
     }
+    sampleGuideLayer?.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || !pinnedSampleDeckGuideId) return
+      const previouslyPinned = pinnedSampleDeckGuideId
+      pinnedSampleDeckGuideId = null
+      hideSampleDeckGuide(true)
+      document.querySelector<HTMLButtonElement>(`[data-preview-sample-deck="${previouslyPinned}"]`)?.focus()
+    })
 
     document.querySelector<HTMLSelectElement>('#deck-select')?.addEventListener('change', (event) => selectDeck((event.currentTarget as HTMLSelectElement).value))
     document.querySelector<HTMLInputElement>('#deck-name')?.addEventListener('input', (event) => { state.name = (event.currentTarget as HTMLInputElement).value })

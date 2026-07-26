@@ -6,6 +6,7 @@ import '../ui-overhaul.css'
 
 import { renderDeckBuilder } from './deck-builder'
 import { renderLobby } from './lobby'
+import { initializeFixedStageScaling } from './stage-scale'
 
 const appElement =
   document.querySelector<HTMLDivElement>('#app')
@@ -13,6 +14,8 @@ const appElement =
 if (!appElement) {
   throw new Error('App element was not found.')
 }
+
+initializeFixedStageScaling()
 
 const url = new URL(window.location.href)
 const roomId = url.searchParams.get('room')

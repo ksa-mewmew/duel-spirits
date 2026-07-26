@@ -75,10 +75,6 @@ function validateAndMigrateSnapshot(snapshot: MatchHostSnapshot): MatchHostSnaps
   }
   for (const pending of game.pendingChoices ?? []) {
     if ('sourceCard' in pending && pending.sourceCard) registerCard(pending.sourceCard.instanceId)
-    if ('revealedCard' in pending && pending.revealedCard) registerCard(pending.revealedCard.instanceId)
-    if ('revealedCards' in pending && pending.revealedCards) {
-      for (const card of pending.revealedCards) registerCard(card.instanceId)
-    }
   }
   if (instanceIds.size !== format.deckSize * 2) {
     throw new Error('저장 상태의 전체 카드 수가 포맷의 덱 구성과 일치하지 않습니다.')

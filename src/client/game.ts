@@ -19,7 +19,7 @@ import type { RoomPhase } from '../shared/room-lifecycle'
 import type { RoomSettings } from '../shared/room-settings'
 import type { DraftPlayerView } from '../shared/room-draft'
 import type { SeatExpiryState } from '../shared/room-timing'
-import type { CardInstance, PlayerId, UnitInstance } from '../shared/types'
+import type { CardInstance, PlayerId, SofChoiceEffect, UnitInstance } from '../shared/types'
 import type { GameView, PlayerView } from '../shared/views'
 
 import { getActiveDeck, loadDecks, setActiveDeckId } from './deck-storage'
@@ -33,6 +33,7 @@ import {
   sendPlayerAction,
   sendRematchReady,
 } from './network'
+import { updateFixedStageScale } from './stage-scale'
 
 interface PlayDraft {
   cardInstanceId: string
@@ -50,6 +51,18 @@ if (!appQuery) throw new Error('App element was not found.')
 const appElement: HTMLDivElement = appQuery
 const BATTLEFIELD_BACKGROUND_URL =
   `${import.meta.env.BASE_URL}ui/battlefield/battlefield.webp`
+const BATTLEFIELD_SOF_EFFECTS = new Set<SofChoiceEffect>([
+  'BOMB_MOUSE_DAMAGE',
+  'ICE_MIRROR_FREEZE',
+  'WAVE_FIN_BOUNCE',
+  'CRYSTAL_TSUNAMI_BOUNCE',
+  'MASS_BURIAL_ENEMY_FIRST',
+  'MASS_BURIAL_SELF',
+  'MASS_BURIAL_ENEMY_SECOND',
+  'MOURNER_SACRIFICE',
+  'MOURNER_DESTROY',
+  'SKY_KNIGHT_READY',
+])
 
 const pageUrl = new URL(window.location.href)
 const roomIdParam = pageUrl.searchParams.get('room')
@@ -275,11 +288,7 @@ const socket = connectToRoom(
               : game.currentPlayer === game.viewer
                 ? '내 턴입니다.'
                 : '상대 턴입니다.'
-          gameNotice = game.status === 'finished'
-            ? game.winner === game.viewer
-              ? '승리했습니다!'
-              : '패배했습니다.'
-            : null
+          gameNotice = null
           break
 
         case 'ACTION_ERROR':
@@ -831,45 +840,37 @@ function renderMana(
     const selectedForSummon = summonFromManaDraftId === mana.instanceId
     const ability = getManaAbilityPresentation(player, mana, isSelf)
     const actions: string[] = []
+    const draftCard = isSelf && playDraft ? selectedPlayCard() : null
+    const definition = CARDS[mana.cardId]
+    const canSelectForGrave = draftCard?.cardId === 'grave_digging' && !mana.exhausted && !selectedAsCost
+    const canSelectForRising = draftCard?.cardId === 'rising_earth'
+      && definition.type === 'unit'
+      && definition.cost <= 5
+      && !definition.evolutionAttribute
+      && meetsSummonConditionView(player, mana.cardId)
+      && !selectedAsCost
+    const canSelectForGardener = draftCard?.cardId === 'lava_gardener'
+      && selectedPaidAttributes().has('earth')
+      && (mana.exhausted || selectedAsCost)
+    const canSelectAsEffect = canSelectForGrave || canSelectForRising || canSelectForGardener || selectedAsEffect
+    const costSelectionComplete = Boolean(draftCard && playDraft && playDraft.manaIds.length >= effectiveCost(draftCard))
+    const manaSelectionAction = isSelf && playDraft
+      ? selectedAsEffect
+        ? 'select-effect-mana'
+        : selectedAsCost
+          ? costSelectionComplete && canSelectForGardener
+            ? 'select-effect-mana'
+            : 'select-cost-mana'
+          : costSelectionComplete && canSelectAsEffect
+            ? 'select-effect-mana'
+            : !mana.exhausted
+              ? 'select-cost-mana'
+              : canSelectAsEffect
+                ? 'select-effect-mana'
+                : null
+      : null
 
-    if (isSelf && playDraft) {
-      const draftCard = selectedPlayCard()
-      if (!mana.exhausted) {
-        actions.push(actionButton(
-          selectedAsCost ? '비용 선택 해제' : '비용으로 선택',
-          'select-cost-mana',
-          'mana-id',
-          mana.instanceId,
-          selectedAsEffect && draftCard?.cardId !== 'lava_gardener',
-        ))
-      }
-
-      const definition = CARDS[mana.cardId]
-      const canSelectForGrave = draftCard?.cardId === 'grave_digging' && !mana.exhausted && !selectedAsCost
-      const canSelectForRising = draftCard?.cardId === 'rising_earth'
-        && definition.type === 'unit'
-        && definition.cost <= 5
-        && !definition.evolutionAttribute
-        && meetsSummonConditionView(player, mana.cardId)
-        && !selectedAsCost
-      const canSelectForGardener = draftCard?.cardId === 'lava_gardener'
-        && selectedPaidAttributes().has('earth')
-        && (mana.exhausted || selectedAsCost)
-      if (canSelectForGrave || canSelectForRising || canSelectForGardener || selectedAsEffect) {
-        const label = draftCard?.cardId === 'grave_digging'
-          ? '묘지로 보낼 마나'
-          : draftCard?.cardId === 'rising_earth'
-            ? '효과로 소환'
-            : '효과로 준비'
-        actions.push(actionButton(
-          selectedAsEffect ? '효과 선택 해제' : label,
-          'select-effect-mana',
-          'mana-id',
-          mana.instanceId,
-          false,
-        ))
-      }
-    } else if (expanded && ability) {
+    if (!playDraft && expanded && ability) {
       actions.push(actionButton(
         ability.actionLabel,
         ability.action,
@@ -887,16 +888,28 @@ function renderMana(
       nameOnly: !expanded,
       exhausted: mana.exhausted,
       selected: selectedAsCost || selectedAsEffect || selectedForSummon,
-      targetable: isSelf && playDraft !== null && (!mana.exhausted || selectedAsEffect),
+      targetable: manaSelectionAction !== null,
       displayCost: effectiveCost(mana),
       classNames: [
         'mana-card',
         expanded ? 'mana-card--expanded' : 'mana-card--rail',
+        expanded ? 'hand-card' : '',
+        expanded ? 'game-card--center-name' : '',
         ability ? 'has-mana-ability' : '',
         ability?.enabled ? 'has-ready-mana-ability' : '',
       ].filter(Boolean),
       actionsHtml: expanded ? '' : actions.join(''),
       dataAttributes: {
+        ...(manaSelectionAction ? {
+          action: manaSelectionAction,
+          'mana-id': mana.instanceId,
+          'card-selectable': 'true',
+          role: 'button',
+          tabindex: '0',
+          'aria-label': selectedAsCost || selectedAsEffect
+            ? `${definition.name} 선택 해제`
+            : `${definition.name} ${manaSelectionAction === 'select-effect-mana' ? '효과 대상으로 선택' : '비용으로 선택'}`,
+        } : {}),
         'mana-attribute': CARDS[mana.cardId].attributes
           .map((attributeId) => CARD_ATTRIBUTES[attributeId].shortName)
           .join('·'),
@@ -958,7 +971,7 @@ function renderManaSelectionToolbar(): string {
       <span>비용 마나</span>
       <strong>${playDraft.manaIds.length} / ${cost}</strong>
     </div>
-    <div class="mana-selection-toolbar__hint">${ready ? '필요한 선택이 모두 끝났습니다.' : '밝게 표시된 버튼으로 마나와 대상을 선택하세요.'}</div>
+    <div class="mana-selection-toolbar__hint">${ready ? '필요한 선택이 모두 끝났습니다.' : '밝게 표시된 마나 카드와 대상을 직접 선택하세요.'}</div>
     <div class="mana-selection-toolbar__actions">
       ${actionButton(ready ? '이 카드 사용' : '선택을 완료하세요', 'confirm-play-card', undefined, undefined, !ready)}
       ${actionButton('사용 취소', 'cancel-play-card')}
@@ -999,7 +1012,7 @@ function renderManaDrawer(): string {
         </section>
       </div>
       <footer class="mana-drawer__footer">
-        <span>${playDraft ? '카드 아래의 큰 버튼으로 비용 마나를 선택할 수 있습니다.' : '발동 가능한 마나 능력은 항상 위쪽에 표시됩니다.'}</span>
+        <span>${playDraft ? '밝게 표시된 마나 카드를 직접 눌러 선택하거나 해제할 수 있습니다.' : '발동 가능한 마나 능력은 항상 위쪽에 표시됩니다.'}</span>
         <div class="mana-drawer__footer-actions">
           ${playDraft ? actionButton(isPlayDraftReady() ? '이 카드 사용' : '선택 미완료', 'confirm-play-card', undefined, undefined, !isPlayDraftReady()) : ''}
           <button type="button" class="action-button action-button--secondary" data-action="close-mana-drawer">전장으로 돌아가기</button>
@@ -1225,45 +1238,36 @@ function renderField(player: PlayerView, isSelf: boolean): string {
       && currentGame.pendingChoice?.playerId === currentGame.viewer
       && currentGame.pendingChoice.type === 'DEMON_BREATH_TARGET'
       && currentGame.pendingChoice.candidateUnitIds.includes(unit.instanceId)
-
-    let actions = ''
-    if (canPendingDemonBreathTarget) {
-      actions = actionButton('악마의 숨결 대상', 'resolve-simple-choice', 'choice-id', unit.instanceId)
-    } else if (canEvolutionTarget) {
-      actions = actionButton(
-        selectedForEvolution ? '진화 대상 취소' : '이 몬스터 위에 진화',
-        'select-evolution-unit',
-        'unit-id',
-        unit.instanceId,
-      )
-    } else if (canSpellTarget) {
-      const targetLabel = CARDS[draftCard.cardId].type === 'unit' ? '효과 대상' : '주문 대상'
-      actions = actionButton(
-        selectedForSpell ? '대상 선택 취소' : targetLabel,
-        'select-spell-unit',
-        'unit-id',
-        unit.instanceId,
-      )
-    } else if (isSelf && canSelectAttacker) {
-      actions = actionButton(
-        selectedForAttack ? '공격 선택 취소' : '공격할 카드 선택',
-        'select-attacker',
-        'unit-id',
-        unit.instanceId,
-      )
-    } else if (canAttackTarget) {
-      actions = actionButton('이 몬스터 공격', 'attack-unit', 'defender-id', unit.instanceId)
-    }
+    const canPendingSofUnitTarget = currentGame.pendingChoice?.playerId === currentGame.viewer
+      && currentGame.pendingChoice?.type === 'SOF_CHOICE'
+      && BATTLEFIELD_SOF_EFFECTS.has(currentGame.pendingChoice.effect)
+      && currentGame.pendingChoice.candidateIds.includes(unit.instanceId)
 
     const statusBadges = getUnitStatusBadges(player, unit)
     const statusMarkup = statusBadges.length > 0
       ? `<div class="field-card-status" aria-label="현재 상태">${statusBadges.map((badge) => `<span class="field-card-status__badge field-card-status__badge--${badge.tone ?? 'active'}">${escapeHtml(badge.label)}</span>`).join('')}</div>`
       : ''
 
-    return `<div class="field-slot-frame" data-field-slot="${slotIndex}">${renderCard(unit.cardId, {
+    const cardSelectionAction = canPendingDemonBreathTarget || canPendingSofUnitTarget
+      ? `data-action="resolve-simple-choice" data-choice-id="${escapeHtml(unit.instanceId)}"`
+      : canSpellTarget
+        ? `data-action="select-spell-unit" data-unit-id="${escapeHtml(unit.instanceId)}"`
+      : canEvolutionTarget
+        ? `data-action="select-evolution-unit" data-unit-id="${escapeHtml(unit.instanceId)}"`
+      : isSelf && canSelectAttacker
+        ? `data-action="select-attacker" data-unit-id="${escapeHtml(unit.instanceId)}"`
+      : canAttackTarget && selectedAttackerId
+        ? `data-action="attack-unit" data-attacker-id="${escapeHtml(selectedAttackerId)}" data-defender-id="${escapeHtml(unit.instanceId)}"`
+        : ''
+    const cardSelectionAccessibility = cardSelectionAction
+      ? `role="button" tabindex="0" aria-label="${canPendingDemonBreathTarget ? `악마의 숨결 대상으로 ${definition.name} 선택` : canPendingSofUnitTarget ? `${definition.name}을 효과 대상으로 선택` : selectedForSpell ? '주문 대상 선택 취소' : canSpellTarget ? `${definition.name}을 주문 대상으로 선택` : selectedForEvolution ? '진화 대상 선택 취소' : canEvolutionTarget ? `${definition.name}을 진화 대상으로 선택` : selectedForAttack ? '공격 선택 취소' : canAttackTarget ? `${definition.name} 공격` : `${definition.name} 공격 선택`}"`
+      : ''
+    const cardSelectionClass = cardSelectionAction ? ' is-card-actionable' : ''
+
+    return `<div class="field-slot-frame${cardSelectionClass}" data-field-slot="${slotIndex}" ${cardSelectionAction} ${cardSelectionAccessibility}>${renderCard(unit.cardId, {
       instanceId: unit.instanceId,
       selected: selectedForAttack || selectedForSpell || selectedForEvolution,
-      targetable: canPendingDemonBreathTarget || canEvolutionTarget || canSpellTarget || canAttackTarget,
+      targetable: canPendingDemonBreathTarget || canPendingSofUnitTarget || canEvolutionTarget || canSpellTarget || canAttackTarget,
       exhausted: isEffectivelyExhaustedView(player, unit),
       // 소환된 턴이라도 기습·돌진으로 실제 공격할 수 있다면
       // 공격 불가 필터를 씌우지 않습니다.
@@ -1271,7 +1275,7 @@ function renderField(player: PlayerView, isSelf: boolean): string {
       remainingHealth: healthValueView(player, unit) - unit.damage,
       displayAttack: attackValueView(player, unit),
       classNames: ['field-card', 'game-card--center-name'],
-      actionsHtml: actions,
+      actionsHtml: '',
       dataAttributes: { 'field-slot': String(slotIndex) },
     })}${statusMarkup}</div>`
     },
@@ -1321,7 +1325,6 @@ function renderArenaLifeBlock(playerId: PlayerId, position: 'self' | 'opponent')
   )
 
   return `<section class="life-zone life-zone--rail arena-life-block arena-life-block--${position} ${directTargeting ? 'is-targetable' : ''}" aria-label="${playerId} 라이프">
-    <div class="arena-life-block__heading"><span>${position === 'opponent' ? '상대 라이프' : '내 라이프'}</span><strong>${player.lifeCount}</strong></div>
     <div class="arena-life-block__stack">
       <div class="life-stack" style="--life-slot-count: ${slotCount}">${renderLife(playerId, position)}</div>
     </div>
@@ -1333,21 +1336,18 @@ function renderArenaResourcePanel(playerId: PlayerId, position: 'self' | 'oppone
   const player = game.players[playerId]
   const isSelf = player.isViewer
   const readyMana = player.mana.filter((card) => !card.exhausted).length
-  const manaPips = player.mana.map((mana) => `<i class="${mana.exhausted ? 'is-spent' : 'is-ready'}" aria-hidden="true"></i>`).join('')
-
   return `<section class="arena-resource-panel arena-resource-panel--${position}" aria-label="${playerId} 자원">
     <section class="mana-zone mana-zone--summary ${isSelf ? 'mana-zone--self' : ''}" aria-label="${playerId} 마나">
-      ${isSelf ? renderTurnRibbon() : ''}
       <div class="mana-summary">
         <span class="mana-summary__label">마나</span>
         <strong class="mana-summary__count">${readyMana}<small> / ${player.mana.length}</small></strong>
-        <span class="mana-summary__state">준비 / 전체</span>
-        <span class="mana-summary__pips" aria-hidden="true">${manaPips}</span>
       </div>
-      <button type="button" class="mana-open-button" data-action="open-mana-drawer" data-player-id="${playerId}">
-        <span>마나 보기</span><b aria-hidden="true">＋</b>
-      </button>
+      <button type="button" class="mana-open-button" data-action="open-mana-drawer" data-player-id="${playerId}">마나 보기</button>
     </section>
+    <span class="resource-life-count game-card__health" aria-label="라이프 ${player.lifeCount}장">
+      <span class="game-card__symbol-icon" aria-hidden="true"></span>
+      <span class="game-card__symbol-value">${player.lifeCount}</span>
+    </span>
     <div class="pile-row">
       ${renderCardPile(playerId, 'deck')}
       ${renderCardPile(playerId, 'discard')}
@@ -1561,7 +1561,7 @@ function renderSofChoicePanel(pending: Extract<NonNullable<GameView['pendingChoi
 
   switch (pending.effect) {
     case 'BOMB_MOUSE_DAMAGE':
-      return sofChoicePanel('터지지 않은 폭탄쥐', '피해 2를 줄 상대 몬스터를 선택하세요.', renderSofCandidateGrid(candidates, '피해 2'))
+      return sofChoicePanel('터지지 않은 폭탄쥐', '전장 보기를 누른 뒤 피해 2를 줄 상대 몬스터를 직접 선택하세요.', '')
     case 'UNDERWATER_OBSERVER_TOP': {
       const cards = pending.revealedCards
       const content = `<div class="choice-card-grid">${cards.map((card, index) => renderRevealedCard(card, deckPositionLabel(index))).join('')}</div>`
@@ -1573,11 +1573,11 @@ function renderSofChoicePanel(pending: Extract<NonNullable<GameView['pendingChoi
       return sofChoicePanel('물밑을 살피는 자', '확인한 카드의 순서를 정하거나 한 장을 묘지로 보냅니다.', content, actions)
     }
     case 'ICE_MIRROR_FREEZE':
-      return sofChoicePanel('얼음거울 정령', '다음 준비 단계에 준비되지 않을 소진된 비용 2 이하 상대 몬스터를 선택하세요.', renderSofCandidateGrid(candidates, '준비 봉인'))
+      return sofChoicePanel('얼음거울 정령', '전장 보기를 누른 뒤 다음 준비 단계에 준비되지 않을 상대 몬스터를 직접 선택하세요.', '')
     case 'WAVE_FIN_BOUNCE':
-      return sofChoicePanel('파도의 등지느러미', '손으로 되돌릴 소진된 비용 2 이하 상대 몬스터를 선택할 수 있습니다.', renderSofCandidateGrid(candidates, '손으로'), optionalSkip)
+      return sofChoicePanel('파도의 등지느러미', '전장 보기를 누른 뒤 손으로 되돌릴 소진된 비용 2 이하 상대 몬스터를 직접 선택하세요.', '', optionalSkip)
     case 'CRYSTAL_TSUNAMI_BOUNCE':
-      return sofChoicePanel('수정 해일', '손으로 되돌릴 소진된 상대 몬스터를 선택할 수 있습니다.', renderSofCandidateGrid(candidates, '손으로'), optionalSkip)
+      return sofChoicePanel('수정 해일', '전장 보기를 누른 뒤 손으로 되돌릴 소진된 상대 몬스터를 직접 선택하세요.', '', optionalSkip)
     case 'WAVE_FIN_DRAW':
       return sofChoicePanel('파도의 등지느러미', '카드 1장을 뽑은 뒤 손 카드 한 장을 덱 맨 아래에 놓겠습니까?', '', actionButton('카드를 뽑는다', 'resolve-simple-choice', 'choice-id', 'draw') + actionButton('건너뛴다', 'resolve-simple-choice', 'choice-id', 'skip'))
     case 'WAVE_FIN_BOTTOM':
@@ -1607,15 +1607,15 @@ function renderSofChoicePanel(pending: Extract<NonNullable<GameView['pendingChoi
     case 'BLACKWING_RETURN':
       return sofChoicePanel('검은날개 포식자', '손으로 가져올 비용 1 이하 어둠 몬스터를 선택할 수 있습니다.', renderSofCandidateGrid(candidates, '손으로'), optionalSkip)
     case 'MASS_BURIAL_ENEMY_FIRST':
-      return sofChoicePanel('집단 매장', '자신의 전장에서 묘지로 보낼 몬스터 한 장을 선택하세요.', renderSofCandidateGrid(candidates, '묘지로'))
+      return sofChoicePanel('집단 매장', '전장 보기를 누른 뒤 자신의 전장에서 묘지로 보낼 몬스터를 직접 선택하세요.', '')
     case 'MASS_BURIAL_SELF':
-      return sofChoicePanel('집단 매장', '내 몬스터를 한 장 더 묻으면 상대도 몬스터를 한 장 더 묻습니다.', renderSofCandidateGrid(candidates, '희생'), optionalSkip)
+      return sofChoicePanel('집단 매장', '전장 보기를 누른 뒤 추가로 묻을 내 몬스터를 직접 선택하세요.', '', optionalSkip)
     case 'MASS_BURIAL_ENEMY_SECOND':
-      return sofChoicePanel('집단 매장', '추가로 묘지로 보낼 자신의 몬스터 한 장을 선택하세요.', renderSofCandidateGrid(candidates, '묘지로'))
+      return sofChoicePanel('집단 매장', '전장 보기를 누른 뒤 추가로 묘지로 보낼 자신의 몬스터를 직접 선택하세요.', '')
     case 'MOURNER_SACRIFICE':
-      return sofChoicePanel('장송하는 자', '다른 내 몬스터를 묘지로 보내고 상대 몬스터를 제거할 수 있습니다.', renderSofCandidateGrid(candidates, '희생'), optionalSkip)
+      return sofChoicePanel('장송하는 자', '전장 보기를 누른 뒤 묘지로 보낼 다른 내 몬스터를 직접 선택하세요.', '', optionalSkip)
     case 'MOURNER_DESTROY':
-      return sofChoicePanel('장송하는 자', '묘지로 보낼 상대 몬스터를 선택하세요.', renderSofCandidateGrid(candidates, '묘지로'))
+      return sofChoicePanel('장송하는 자', '전장 보기를 누른 뒤 묘지로 보낼 상대 몬스터를 직접 선택하세요.', '')
     case 'MOURNER_LAST_WORDS': {
       const cards = candidates.map((id) => {
         const card = findVisibleCardInstance(id)
@@ -1626,7 +1626,7 @@ function renderSofChoicePanel(pending: Extract<NonNullable<GameView['pendingChoi
       return sofChoicePanel('장송하는 자', '묘지의 비용 2 이하 어둠 몬스터를 출현 없이 소환할 수 있습니다.', `<div class="choice-card-grid">${cards}</div>`, optionalSkip)
     }
     case 'SKY_KNIGHT_READY':
-      return sofChoicePanel('천공의 백마기사', '준비할 다른 소진 몬스터를 선택할 수 있습니다.', renderSofCandidateGrid(candidates, '준비'), optionalSkip)
+      return sofChoicePanel('천공의 백마기사', '전장 보기를 누른 뒤 준비할 다른 소진 몬스터를 직접 선택하세요.', '', optionalSkip)
     case 'STONE_PRIEST_HAND_MANA':
       return sofChoicePanel('돌기둥의 성직자', '소진된 상태로 마나에 놓을 손 카드 한 장을 선택할 수 있습니다.', renderSofCandidateGrid(candidates, '마나로'), optionalSkip)
     case 'STONE_PRIEST_LIFE': {
@@ -1696,7 +1696,7 @@ function renderPendingChoicePanel(): string {
     case 'TEMPLE_PROSPECT_LIFE':
       return `<div class="selection-panel selection-panel--urgent"><h3>신전의 유망주</h3><p>손으로 가져올 자신의 라이프를 선택하세요. 번호는 처음 놓인 라이프 슬롯을 뜻합니다.</p>${renderLargeLifeChoices(game.viewer)}</div>`
     case 'TEMPLE_PROSPECT_HAND':
-      return `<div class="selection-panel selection-panel--urgent"><h3>신전의 유망주</h3><p>손 카드 한 장을 라이프로 놓거나 건너뛸 수 있습니다.</p>${actionButton('건너뛰기', 'skip-hand-choice')}</div>`
+      return `<div class="selection-panel selection-panel--urgent"><h3>신전의 유망주</h3><p>‘전장 보기’를 누른 뒤 손패에서 라이프로 놓을 카드 한 장을 선택하세요. 카드를 놓지 않으려면 건너뛸 수 있습니다.</p>${actionButton('건너뛰기 · 손패 선택 안 함', 'skip-hand-choice')}</div>`
     case 'HOLY_MIRROR_LIFE':
       return `<div class="selection-panel selection-panel--urgent"><h3>성스러운 거울의 벽</h3><p>묘지로 보낼 상대 라이프를 선택하세요. 번호는 처음 놓인 라이프 슬롯을 뜻합니다.</p>${renderLargeLifeChoices(game.viewer === 'P1' ? 'P2' : 'P1')}</div>`
     case 'AWAKEN_SUMMON_SLOT':
@@ -1906,27 +1906,23 @@ function renderDiscardModal(): string {
 
 function renderDecisionDock(opponentId: PlayerId): string {
   if (!game) return ''
-  const pendingPanel = renderPendingChoicePanel()
   const draftPanel = renderPlayDraftPanel()
   const attackPanel = renderAttackLifePanel(game.players[opponentId])
-  const activePanel = pendingPanel || draftPanel || attackPanel
+  const activePanel = draftPanel || attackPanel
   if (!activePanel) {
-    decisionPanelCollapsed = false
-    decisionPanelKey = null
     return ''
   }
 
-  const isEffectChoice = Boolean(pendingPanel)
-  const nextDecisionPanelKey = isEffectChoice
-    ? `effect:${game.actionSequence}:${game.pendingChoice?.type ?? 'waiting'}`
-    : draftPanel
-      ? `play:${playDraft?.cardInstanceId ?? 'draft'}`
-      : `attack:${selectedAttackerId ?? 'direct'}`
+  const nextDecisionPanelKey = draftPanel
+    ? `play:${playDraft?.cardInstanceId ?? 'draft'}`
+    : `attack:${selectedAttackerId ?? 'direct'}`
 
   if (decisionPanelKey !== nextDecisionPanelKey) {
     decisionPanelCollapsed = false
     decisionPanelKey = nextDecisionPanelKey
   }
+
+  const isEffectChoice = false
 
   if (isEffectChoice && decisionPanelCollapsed) {
     return `<aside class="decision-dock has-selection is-effect-choice is-battlefield-view" aria-live="polite">
@@ -1949,19 +1945,84 @@ function renderDecisionDock(opponentId: PlayerId): string {
   return `<aside class="decision-dock has-selection" aria-live="polite">${activePanel}</aside>`
 }
 
+function renderEffectChoiceLayer(): string {
+  if (!game?.pendingChoice) return ''
+  const pendingChoice = game.pendingChoice
+  const isBattlefieldOnlyChoice = pendingChoice.playerId === game.viewer
+    && (
+      pendingChoice.type === 'DEMON_BREATH_TARGET'
+      || (
+        pendingChoice.type === 'SOF_CHOICE'
+        && BATTLEFIELD_SOF_EFFECTS.has(pendingChoice.effect)
+      )
+    )
+  if (isBattlefieldOnlyChoice) {
+    const canSkip = pendingChoice.type === 'SOF_CHOICE' && pendingChoice.minChoices === 0
+    return canSkip
+      ? `<aside class="battlefield-effect-skip" aria-live="polite">
+          <button type="button" data-action="resolve-sof-empty">건너뛰기</button>
+        </aside>`
+      : ''
+  }
+
+  const pendingPanel = renderPendingChoicePanel()
+  if (!pendingPanel) return ''
+
+  const nextDecisionPanelKey = `effect:${game.actionSequence}:${game.pendingChoice.type}`
+  if (decisionPanelKey !== nextDecisionPanelKey) {
+    decisionPanelCollapsed = false
+    decisionPanelKey = nextDecisionPanelKey
+  }
+
+  if (decisionPanelCollapsed) {
+    return `<aside class="effect-choice-dock is-battlefield-view" aria-live="polite">
+      <button type="button" class="decision-panel-return" data-action="return-to-effect-choice">효과 선택으로 돌아가기</button>
+    </aside>`
+  }
+
+  return `<aside class="effect-choice-dock" aria-live="polite">
+    <section class="effect-choice-overlay" role="dialog" aria-modal="true" aria-label="카드 효과 선택">
+      <header class="effect-choice-overlay__header">
+        <span>카드 효과 처리</span>
+        <button type="button" class="decision-panel-battlefield" data-action="view-battlefield">전장 보기</button>
+      </header>
+      <div class="effect-choice-overlay__content">${pendingPanel}</div>
+    </section>
+  </aside>`
+}
+
 function renderTurnControl(): string {
   if (!game) return ''
+  if (game.status === 'finished') return ''
   const canEndTurn = game.status === 'playing'
     && roomPhase === 'playing'
     && game.viewer === game.currentPlayer
     && game.pendingChoice === null
     && playDraft === null
     && selectedAttackerId === null
+  const endTurnHint = game.pendingChoice !== null
+    ? '먼저 진행 중인 카드 효과를 선택하거나 건너뛰세요.'
+    : playDraft !== null
+      ? '먼저 카드 사용을 완료하거나 취소하세요.'
+      : selectedAttackerId !== null
+        ? '먼저 공격을 완료하거나 취소하세요.'
+        : ''
 
   return `<aside class="turn-control" aria-label="턴 조작">
-    <button id="end-turn-button" class="end-turn-button" type="button" ${canEndTurn && !awaitingServer ? '' : 'disabled'}><span>턴</span><strong>종료</strong></button>
-    ${game.status === 'finished' ? '<button id="rematch-button" type="button">재대전</button>' : ''}
+    <button id="end-turn-button" class="end-turn-button" type="button" ${endTurnHint ? `title="${escapeHtml(endTurnHint)}"` : ''} ${canEndTurn && !awaitingServer ? '' : 'disabled'}><span>내 턴</span><strong>종료</strong></button>
+    ${renderTurnRibbon()}
   </aside>`
+}
+
+function renderGameResultOverlay(): string {
+  if (!game || game.status !== 'finished') return ''
+  const won = game.winner === game.viewer
+  return `<section class="game-result-overlay game-result-overlay--${won ? 'victory' : 'defeat'}" role="dialog" aria-modal="true" aria-labelledby="game-result-title">
+    <div class="game-result-panel">
+      <h2 id="game-result-title">${won ? '승리했습니다' : '패배했습니다'}</h2>
+      <button id="rematch-button" type="button">재대전</button>
+    </div>
+  </section>`
 }
 
 function renderRoomMenu(): string {
@@ -1983,22 +2044,10 @@ function renderTurnRibbon(): string {
     : isMyTurn
       ? 'turn-ribbon--mine'
       : 'turn-ribbon--opponent'
-  const title = needsMyChoice
-    ? '내 선택 필요'
-    : isMyTurn
-      ? '내 턴'
-      : '상대 턴'
-  const detail = needsMyChoice
-    ? game.currentPlayer === game.viewer
-      ? '카드 효과를 선택해야 턴을 계속할 수 있습니다.'
-      : '상대 턴 중 효과가 발동했습니다. 선택을 완료해 주세요.'
-    : message
+  const timerLabel = needsMyChoice ? '선택 제한 시간' : '턴 제한 시간'
 
-  return `<section class="turn-ribbon ${stateClass}" aria-live="assertive">
-    <strong>${title}</strong>
+  return `<section class="turn-ribbon ${stateClass}" aria-label="${timerLabel}" aria-live="assertive">
     <span id="turn-timer" class="turn-timer"></span>
-    <span class="turn-message">${escapeHtml(detail)}</span>
-    <span class="turn-number">TURN ${game.turnNumber}</span>
   </section>`
 }
 
@@ -2154,7 +2203,16 @@ function render(): void {
   } else if (!game && roomPhase === 'drafting') content = renderDraftRoom()
   else if (!game) content = renderWaitingRoom()
   else if (opponentId) {
-    content = `<section class="game-layout">
+    content = game.status === 'finished'
+      ? `<section class="game-layout game-layout--finished">
+          <main
+            class="battle-board battle-board--finished"
+            style="--battlefield-image: url('${escapeHtml(BATTLEFIELD_BACKGROUND_URL)}');"
+          >
+            ${renderGameResultOverlay()}
+          </main>
+        </section>`
+      : `<section class="game-layout">
       <main
         class="battle-board ${game.currentPlayer === game.viewer ? 'is-my-turn' : 'is-opponent-turn'} ${game.pendingChoice?.playerId === game.viewer ? 'is-my-response' : ''}"
         style="--battlefield-image: url('${escapeHtml(BATTLEFIELD_BACKGROUND_URL)}');"
@@ -2173,10 +2231,13 @@ function render(): void {
       </main>
       ${renderManaDrawer()}
       ${renderDiscardModal()}
+      ${renderEffectChoiceLayer()}
     </section>`
   }
 
-  const gameTopbar = game
+  const gameTopbar = game?.status === 'finished'
+    ? ''
+    : game
     ? `<header class="room-topbar room-topbar--game">
         <div class="brand-cluster"><strong>Duel Spirits</strong><span class="connection-state">${escapeHtml(networkStatus)}</span></div>
         <div class="match-state"><span>${escapeHtml(getFormat(game.matchConfig.formatId).shortName)}</span><span>${game.viewer} 시점</span><span>방 ${escapeHtml(roomId)}</span></div>
@@ -2191,7 +2252,8 @@ function render(): void {
   const notice = gameNotice
     ? `<div class="game-notice" role="alert" aria-live="assertive"><span>${escapeHtml(gameNotice)}</span><button type="button" data-action="dismiss-game-notice" aria-label="알림 닫기">×</button></div>`
     : ''
-  appElement.innerHTML = `<div class="room-screen ${game ? 'room-screen--game' : ''}">${gameTopbar}${content}${notice}</div>${renderRulebookModal()}`
+  appElement.innerHTML = `<div class="room-screen ${game ? 'room-screen--game' : ''} ${game?.status === 'finished' ? 'room-screen--finished' : ''}">${gameTopbar}${content}${notice}</div>${renderRulebookModal()}`
+  updateFixedStageScale()
   bindEvents()
   restoreManaDrawerScrollState(manaDrawerScrollState)
   updateClock()
@@ -2343,39 +2405,66 @@ function closeTransientLayers(): boolean {
   return false
 }
 
-function bindEvents(): void {
-  document.querySelector<HTMLButtonElement>('#rulebook-button')?.addEventListener('click', () => {
+function bindClick<T extends HTMLElement>(
+  selector: string,
+  handler: (element: T, event: MouseEvent) => void,
+): void {
+  document.querySelector<T>(selector)?.addEventListener('click', (event) => {
+    handler(event.currentTarget as T, event)
+  })
+}
+
+function bindClicks<T extends HTMLElement>(
+  selector: string,
+  handler: (element: T, event: MouseEvent) => void,
+): void {
+  for (const element of document.querySelectorAll<T>(selector)) {
+    element.addEventListener('click', (event) => {
+      handler(event.currentTarget as T, event)
+    })
+  }
+}
+
+function playerIdFromDataset(element: HTMLElement): PlayerId | null {
+  const playerId = element.dataset.playerId
+  return playerId === 'P1' || playerId === 'P2' ? playerId : null
+}
+
+function bindRulebookEvents(): void {
+  bindClick<HTMLButtonElement>('#rulebook-button', () => {
     rulebookOpen = true
     roomMenuOpen = false
     render()
   })
-  for (const control of document.querySelectorAll<HTMLElement>('[data-action="close-rulebook"]')) {
-    control.addEventListener('click', () => {
-      rulebookOpen = false
-      render()
-    })
-  }
+  bindClicks<HTMLElement>('[data-action="close-rulebook"]', () => {
+    rulebookOpen = false
+    render()
+  })
   document.querySelector<HTMLElement>('[data-modal="rulebook"]')?.addEventListener('click', (event) => {
     if (event.target === event.currentTarget) {
       rulebookOpen = false
       render()
     }
   })
+}
 
-  document.querySelector<HTMLButtonElement>('#room-menu-button')?.addEventListener('click', () => {
+function bindRoomMenuEvents(): void {
+  bindClick<HTMLButtonElement>('#room-menu-button', () => {
     roomMenuOpen = !roomMenuOpen
     render()
   })
 
-  document.querySelector<HTMLElement>('[data-action="view-battlefield"]')?.addEventListener('click', () => {
+  bindClick<HTMLElement>('[data-action="view-battlefield"]', () => {
     decisionPanelCollapsed = true
     render()
   })
-  document.querySelector<HTMLElement>('[data-action="return-to-effect-choice"]')?.addEventListener('click', () => {
+  bindClick<HTMLElement>('[data-action="return-to-effect-choice"]', () => {
     decisionPanelCollapsed = false
     render()
   })
+}
 
+function bindHandScrollEvents(): void {
   const handScroller = document.querySelector<HTMLElement>('.hand-zone--self')
   const handScrollShell = handScroller?.closest<HTMLElement>('.hand-scroll-shell') ?? null
   if (handScroller && handScrollShell) {
@@ -2462,30 +2551,26 @@ function bindEvents(): void {
     }
     requestAnimationFrame(updateHandScrollState)
   }
+}
 
-  for (const control of document.querySelectorAll<HTMLElement>('[data-action="open-discard"]')) {
-    control.addEventListener('click', () => {
-      const playerId = control.dataset.playerId
-      if (playerId !== 'P1' && playerId !== 'P2') return
-      openDiscardPlayerId = playerId
-      roomMenuOpen = false
-      render()
-    })
-  }
-  for (const control of document.querySelectorAll<HTMLElement>('[data-action="close-discard"]')) {
-    control.addEventListener('click', () => {
-      openDiscardPlayerId = null
-      render()
-    })
-  }
-  for (const control of document.querySelectorAll<HTMLElement>('[data-action="view-discard-player"]')) {
-    control.addEventListener('click', () => {
-      const playerId = control.dataset.playerId
-      if (playerId !== 'P1' && playerId !== 'P2') return
-      openDiscardPlayerId = playerId
-      render()
-    })
-  }
+function bindZoneModalEvents(): void {
+  bindClicks<HTMLElement>('[data-action="open-discard"]', (control) => {
+    const playerId = playerIdFromDataset(control)
+    if (!playerId) return
+    openDiscardPlayerId = playerId
+    roomMenuOpen = false
+    render()
+  })
+  bindClicks<HTMLElement>('[data-action="close-discard"]', () => {
+    openDiscardPlayerId = null
+    render()
+  })
+  bindClicks<HTMLElement>('[data-action="view-discard-player"]', (control) => {
+    const playerId = playerIdFromDataset(control)
+    if (!playerId) return
+    openDiscardPlayerId = playerId
+    render()
+  })
   document.querySelector<HTMLElement>('[data-modal="discard"]')?.addEventListener('click', (event) => {
     if (event.target === event.currentTarget) {
       openDiscardPlayerId = null
@@ -2493,36 +2578,32 @@ function bindEvents(): void {
     }
   })
 
-  for (const control of document.querySelectorAll<HTMLElement>('[data-action="open-mana-drawer"]')) {
-    control.addEventListener('click', () => {
-      const playerId = control.dataset.playerId
-      if (playerId !== 'P1' && playerId !== 'P2') return
-      openManaPlayerId = playerId
-      pinnedPreviewCardId = null
-      pinnedPreviewInstanceId = null
-      render()
-    })
-  }
-  for (const control of document.querySelectorAll<HTMLElement>('[data-action="close-mana-drawer"]')) {
-    control.addEventListener('click', () => {
-      openManaPlayerId = null
-      render()
-    })
-  }
+  bindClicks<HTMLElement>('[data-action="open-mana-drawer"]', (control) => {
+    const playerId = playerIdFromDataset(control)
+    if (!playerId) return
+    openManaPlayerId = playerId
+    pinnedPreviewCardId = null
+    pinnedPreviewInstanceId = null
+    render()
+  })
+  bindClicks<HTMLElement>('[data-action="close-mana-drawer"]', () => {
+    openManaPlayerId = null
+    render()
+  })
   document.querySelector<HTMLElement>('[data-modal="mana-drawer"]')?.addEventListener('click', (event) => {
     if (event.target === event.currentTarget) {
       openManaPlayerId = null
       render()
     }
   })
+}
 
-  for (const control of document.querySelectorAll<HTMLElement>('[data-action="close-card-preview"]')) {
-    control.addEventListener('click', () => {
-      pinnedPreviewCardId = null
-      pinnedPreviewInstanceId = null
-      setCardInspector(null, false)
-    })
-  }
+function bindCardPreviewEvents(): void {
+  bindClicks<HTMLElement>('[data-action="close-card-preview"]', () => {
+    pinnedPreviewCardId = null
+    pinnedPreviewInstanceId = null
+    setCardInspector(null, false)
+  })
 
   for (const element of document.querySelectorAll<HTMLElement>('[data-card-id], [data-preview-card-id]')) {
     if (element.closest('.card-inspector')) continue
@@ -2570,10 +2651,15 @@ function bindEvents(): void {
       }
     })
   }
+}
 
+function bindGlobalKeyboardEvents(): void {
   document.onkeydown = (event) => {
     if (event.key === 'Escape') closeTransientLayers()
   }
+}
+
+function bindWaitingRoomEvents(): void {
   document.querySelector<HTMLSelectElement>('#room-deck-select')?.addEventListener('change', (event) => {
     selectedDeckId = (event.currentTarget as HTMLSelectElement).value
     setActiveDeckId(selectedDeckId)
@@ -2623,15 +2709,21 @@ function bindEvents(): void {
     message = '드래프트 덱을 서버에서 확인하고 있습니다.'
     render()
   })
+}
 
+function bindPlayDraftEvents(): void {
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="place-mana"]')) {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
       const id = button.dataset.cardInstanceId
       if (id) sendAction({ type: 'PLACE_MANA', cardInstanceId: id })
     })
   }
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="begin-play-card"]')) {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
       const id = button.dataset.cardInstanceId
       if (!id) return
       playDraft = { cardInstanceId: id, manaIds: [] }
@@ -2643,10 +2735,10 @@ function bindEvents(): void {
       render()
     })
   }
-  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="select-cost-mana"]')) {
-    button.addEventListener('click', () => {
+  for (const cardElement of document.querySelectorAll<HTMLElement>('.mana-card[data-action="select-cost-mana"]')) {
+    cardElement.addEventListener('click', () => {
       if (!playDraft) return
-      const manaId = button.dataset.manaId
+      const manaId = cardElement.dataset.manaId
       const card = selectedPlayCard()
       if (!manaId || !card) return
       if (playDraft.effectManaId === manaId && card.cardId !== 'lava_gardener') return
@@ -2658,34 +2750,60 @@ function bindEvents(): void {
       playDraft.manaIds = next
       render()
     })
+    cardElement.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return
+      event.preventDefault()
+      cardElement.click()
+    })
   }
-  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="select-effect-mana"]')) {
-    button.addEventListener('click', () => {
+  for (const cardElement of document.querySelectorAll<HTMLElement>('.mana-card[data-action="select-effect-mana"]')) {
+    cardElement.addEventListener('click', () => {
       if (!playDraft) return
-      const manaId = button.dataset.manaId
+      const manaId = cardElement.dataset.manaId
       if (!manaId) return
       const draftCard = selectedPlayCard()
       if (playDraft.manaIds.includes(manaId) && draftCard?.cardId !== 'lava_gardener') return
+      if (playDraft.effectManaId === manaId && playDraft.manaIds.includes(manaId)) {
+        playDraft.effectManaId = undefined
+        playDraft.manaIds = playDraft.manaIds.filter((id) => id !== manaId)
+        render()
+        return
+      }
       playDraft.effectManaId = playDraft.effectManaId === manaId ? undefined : manaId
       render()
     })
+    cardElement.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return
+      event.preventDefault()
+      cardElement.click()
+    })
   }
-  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="select-spell-unit"]')) {
-    button.addEventListener('click', () => {
+  for (const cardElement of document.querySelectorAll<HTMLElement>('.field-slot-frame[data-action="select-spell-unit"]')) {
+    cardElement.addEventListener('click', () => {
       if (!playDraft) return
-      const unitId = button.dataset.unitId
+      const unitId = cardElement.dataset.unitId
       if (!unitId) return
       playDraft.unitId = playDraft.unitId === unitId ? undefined : unitId
       render()
     })
+    cardElement.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return
+      event.preventDefault()
+      cardElement.click()
+    })
   }
-  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="select-evolution-unit"]')) {
-    button.addEventListener('click', () => {
+  for (const cardElement of document.querySelectorAll<HTMLElement>('.field-slot-frame[data-action="select-evolution-unit"]')) {
+    cardElement.addEventListener('click', () => {
       if (!playDraft) return
-      const unitId = button.dataset.unitId
+      const unitId = cardElement.dataset.unitId
       if (!unitId) return
       playDraft.evolutionUnitId = playDraft.evolutionUnitId === unitId ? undefined : unitId
       render()
+    })
+    cardElement.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return
+      event.preventDefault()
+      cardElement.click()
     })
   }
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="select-spell-life"]')) {
@@ -2707,6 +2825,12 @@ function bindEvents(): void {
     })
   }
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="confirm-play-card"]')) {
+    button.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return
+      event.preventDefault()
+      event.stopPropagation()
+      confirmPlayDraft()
+    })
     button.addEventListener('click', confirmPlayDraft)
   }
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="cancel-play-card"]')) {
@@ -2719,7 +2843,9 @@ function bindEvents(): void {
       render()
     })
   }
+}
 
+function bindSummonFromManaEvents(): void {
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="begin-summon-from-mana"]')) {
     button.addEventListener('click', () => {
       const id = button.dataset.manaId
@@ -2759,25 +2885,48 @@ function bindEvents(): void {
       }
     })
   }
-  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="select-attacker"]')) {
-    button.addEventListener('click', () => {
-      const id = button.dataset.unitId
+}
+
+function bindAttackEvents(): void {
+  const bindCardAction = (element: HTMLElement, activate: () => void): void => {
+    element.addEventListener('click', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      event.stopImmediatePropagation()
+      activate()
+    })
+    element.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return
+      event.preventDefault()
+      event.stopPropagation()
+      activate()
+    })
+  }
+
+  for (const card of document.querySelectorAll<HTMLElement>('.field-slot-frame[data-action="select-attacker"]')) {
+    bindCardAction(card, () => {
+      const id = card.dataset.unitId
       if (!id) return
       selectedAttackerId = selectedAttackerId === id ? null : id
       selectedAttackLifeSlotIndices = []
       render()
     })
   }
-  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="attack-unit"]')) {
-    button.addEventListener('click', () => {
-      const defenderId = button.dataset.defenderId
-      if (selectedAttackerId && defenderId) {
-        sendAction({ type: 'ATTACK_UNIT', attackerId: selectedAttackerId, defenderId })
+
+  for (const card of document.querySelectorAll<HTMLElement>('.field-slot-frame[data-action="attack-unit"]')) {
+    bindCardAction(card, () => {
+      const attackerId = card.dataset.attackerId ?? selectedAttackerId
+      const defenderId = card.dataset.defenderId
+      if (attackerId && defenderId) {
+        sendAction({ type: 'ATTACK_UNIT', attackerId, defenderId })
       }
     })
   }
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="select-attack-life"]')) {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      event.stopImmediatePropagation()
       if (!game) return
       const slotIndex = Number(button.dataset.lifeSlot)
       if (!Number.isInteger(slotIndex)) return
@@ -2790,7 +2939,10 @@ function bindEvents(): void {
       render()
     })
   }
-  document.querySelector<HTMLButtonElement>('[data-action="confirm-attack-player"]')?.addEventListener('click', () => {
+  document.querySelector<HTMLButtonElement>('[data-action="confirm-attack-player"]')?.addEventListener('click', (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    event.stopImmediatePropagation()
     if (selectedAttackerId) {
       sendAction({
         type: 'ATTACK_PLAYER',
@@ -2799,12 +2951,17 @@ function bindEvents(): void {
       })
     }
   })
-  document.querySelector<HTMLButtonElement>('[data-action="cancel-attacker"]')?.addEventListener('click', () => {
+  document.querySelector<HTMLButtonElement>('[data-action="cancel-attacker"]')?.addEventListener('click', (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    event.stopImmediatePropagation()
     selectedAttackerId = null
     selectedAttackLifeSlotIndices = []
     render()
   })
+}
 
+function bindPendingChoiceEvents(): void {
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="resolve-life-choice"]')) {
     button.addEventListener('click', () => {
       const index = Number(button.dataset.lifeIndex)
@@ -2824,10 +2981,19 @@ function bindEvents(): void {
     })
   }
   document.querySelector<HTMLButtonElement>('[data-action="skip-hand-choice"]')?.addEventListener('click', () => sendAction({ type: 'RESOLVE_CHOICE', choiceIds: [] }))
-  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="resolve-simple-choice"]')) {
-    button.addEventListener('click', () => {
-      const id = button.dataset.choiceId
+  for (const control of document.querySelectorAll<HTMLElement>('[data-action="resolve-simple-choice"]')) {
+    control.addEventListener('click', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      event.stopImmediatePropagation()
+      const id = control.dataset.choiceId
       if (id) sendAction({ type: 'RESOLVE_CHOICE', choiceIds: [id] })
+    })
+    control.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return
+      event.preventDefault()
+      event.stopPropagation()
+      control.click()
     })
   }
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="toggle-pending-card"]')) {
@@ -2873,7 +3039,9 @@ function bindEvents(): void {
     })
   }
   document.querySelector<HTMLButtonElement>('[data-action="confirm-burning-choice"]')?.addEventListener('click', () => sendAction({ type: 'RESOLVE_CHOICE', choiceIds: [...pendingChoiceIds] }))
+}
 
+function bindRoomActionEvents(): void {
   document.querySelector<HTMLButtonElement>('#end-turn-button')?.addEventListener('click', () => sendAction({ type: 'END_TURN' }))
   document.querySelector<HTMLButtonElement>('#surrender-button')?.addEventListener('click', () => sendAction({ type: 'SURRENDER' }))
   document.querySelector<HTMLButtonElement>('#rematch-button')?.addEventListener('click', () => {
@@ -2898,6 +3066,21 @@ function bindEvents(): void {
     }
     render()
   })
+}
+
+function bindEvents(): void {
+  bindRulebookEvents()
+  bindRoomMenuEvents()
+  bindHandScrollEvents()
+  bindZoneModalEvents()
+  bindCardPreviewEvents()
+  bindGlobalKeyboardEvents()
+  bindWaitingRoomEvents()
+  bindPlayDraftEvents()
+  bindSummonFromManaEvents()
+  bindAttackEvents()
+  bindPendingChoiceEvents()
+  bindRoomActionEvents()
 }
 
 window.setInterval(updateClock, 250)
