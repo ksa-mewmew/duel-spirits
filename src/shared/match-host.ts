@@ -1,9 +1,10 @@
 import type { GameAction } from './actions'
 import { CONTENT_VERSION, RULES_VERSION } from '../content/sets'
 import { getFormat, isGameFormatId } from '../content/formats'
-import type { LoggedAction, MatchRecord } from './match-log'
+import type { LoggedAction, LoggedActionDetail, MatchRecord } from './match-log'
 import { applyAction, createGame } from './rules'
 import type { CreateGameOptions } from './rules'
+import type { CardId } from './cards'
 import type { GameState, PlayerId } from './types'
 import { createGameView } from './views'
 import type { GameView } from './views'
@@ -15,6 +16,73 @@ export interface MatchHostSnapshot {
 
 export interface MatchDispatchOptions {
   createdAt: number
+}
+
+function findCardId(game: GameState, instanceId: string | undefined): CardId | undefined {
+  if (!instanceId) return undefined
+  for (const player of Object.values(game.players)) {
+    const cards = [
+      ...player.deck, ...player.hand, ...player.life, ...player.mana, ...player.field, ...player.discard,
+      ...player.field.flatMap((unit) => unit.evolutionStack ?? []),
+    ]
+    const found = cards.find((card) => card.instanceId === instanceId)
+    if (found) return found.cardId
+  }
+  for (const pending of game.pendingChoices) {
+    if ('sourceCard' in pending && pending.sourceCard?.instanceId === instanceId) return pending.sourceCard.cardId
+    if ('revealedCard' in pending && pending.revealedCard.instanceId === instanceId) return pending.revealedCard.cardId
+    if ('revealedCards' in pending && pending.revealedCards) {
+      const found = pending.revealedCards.find((card) => card.instanceId === instanceId)
+      if (found) return found.cardId
+    }
+  }
+  return undefined
+}
+
+function createActionDetail(before: GameState, after: GameState, action: GameAction): LoggedActionDetail {
+  const sourceInstanceId =
+    action.type === 'PLACE_MANA' || action.type === 'PLAY_CARD' || action.type === 'SUMMON_FROM_MANA'
+      ? action.cardInstanceId
+      : action.type === 'ATTACK_UNIT' || action.type === 'ATTACK_PLAYER'
+        ? action.attackerId
+        : undefined
+  const targetInstanceIds = action.type === 'ATTACK_UNIT' ? [action.defenderId]
+    : action.type === 'PLAY_CARD' ? [
+        action.selection?.unitId, action.selection?.effectManaId, action.selection?.discardId,
+        ...(action.selection?.discardIds ?? []), action.selection?.evolutionUnitId,
+      ].filter((id): id is string => Boolean(id))
+    : action.type === 'RESOLVE_CHOICE' ? action.choiceIds
+    : []
+  const beforeFields = new Map(
+    (['P1', 'P2'] as const).flatMap((id) => before.players[id].field)
+      .map((unit) => [unit.instanceId, unit.cardId] as const),
+  )
+  const afterFieldIds = new Set((['P1', 'P2'] as const).flatMap((id) => after.players[id].field).map((unit) => unit.instanceId))
+  const beforeFieldIds = new Set(beforeFields.keys())
+  const summonedCardIds = (['P1', 'P2'] as const).flatMap((id) => after.players[id].field)
+    .filter((unit) => !beforeFieldIds.has(unit.instanceId)).map((unit) => unit.cardId)
+  const lifeLost: LoggedActionDetail['lifeLost'] = {}
+  const cardsDrawn: LoggedActionDetail['cardsDrawn'] = {}
+  for (const id of ['P1', 'P2'] as const) {
+    const lost = before.players[id].life.length - after.players[id].life.length
+    const previousHandIds = new Set(before.players[id].hand.map((card) => card.instanceId))
+    const drawn = after.players[id].hand.filter((card) => !previousHandIds.has(card.instanceId)).length
+    if (lost > 0) lifeLost[id] = lost
+    if (drawn > 0) cardsDrawn[id] = drawn
+  }
+  const pending = before.pendingChoices[0]
+  const choiceSourceCardId = action.type === 'RESOLVE_CHOICE' && pending
+    ? ('sourceCard' in pending ? pending.sourceCard?.cardId
+      : 'sourceUnitId' in pending ? findCardId(before, pending.sourceUnitId) : undefined)
+    : undefined
+  return {
+    sourceCardId: findCardId(before, sourceInstanceId) ?? choiceSourceCardId,
+    targetCardIds: targetInstanceIds.map((id) => findCardId(before, id)).filter((id): id is CardId => Boolean(id)),
+    destroyedCardIds: [...beforeFields].filter(([id]) => !afterFieldIds.has(id)).map(([, cardId]) => cardId),
+    lifeLost,
+    cardsDrawn,
+    summonedCardIds,
+  }
 }
 
 function validateAndMigrateSnapshot(snapshot: MatchHostSnapshot): MatchHostSnapshot {
@@ -133,6 +201,7 @@ export class MatchHost implements MatchAuthority {
     action: GameAction,
     options: MatchDispatchOptions,
   ): GameState {
+    const previousGame = this.game
     const nextGame = applyAction(this.game, playerId, action)
 
     this.game = nextGame
@@ -141,6 +210,7 @@ export class MatchHost implements MatchAuthority {
       playerId,
       action: structuredClone(action),
       createdAt: options.createdAt,
+      detail: createActionDetail(previousGame, nextGame, action),
     })
 
     return structuredClone(nextGame)

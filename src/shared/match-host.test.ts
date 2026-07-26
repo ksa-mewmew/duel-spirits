@@ -33,6 +33,14 @@ describe('MatchHost', () => {
         playerId: 'P1',
         action: { type: 'END_TURN' },
         createdAt: 2_000,
+        detail: {
+          sourceCardId: undefined,
+          targetCardIds: [],
+          destroyedCardIds: [],
+          lifeLost: {},
+          cardsDrawn: { P2: 1 },
+          summonedCardIds: [],
+        },
       },
     ])
   })

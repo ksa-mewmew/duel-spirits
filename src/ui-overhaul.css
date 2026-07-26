@@ -9956,7 +9956,7 @@ body.fixed-stage-active #app {
   height: 230px;
   display: grid;
   place-content: center;
-  gap: 8px;
+  gap: 7px;
   overflow: hidden;
   color: #fff5d4;
   text-align: center;
@@ -9998,8 +9998,29 @@ body.fixed-stage-active #app {
   text-shadow: 0 5px 18px #000;
 }
 
+.turn-announcement__panel em {
+  min-width: 112px;
+  margin: 3px auto 0;
+  padding: 5px 15px 6px;
+  border-top: 1px solid rgba(222, 198, 126, .55);
+  border-bottom: 1px solid rgba(222, 198, 126, .32);
+  color: #ddd3b2;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: .18em;
+  text-shadow: 0 2px 8px #000;
+}
+
+.turn-announcement__panel em b {
+  margin-right: 4px;
+  color: #fff1bd;
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
 @keyframes turn-announcement-rise {
-  from { opacity: 0; transform: translateY(24px) scale(.9); }
+  from { opacity: 0; transform: translateY(24px) rotateX(8deg) scale(.86); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
@@ -10072,6 +10093,18 @@ body.fixed-stage-active #app {
 }
 
 .match-log-entry strong { font-size: 16px; }
+.match-log-entry__body { min-width: 0; }
+.match-log-entry__body ul {
+  margin: 5px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  list-style: none;
+  color: #b8bbb6;
+  font-size: 12px;
+}
+.match-log-entry__body li::before { content: '› '; color: #dbc680; }
 .match-log-entry time { color: #969891; font-size: 12px; }
 .match-log-empty { padding: 52px 12px; color: #aaa; text-align: center; }
 
@@ -10109,6 +10142,7 @@ body.fixed-stage-active #app {
 .room-screen--game .field-slot-frame.has-keyword-windfury { --keyword-color: rgba(91, 228, 177, .94); }
 .room-screen--game .field-slot-frame.has-keyword-flying { --keyword-color: rgba(93, 194, 255, .96); }
 .room-screen--game .field-slot-frame.has-keyword-assassination { --keyword-color: rgba(244, 72, 104, .96); }
+.room-screen--game .field-slot-frame.has-keyword-last-words { --keyword-color: rgba(205, 205, 218, .9); }
 
 .field-card-status__badge--stealth { background: #4d256d !important; border-color: #c68cff !important; color: #fff !important; }
 .field-card-status__badge--rush { background: #722f16 !important; border-color: #ff9b59 !important; color: #fff1df !important; }
@@ -10116,15 +10150,16 @@ body.fixed-stage-active #app {
 .field-card-status__badge--windfury { background: #135744 !important; border-color: #69e8b6 !important; color: #e4fff4 !important; }
 .field-card-status__badge--flying { background: #174c70 !important; border-color: #72cfff !important; color: #e8f8ff !important; }
 .field-card-status__badge--assassination { background: #681b2d !important; border-color: #ff6689 !important; color: #fff0f4 !important; }
+.field-card-status__badge--last-words { background: #343540 !important; border-color: #c9cad8 !important; color: #f2f2f7 !important; }
 
 @keyframes stealth-pulse {
   0%, 100% { opacity: .68; filter: hue-rotate(0deg); }
   50% { opacity: 1; filter: hue-rotate(24deg); }
 }
 
-/* Deck choice is the primary lobby action; selecting is sufficient. */
+/* Deck selection submits automatically; match readiness remains an explicit action. */
 .room-screen:not(.room-screen--game) .match-deck-controls {
-  grid-template-columns: minmax(520px, 1fr) auto;
+  grid-template-columns: minmax(420px, 1fr) auto auto;
 }
 
 .room-screen:not(.room-screen--game) .match-deck-picker {
@@ -10143,6 +10178,16 @@ body.fixed-stage-active #app {
 .room-screen:not(.room-screen--game) .match-deck-picker select {
   grid-column: 1 / -1;
   width: 100%;
+}
+
+.room-screen:not(.room-screen--game) .match-deck-controls .match-lobby__message {
+  grid-column: 1 / -1;
+}
+
+.room-screen:not(.room-screen--game) #deck-ready-button.is-ready {
+  border-color: #8fd5a6;
+  background: linear-gradient(180deg, #294f37, #173322);
+  color: #eaffef;
 }
 
 @media (prefers-reduced-motion: reduce) {
