@@ -6,7 +6,7 @@ import { CARD_SETS } from './sets'
 const SOF_BALANCE = {
   spark_chasing_lizard: ['불똥을 쫓는 도마뱀', 'unit', 1, 0, 1, ['fire'], null],
   unexploded_bomb_mouse: ['터지지 않은 폭탄쥐', 'unit', 2, 2, 1, ['fire'], null],
-  iron_horn_boar: ['쇠뿔 멧돼지', 'unit', 2, 4, 2, ['fire'], null],
+  iron_horn_boar: ['쇠뿔 멧돼지', 'unit', 2, 4, 1, ['fire'], null],
   flame_javelin_soldier: ['화염 투창병', 'unit', 3, 1, 4, ['fire'], null],
   volcanic_eruption: ['화산 폭발', 'spell', 5, null, null, ['fire'], null],
   flame_mane_captain: ['화염갈기 대장', 'unit', 3, 3, 3, ['fire'], 'fire'],
@@ -31,13 +31,13 @@ const SOF_BALANCE = {
   poisoned_skeleton: ['독이 발린 해골', 'unit', 2, 1, 1, ['dark'], null],
   grave_merchant: ['무덤 안의 상인', 'unit', 2, 2, 2, ['dark'], null],
   weakened_giant: ['쇠약한 거인', 'unit', 2, 3, 3, ['dark'], null],
-  funeral_inviter: ['장례식의 초대자', 'unit', 3, 2, 3, ['dark'], null],
-  mass_burial: ['집단 매장', 'spell', 4, null, null, ['dark'], null],
+  funeral_inviter: ['장례식의 초대자', 'unit', 3, 2, 2, ['dark'], null],
+  mass_burial: ['집단 매장', 'spell', 3, null, null, ['dark'], null],
   blackwing_predator: ['검은날개 포식자', 'unit', 3, 0, 4, ['dark'], 'dark'],
-  mourner: ['장송하는 자', 'unit', 5, 4, 5, ['dark'], 'dark'],
+  mourner: ['장송하는 자', 'unit', 5, 4, 6, ['dark'], 'dark'],
 
   silent_shield_soldier: ['침묵하는 방패병', 'unit', 2, 2, 4, ['light'], null],
-  returning_paladin: ['돌아오는 성기사', 'unit', 2, 2, 2, ['light'], null],
+  returning_paladin: ['돌아오는 성기사', 'unit', 2, 2, 3, ['light'], null],
   little_judge: ['작은 심판관', 'unit', 2, 2, 3, ['light'], null],
   salvation_lancer: ['구원의 창기사', 'unit', 2, 2, 3, ['light'], null],
   last_prayer: ['마지막 기도', 'spell', 5, null, null, ['light'], null],
@@ -95,8 +95,8 @@ describe('evolution-begins(EVO) 원고', () => {
   })
 
   test('핵심 능력 문구를 보존한다', () => {
-    expect(CARDS.iron_horn_boar.rulesText).toContain('불 공명 - 돌진')
-    expect(CARDS.iron_horn_boar.type === 'unit' ? CARDS.iron_horn_boar.keywords : []).not.toContain('charge')
+    expect(CARDS.iron_horn_boar.rulesText).toContain('돌진')
+    expect(CARDS.iron_horn_boar.type === 'unit' ? CARDS.iron_horn_boar.keywords : []).toContain('charge')
     expect(CARDS.flame_javelin_soldier.rulesText).toContain('전투할 때')
     expect(CARDS.volcanic_eruption.rulesText).toContain('자신의 불 몬스터')
     expect(CARDS.ice_mirror_spirit.rulesText).toContain('소진된 비용 2 이하')
@@ -113,6 +113,7 @@ describe('evolution-begins(EVO) 원고', () => {
     expect(CARDS.earth_guardian.rulesText).toContain('최대 2장')
     expect(CARDS.mourner.rulesText).toContain('출현은 발동하지 않는다')
     expect(CARDS.spirit_agent.rulesText).toContain('최대 두 번')
+    expect(CARDS.spirit_agent.type === 'unit' ? CARDS.spirit_agent.keywords : []).toContain('windfury')
     expect(CARDS.crematory_smoke.rulesText).toContain('대신 상대의 모든 몬스터')
   })
 })

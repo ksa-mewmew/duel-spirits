@@ -158,7 +158,7 @@ describe('SOF 불·물 전투', () => {
     expect(direct.players.P2.life).toHaveLength(3)
   })
 
-  test('쇠뿔 멧돼지는 불 공명을 충족했을 때만 소환된 턴에 돌진한다', () => {
+  test('쇠뿔 멧돼지는 마나 속성과 관계없이 돌진한다', () => {
     const resonant = createTestGame()
     resonant.players.P1.hand = [card('boar', 'iron_horn_boar')]
     resonant.players.P1.mana = [mana('fire', 'living_flame'), mana('earth', 'seeding_fairy')]
@@ -181,7 +181,7 @@ describe('SOF 불·물 전투', () => {
     })
     expect(() => applyAction(noCharge, 'P1', {
       type: 'ATTACK_UNIT', attackerId: 'boar-2', defenderId: 'target-2',
-    })).toThrow('이번 턴에 소환된 몬스터')
+    })).not.toThrow()
   })
 
   test('화염 투창병의 선제 피해로 대상이 죽으면 반격받지 않는다', () => {
@@ -605,7 +605,7 @@ test('집단 매장으로 폭탄쥐 유언 대상이 사라지면 불가능한 �
 test('동시에 죽은 카드는 모두 묘지로 이동한 뒤 유언 후보를 계산한다', () => {
   const game = createTestGame()
   game.players.P1.field = [
-    unit('mourner', 'mourner', 0, { damage: 5 }),
+    unit('mourner', 'mourner', 0, { damage: 6 }),
     unit('cat', 'corpse_cat', 1, { damage: 2 }),
   ]
 

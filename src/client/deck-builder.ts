@@ -19,6 +19,7 @@ import {
   validateDeck,
 } from '../shared/decks'
 import { renderCard } from '../components/card-renderer'
+import { bindCardKeywordTooltips } from '../components/keyword-tooltip'
 
 import type { CardAttributeId, CardId } from '../shared/cards'
 import type { GameFormatId, SetId } from '../content/schema'
@@ -701,6 +702,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
       ${renderRulebookModal()}
     </main>`
 
+    bindCardKeywordTooltips(appElement)
     document.querySelector<HTMLButtonElement>('#builder-rulebook-button')?.addEventListener('click', openRulebook)
     for (const control of document.querySelectorAll<HTMLButtonElement>('[data-action="close-builder-rulebook"]')) {
       control.addEventListener('click', closeRulebook)

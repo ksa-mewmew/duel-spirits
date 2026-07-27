@@ -53,6 +53,8 @@ export interface PlayerState {
   extraLifeLossOnDirectAttack: boolean
   /** 현재 턴에 이 플레이어의 어둠 카드가 묘지로 보내진 횟수입니다. */
   darkCardsDiscardedThisTurn?: number
+  /** 불타는 행렬로 얻는 전투 지속 규칙입니다. */
+  burningProcessionActive?: boolean
 }
 
 

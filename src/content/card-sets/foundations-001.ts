@@ -16,7 +16,7 @@ export const FOUNDATIONS_001_CARDS = {
       flavorText: '고대 사람들은 집마다 하나씩 키웠다고 한다.',
     }),
   living_smoke: u(
-    'living_smoke', '살아 움직이는 연기', 2, 0, 3, ['fire'],
+    'living_smoke', '살아 움직이는 연기', 2, 0, 2, ['fire'],
     '전투할 때마다, 이 몬스터는 공격력 +2를 얻는다. 각성 - 자신의 전장에 빈 슬롯이 있다면 이 카드를 소환한다.',
     {
       flavorText: '화재 현장에서 갑자기 나와 손을 뻗었다.',
@@ -40,7 +40,7 @@ export const FOUNDATIONS_001_CARDS = {
     }),
   burning_procession: s(
     'burning_procession', '불타는 행렬', 4, ['fire'],
-    '자신의 덱 맨 위 카드 3장을 확인한다. 그중 비용이 2 이하인 불 몬스터를 최대 2장까지 소환한다. 나머지는 묘지로 보낸다.',
+    '이번 전투 동안 자신의 턴 시작 시 카드를 2장 대신 3장 뽑는다. 이번 전투 동안 자신은 원래 비용이 2 이하인 카드만 사용할 수 있다.',
     {
       flavorText: '땅의 군세는 하나둘 불꽃의 포로가 되었다.',
     },
@@ -68,7 +68,7 @@ export const FOUNDATIONS_001_CARDS = {
   ),
   ebb: s(
     'ebb', '썰물', 2, ['water'],
-    '자신의 마나에 물 카드만 있을 때 사용할 수 있다. (속성이 여러 개인 경우, 물 속성이 있으면 물 카드로 취급한다.) 상대 전장의 소진된 몬스터 하나를 그 소유자의 손으로 가져온다.',
+    '자신의 묘지에서 카드 1장을 손으로 가져올 수 있다.',
     {
       flavorText: '물의 일시 후퇴.',
     },
@@ -92,7 +92,7 @@ export const FOUNDATIONS_001_CARDS = {
       flavorText: '미련한 자들은 파도에 휩쓸려 사라진다.',
     }),
   reverse_current: s(
-    'reverse_current', '역류', 3, ['water'],
+    'reverse_current', '역류', 2, ['water'],
     '상대 전장의 소진된 몬스터 하나를 그 소유자의 손으로 가져온다.',
     {
       flavorText: '한 호수 속의 마개가 열렸다.',
@@ -144,8 +144,7 @@ export const FOUNDATIONS_001_CARDS = {
       flavorText: '햇살을 너무 사랑했기 때문에.',
     },
   ),
-  floating_mountains: u('floating_mountains', '떠다니는 산맥', 6, 5, 6, ['earth'], '질풍.', {
-      keywords: ['windfury'],
+  floating_mountains: u('floating_mountains', '떠다니는 산맥', 5, 5, 5, ['earth'], '없음.', {
       flavorText: '추락할 걱정 속에서도 모두는 산을 떠나지 못했다.',
     }),
   grave_digging: s(
@@ -178,9 +177,10 @@ export const FOUNDATIONS_001_CARDS = {
     },
   ),
   blue_black_hound: u(
-    'blue_black_hound', '검푸른 들개', 2, 4, 2, ['dark'],
-    '어둠 공명 - 이 몬스터는 돌진을 얻는다. 이 몬스터는 직접 공격할 수 없다.',
+    'blue_black_hound', '검푸른 들개', 2, 4, 1, ['dark'],
+    '돌진. 이 몬스터는 직접 공격할 수 없다.',
     {
+      keywords: ['charge'],
       flavorText: '길들인 자가 있다고 전해진다.',
     },
   ),
@@ -218,7 +218,7 @@ export const FOUNDATIONS_001_CARDS = {
       flavorText: '물의 군세는 그저 바라만 보았다.',
     }),
   temple_prospect: u(
-    'temple_prospect', '신전의 유망주', 2, 2, 2, ['light'],
+    'temple_prospect', '신전의 유망주', 1, 1, 2, ['light'],
     '출현 - 자신의 라이프 카드 하나를 선택해 손으로 가져온다. 이때 그 카드의 각성은 발동하지 않는다. 카드를 가져왔다면, 자신의 손에서 카드 하나를 자신의 라이프에 뒷면으로 놓을 수 있다.',
     {
       flavorText: '빛을 위하여!',
@@ -232,7 +232,7 @@ export const FOUNDATIONS_001_CARDS = {
     },
   ),
   prophet: u(
-    'prophet', '예언자', 3, 2, 3, ['light'],
+    'prophet', '예언자', 2, 2, 3, ['light'],
     '이 몬스터가 전장에 있는 동안 상대의 각성은 발동하지 않는다.',
     {
       flavorText: '무엇도 이 전황을 바꿀 수 없으리라.',
@@ -246,8 +246,8 @@ export const FOUNDATIONS_001_CARDS = {
     },
   ),
   devotion: s(
-    'devotion', '헌신', 3, ['light'],
-    '자신의 라이프가 2장 이하일 때만 사용할 수 있다. 이 카드를 자신의 라이프 영역에 뒷면으로 놓는다.',
+    'devotion', '헌신', 4, ['light'],
+    '자신의 라이프가 2장 이하일 때만 사용할 수 있다. 카드 1장을 뽑는다. 이 카드를 자신의 라이프 영역에 뒷면으로 놓는다.',
     {
       flavorText: '아직 남았습니다.',
     },

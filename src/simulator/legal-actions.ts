@@ -24,50 +24,15 @@ function effectiveCost(card: CardInstance, view: GameView, actor: PlayerId): num
   return Math.max(0, CARDS[card.cardId].cost - (card.costReduction ?? 0))
 }
 
-function paymentSignature(
-  manaIds: readonly string[],
-  view: GameView,
-  actor: PlayerId,
-  preserveManaIdentity: boolean,
-): string {
-  if (preserveManaIdentity) return [...manaIds].sort().join('|')
-  const manaById = new Map(view.players[actor].mana.map((mana) => [mana.instanceId, mana]))
-  const attributes = new Set<string>()
-  for (const manaId of manaIds) {
-    const mana = manaById.get(manaId)
-    if (!mana) continue
-    for (const attribute of CARDS[mana.cardId].attributes) attributes.add(attribute)
-  }
-  // 현재 규칙에서 지불 마나가 효과에 주는 정보는 개별 카드 정체가 아니라
-  // 공명에 포함된 속성 집합입니다. 같은 속성 집합의 지불법은 하나만 남겨
-  // 시뮬레이션 분기를 크게 줄입니다.
-  return [...attributes].sort().join('+')
-}
-
 function enumeratePayments(
   view: GameView,
   actor: PlayerId,
   cost: number,
-  limit: number,
-  preserveManaIdentity = false,
+  _limit: number,
+  _preserveManaIdentity = false,
 ): string[][] {
-  if (cost === 0) return [[]]
   const ready = view.players[actor].mana.filter((mana) => !mana.exhausted)
-  if (ready.length < cost) return []
-
-  const raw = combinations(ready, cost, Math.max(limit * 16, limit))
-    .map((group) => group.map((mana) => mana.instanceId))
-
-  const diverse: string[][] = []
-  const seenSignatures = new Set<string>()
-  for (const manaIds of raw) {
-    const signature = paymentSignature(manaIds, view, actor, preserveManaIdentity)
-    if (seenSignatures.has(signature)) continue
-    seenSignatures.add(signature)
-    diverse.push(manaIds)
-    if (diverse.length >= limit) break
-  }
-  return diverse
+  return ready.length >= cost ? [[]] : []
 }
 
 function cartesianSelections(

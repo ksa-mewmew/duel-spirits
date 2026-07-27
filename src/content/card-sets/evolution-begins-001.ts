@@ -19,9 +19,10 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     },
   ),
   iron_horn_boar: u(
-    'iron_horn_boar', '쇠뿔 멧돼지', 2, 4, 2, ['fire'],
-    '불 공명 - 돌진. 이 몬스터는 직접 공격할 수 없다.',
+    'iron_horn_boar', '쇠뿔 멧돼지', 2, 4, 1, ['fire'],
+    '돌진. 이 몬스터는 직접 공격할 수 없다.',
     {
+      keywords: ['charge'],
       flavorText: '쇠뿔처럼 보이는 게 뚫고 나온 엄니라는 말이 있다.',
     },
   ),
@@ -187,7 +188,7 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     },
   ),
   funeral_inviter: u(
-    'funeral_inviter', '장례식의 초대자', 3, 2, 3, ['dark'],
+    'funeral_inviter', '장례식의 초대자', 3, 2, 2, ['dark'],
     '유언 - 상대는 자신의 손에서 카드 한 장을 선택해 묘지로 보낸다. 자신의 묘지에 카드가 4장 이상 있다면 이 몬스터는 잠행을 얻는다.',
     {
       keywords: ['last_words'],
@@ -195,7 +196,7 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     },
   ),
   mass_burial: s(
-    'mass_burial', '집단 매장', 4, ['dark'],
+    'mass_burial', '집단 매장', 3, ['dark'],
     '상대는 자신의 전장에서 몬스터 하나를 선택해 묘지로 보낸다. 자신의 전장에 몬스터가 있다면, 자신의 몬스터 하나를 묘지로 보낼 수 있다. 그렇게 했다면 상대는 몬스터 하나를 추가로 선택해 묘지로 보낸다.',
     {
       flavorText: '모두가 죽어야 진정한 평화가 옵니다.',
@@ -211,7 +212,7 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     },
   ),
   mourner: u(
-    'mourner', '장송하는 자', 5, 4, 5, ['dark'],
+    'mourner', '장송하는 자', 5, 4, 6, ['dark'],
     '진화 - 어둠 몬스터. 출현 - 자신의 다른 몬스터 하나를 묘지로 보낼 수 있다. 그렇게 했다면 상대 몬스터 하나를 묘지로 보낸다. 유언 - 자신의 묘지에서 비용 2 이하인 어둠 몬스터 하나를 소환할 수 있다. 그 몬스터의 출현은 발동하지 않는다.',
     {
       keywords: ['last_words'],
@@ -229,7 +230,7 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     },
   ),
   returning_paladin: u(
-    'returning_paladin', '돌아오는 성기사', 2, 2, 2, ['light'],
+    'returning_paladin', '돌아오는 성기사', 2, 2, 3, ['light'],
     '이 몬스터가 몬스터를 공격한 뒤 살아 있다면 이 몬스터를 준비한다.',
     {
       flavorText: '생각보다 빨리 만났네요!',
@@ -267,8 +268,9 @@ export const EVOLUTION_BEGINS_001_CARDS = {
   ),
   spirit_agent: u(
     'spirit_agent', '성령의 대리인', 6, 5, 7, ['light'],
-    '진화 - 빛 몬스터. 이 몬스터가 전장에 있는 동안 각 플레이어는 자신의 턴에 최대 두 번만 공격할 수 있다.',
+    '진화 - 빛 몬스터. 질풍. 이 몬스터가 전장에 있는 동안 각 플레이어는 자신의 턴에 최대 두 번만 공격할 수 있다.',
     {
+      keywords: ['windfury'],
       evolutionAttribute: 'light',
       flavorText: '누가 이곳을 지나갈 수 있겠는가?',
     },

@@ -132,9 +132,9 @@ export function createRulebookDocument(format: GameFormat<CardId>): RulebookDocu
           {
             type: 'list',
             items: [
-              '카드를 사용하려면 카드의 비용만큼 준비된 마나를 골라 소진합니다.',
+              '카드를 사용하면 카드의 비용만큼 준비된 마나가 위에서부터 자동으로 소진됩니다.',
               '한 장의 마나는 한 번의 비용 지불에서 한 번만 셉니다.',
-              '비용이 0인 카드는 마나를 고르지 않고 사용할 수 있습니다.',
+              '비용이 0인 카드는 마나를 소진하지 않고 사용할 수 있습니다.',
               '비용 감소가 여러 번 적용되어도 최종 비용은 0보다 낮아지지 않습니다.',
               '몬스터는 빈 전장 슬롯을 골라 소환합니다.',
               '주문은 문구를 처리한 뒤 묘지로 갑니다.',
@@ -144,7 +144,7 @@ export function createRulebookDocument(format: GameFormat<CardId>): RulebookDocu
             type: 'terms',
             items: [
               { term: '속성', description: '불, 물, 땅, 어둠, 빛이 있습니다. 두 속성을 가진 카드는 두 속성을 모두 가진 것으로 봅니다.' },
-              { term: '공명', description: '그 카드를 쓰기 위해 실제로 소진한 마나에 적힌 속성이 있으면 발동합니다.' },
+              { term: '공명', description: '자신의 마나 영역에 지정 속성 카드가 한 장이라도 있으면 적용됩니다. 그 마나가 준비·소진 상태인지, 비용으로 사용됐는지는 관계없습니다.' },
               { term: '효과 소환', description: '카드 효과로 몬스터를 전장에 놓는 일입니다. 따로 적혀 있지 않으면 비용을 내지 않고, 출현도 발동하지 않습니다.' },
             ],
           },
@@ -342,7 +342,7 @@ export function createRulebookDocument(format: GameFormat<CardId>): RulebookDocu
             items: [
               { term: '출현', description: '손에서 비용을 내고 정상 소환했을 때 발동합니다. 다른 효과로 소환하면 발동하지 않습니다.' },
               { term: '각성', description: '라이프에서 손으로 들어온 직후 발동합니다.' },
-              { term: '공명', description: '그 카드를 쓰기 위해 실제로 소진한 마나에 지정 속성이 있으면 발동합니다.' },
+              { term: '공명', description: '자신의 마나 영역에 지정 속성 카드가 한 장이라도 있으면 적용됩니다. 준비·소진 여부는 관계없습니다.' },
               { term: '진화', description: '조건에 맞는 자신의 몬스터 위에 겹쳐 소환합니다. 자세한 내용은 ‘진화’ 항목을 따릅니다.' },
               { term: '고립', description: '내 전장에 그 몬스터 외의 아군 몬스터가 없을 때 적용됩니다.' },
               { term: '기습', description: '소환한 턴에도 몬스터와 플레이어를 공격할 수 있습니다.' },

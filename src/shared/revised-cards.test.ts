@@ -77,51 +77,20 @@ describe('카드군 1 최신 능력', () => {
     })).toThrow('이번 턴에 소환된 몬스터')
   })
 
-  test('화산쥐의 소환 조건은 불타는 행렬 같은 효과 소환에도 적용된다', () => {
-    const blocked = createTestGame()
-    blocked.players.P1.hand = [{ instanceId: 'procession', cardId: 'burning_procession' }]
-    blocked.players.P1.mana = [
-      mana('w1', 'wave_reader'), mana('w2', 'ripple_spirit'),
-      mana('w3', 'high_tide'), mana('w4', 'reverse_current'),
-    ]
-    blocked.players.P1.deck = [
-      { instanceId: 'mouse-top', cardId: 'volcano_mouse' },
-      { instanceId: 'flame-top', cardId: 'living_flame' },
-      { instanceId: 'other-top', cardId: 'tree_fairy' },
-    ]
-    const blockedChoice = applyAction(blocked, 'P1', {
-      type: 'PLAY_CARD',
-      cardInstanceId: 'procession',
-      manaIds: ['w1', 'w2', 'w3', 'w4'],
+  test('불타는 행렬은 이후 3장 드로우와 원래 비용 2 이하 제한을 적용한다', () => {
+    const game = createTestGame()
+    game.players.P1.hand = [{ instanceId: 'procession', cardId: 'burning_procession' }]
+    game.players.P1.mana = Array.from({ length: 4 }, (_, index) => mana(`m${index}`, 'living_flame'))
+    const active = applyAction(game, 'P1', {
+      type: 'PLAY_CARD', cardInstanceId: 'procession', manaIds: [],
     })
-    expect(() => applyAction(blockedChoice, 'P1', {
-      type: 'RESOLVE_CHOICE',
-      choiceIds: ['mouse-top@0'],
-    })).toThrow('소환할 수 없는 카드')
+    expect(active.players.P1.burningProcessionActive).toBe(true)
 
-    const allowed = createTestGame()
-    allowed.players.P1.hand = [{ instanceId: 'procession', cardId: 'burning_procession' }]
-    allowed.players.P1.mana = [
-      mana('f1', 'living_flame'), mana('f2', 'living_smoke'),
-      mana('w1', 'wave_reader'), mana('w2', 'ripple_spirit'),
-    ]
-    allowed.players.P1.deck = [
-      { instanceId: 'mouse-top', cardId: 'volcano_mouse' },
-      { instanceId: 'flame-top', cardId: 'living_flame' },
-      { instanceId: 'other-top', cardId: 'tree_fairy' },
-    ]
-    const allowedChoice = applyAction(allowed, 'P1', {
-      type: 'PLAY_CARD',
-      cardInstanceId: 'procession',
-      manaIds: ['f1', 'f2', 'w1', 'w2'],
-    })
-    const summoned = applyAction(allowedChoice, 'P1', {
-      type: 'RESOLVE_CHOICE',
-      choiceIds: ['mouse-top@0'],
-    })
-    expect(summoned.players.P1.field).toContainEqual(
-      expect.objectContaining({ instanceId: 'mouse-top', cardId: 'volcano_mouse' }),
-    )
+    active.players.P1.hand = [{ instanceId: 'expensive', cardId: 'high_tide' }]
+    active.players.P1.mana.forEach((item) => { item.exhausted = false })
+    expect(() => applyAction(active, 'P1', {
+      type: 'PLAY_CARD', cardInstanceId: 'expensive', manaIds: [],
+    })).toThrow('원래 비용이 2 이하')
   })
 
   test('살아 움직이는 연기는 전투할 때마다 공격력 2를 누적한다', () => {
@@ -289,7 +258,7 @@ describe('카드군 1 최신 능력', () => {
     expect(attacked.players.P2.life).toHaveLength(0)
   })
 
-  test('검푸른 들개는 어둠 공명을 충족했을 때만 소환된 턴에 돌진하며 직접 공격할 수 없다', () => {
+  test('검푸른 들개는 마나 속성과 관계없이 돌진하며 직접 공격할 수 없다', () => {
     const resonant = createTestGame()
     resonant.players.P1.hand = [{ instanceId: 'hound', cardId: 'blue_black_hound' }]
     resonant.players.P1.mana = [
@@ -330,7 +299,7 @@ describe('카드군 1 최신 능력', () => {
       type: 'ATTACK_UNIT',
       attackerId: 'hound-2',
       defenderId: 'target-2',
-    })).toThrow('이번 턴에 소환된 몬스터')
+    })).not.toThrow()
 
     const directGame = createTestGame()
     directGame.players.P1.field = [unit('direct-hound', 'blue_black_hound')]
@@ -383,5 +352,56 @@ describe('카드군 1 최신 능력', () => {
     const next = applyAction(game, 'P1', { type: 'END_TURN' })
     expect(next.players.P1.darkCardsDiscardedThisTurn).toBe(0)
     expect(next.players.P2.darkCardsDiscardedThisTurn).toBe(0)
+  })
+
+  test('비용 마나는 직접 고르지 않아도 준비된 카드부터 자동 소진한다', () => {
+    const game = createTestGame()
+    game.players.P1.hand = [{ instanceId: 'tide', cardId: 'high_tide' }]
+    game.players.P1.mana = [
+      mana('already-used', 'wave_reader', true),
+      mana('ready-1', 'living_flame'),
+      mana('ready-2', 'tree_fairy'),
+      mana('ready-3', 'corpse_cat'),
+    ]
+    const next = applyAction(game, 'P1', {
+      type: 'PLAY_CARD',
+      cardInstanceId: 'tide',
+      manaIds: ['존재하지-않는-id'],
+    })
+    expect(next.players.P1.mana.map((item) => item.exhausted)).toEqual([true, true, true, true])
+  })
+
+  test('마나 속성 조건은 비용으로 소진한 카드가 아니라 마나 영역 전체를 본다', () => {
+    const game = createTestGame()
+    game.players.P1.hand = [{ instanceId: 'tsunami', cardId: 'tsunami' }]
+    game.players.P1.mana = [
+      mana('water', 'wave_reader', true),
+      mana('earth', 'tree_fairy'),
+      mana('fire', 'living_flame'),
+    ]
+    game.players.P1.deck = [
+      { instanceId: 'to-mana', cardId: 'living_flame' },
+      { instanceId: 'to-hand', cardId: 'corpse_cat' },
+    ]
+    const next = applyAction(game, 'P1', {
+      type: 'PLAY_CARD', cardInstanceId: 'tsunami', manaIds: [],
+    })
+    expect(next.players.P1.hand).toContainEqual(expect.objectContaining({ instanceId: 'to-mana' }))
+    expect(next.players.P1.mana).toContainEqual(expect.objectContaining({ instanceId: 'to-hand', exhausted: true }))
+  })
+
+  test('불타는 행렬이 활성화된 플레이어는 이후 턴 시작에 카드 3장을 뽑는다', () => {
+    const game = createTestGame()
+    game.turnNumber = 2
+    game.players.P2.burningProcessionActive = true
+    game.players.P2.deck = [
+      { instanceId: 'draw-1', cardId: 'living_flame' },
+      { instanceId: 'draw-2', cardId: 'tree_fairy' },
+      { instanceId: 'draw-3', cardId: 'corpse_cat' },
+    ]
+    const next = applyAction(game, 'P1', { type: 'END_TURN' })
+    expect(next.players.P2.hand.map((card) => card.instanceId)).toEqual(
+      expect.arrayContaining(['draw-1', 'draw-2', 'draw-3']),
+    )
   })
 })

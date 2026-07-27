@@ -11,6 +11,7 @@ import {
   parseTurnLimitSeconds,
 } from '../shared/room-settings'
 import { renderCard, renderCardBack } from '../components/card-renderer'
+import { bindCardKeywordTooltips } from '../components/keyword-tooltip'
 
 import type { CardId } from '../shared/cards'
 import type { CardPlaySelection, GameAction } from '../shared/actions'
@@ -612,10 +613,7 @@ function selectedPlayCard(): CardInstance | null {
 function selectedPaidAttributes(): Set<string> {
   if (!game || !playDraft) return new Set()
   const self = game.players[game.viewer]
-  return new Set(playDraft.manaIds.flatMap((id) => {
-    const mana = self.mana.find((card) => card.instanceId === id)
-    return mana ? CARDS[mana.cardId].attributes : []
-  }))
+  return new Set(self.mana.flatMap((mana) => CARDS[mana.cardId].attributes))
 }
 
 function playDraftNeedsUnitTarget(card: CardInstance): boolean {
@@ -881,23 +879,10 @@ function renderMana(
       && !selectedAsCost
     const canSelectForGardener = draftCard?.cardId === 'lava_gardener'
       && selectedPaidAttributes().has('earth')
-      && (mana.exhausted || selectedAsCost)
+      && Boolean(mana)
     const canSelectAsEffect = canSelectForGrave || canSelectForRising || canSelectForGardener || selectedAsEffect
-    const costSelectionComplete = Boolean(draftCard && playDraft && playDraft.manaIds.length >= effectiveCost(draftCard))
     const manaSelectionAction = isSelf && playDraft
-      ? selectedAsEffect
-        ? 'select-effect-mana'
-        : selectedAsCost
-          ? costSelectionComplete && canSelectForGardener
-            ? 'select-effect-mana'
-            : 'select-cost-mana'
-          : costSelectionComplete && canSelectAsEffect
-            ? 'select-effect-mana'
-            : !mana.exhausted
-              ? 'select-cost-mana'
-              : canSelectAsEffect
-                ? 'select-effect-mana'
-                : null
+      ? canSelectAsEffect ? 'select-effect-mana' : null
       : null
 
     if (!playDraft && expanded && ability) {
@@ -967,7 +952,7 @@ function isPlayDraftReady(): boolean {
   if (!card) return false
   const definition = CARDS[card.cardId]
   if (!meetsSummonConditionView(game.players[game.viewer], card.cardId)) return false
-  if (playDraft.manaIds.length !== effectiveCost(card)) return false
+  if (game.players[game.viewer].mana.filter((mana) => !mana.exhausted).length < effectiveCost(card)) return false
   if (definition.type === 'unit') {
     if (definition.evolutionAttribute) {
       if (!playDraft.evolutionUnitId) return false
@@ -999,9 +984,9 @@ function renderManaSelectionToolbar(): string {
     </div>
     <div class="mana-selection-toolbar__progress">
       <span>비용 마나</span>
-      <strong>${playDraft.manaIds.length} / ${cost}</strong>
+      <strong>자동 ${cost}</strong>
     </div>
-    <div class="mana-selection-toolbar__hint">${ready ? '필요한 선택이 모두 끝났습니다.' : '밝게 표시된 마나 카드와 대상을 직접 선택하세요.'}</div>
+    <div class="mana-selection-toolbar__hint">${ready ? '비용 마나는 자동으로 소진됩니다.' : '필요한 대상만 선택하세요. 비용 마나는 자동으로 소진됩니다.'}</div>
     <div class="mana-selection-toolbar__actions">
       ${actionButton(ready ? '이 카드 사용' : '선택을 완료하세요', 'confirm-play-card', undefined, undefined, !ready)}
       ${actionButton('사용 취소', 'cancel-play-card')}
@@ -1042,7 +1027,7 @@ function renderManaDrawer(): string {
         </section>
       </div>
       <footer class="mana-drawer__footer">
-        <span>${playDraft ? '밝게 표시된 마나 카드를 직접 눌러 선택하거나 해제할 수 있습니다.' : '발동 가능한 마나 능력은 항상 위쪽에 표시됩니다.'}</span>
+        <span>${playDraft ? '비용 마나는 자동으로 소진됩니다. 카드 효과가 요구하는 대상만 선택하세요.' : '발동 가능한 마나 능력은 항상 위쪽에 표시됩니다.'}</span>
         <div class="mana-drawer__footer-actions">
           ${playDraft ? actionButton(isPlayDraftReady() ? '이 카드 사용' : '선택 미완료', 'confirm-play-card', undefined, undefined, !isPlayDraftReady()) : ''}
           <button type="button" class="action-button action-button--secondary" data-action="close-mana-drawer">전장으로 돌아가기</button>
@@ -1121,6 +1106,7 @@ function renderHand(player: PlayerView, isSelf: boolean): string {
         'card-instance-id',
         card.instanceId,
         readyMana < effectiveCost(card)
+          || (player.burningProcessionActive && definition.cost > 2)
           || (
             definition.type === 'unit'
             && !definition.evolutionAttribute
@@ -1467,9 +1453,9 @@ function renderPlayDraftPanel(): string {
   const targetMode = unitTargetMode(card.cardId)
   const steps: Array<{ label: string; complete: boolean; attention?: boolean }> = [
     {
-      label: `비용 마나 ${playDraft.manaIds.length}/${cost}`,
-      complete: playDraft.manaIds.length === cost,
-      attention: playDraft.manaIds.length !== cost,
+      label: `마나 자동 지불 ${cost}`,
+      complete: game.players[game.viewer].mana.filter((mana) => !mana.exhausted).length >= cost,
+      attention: game.players[game.viewer].mana.filter((mana) => !mana.exhausted).length < cost,
     },
   ]
 
@@ -2407,8 +2393,8 @@ function confirmPlayDraft(): void {
       return
     }
   }
-  if (playDraft.manaIds.length !== cost) {
-    message = `비용으로 사용할 마나 ${cost}장을 선택해 주세요.`
+  if (game.players[game.viewer].mana.filter((mana) => !mana.exhausted).length < cost) {
+    message = `준비된 마나가 ${cost}장 필요합니다.`
     render()
     return
   }
@@ -2872,11 +2858,14 @@ function bindPlayDraftEvents(): void {
       const id = button.dataset.cardInstanceId
       if (!id) return
       playDraft = { cardInstanceId: id, manaIds: [] }
-      openManaPlayerId = game?.viewer ?? null
+      const draftCard = selectedPlayCard()
+      openManaPlayerId = draftCard && playDraftNeedsEffectMana(draftCard)
+        ? game?.viewer ?? null
+        : null
       summonFromManaDraftId = null
       selectedAttackerId = null
       selectedAttackLifeSlotIndices = []
-      message = '사용할 마나와 필요한 대상을 직접 선택해 주세요.'
+      message = '비용 마나는 자동으로 소진됩니다. 필요한 대상만 선택해 주세요.'
       render()
     })
   }
@@ -3220,6 +3209,7 @@ function bindEvents(): void {
   bindHandScrollEvents()
   bindZoneModalEvents()
   bindCardPreviewEvents()
+  bindCardKeywordTooltips()
   bindGlobalKeyboardEvents()
   bindWaitingRoomEvents()
   bindPlayDraftEvents()

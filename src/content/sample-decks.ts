@@ -56,7 +56,7 @@ export const SAMPLE_DECKS: Record<SampleDeckId, SampleDeckDefinition> = {
       '상대가 전개하는 경우 첫 번째 화산 폭발',
       '진화시킬 불 몬스터와 함께 잡힌 폭발하는 산맥룡',
     ],
-    manaGuide: '첫 용암 정원사를 마나에 놓으면 이후 용암 정원사가 불 공명과 땅 공명을 모두 활용할 수 있습니다. 초반에는 작은 몬스터로 전투를 반복하고, 상대 전장이 충분히 쌓였을 때 화산 폭발이나 폭발하는 산맥룡으로 한꺼번에 정리하십시오.',
+    manaGuide: '첫 용암 정원사를 마나에 놓으면 이후 용암 정원사가 불·땅 공명을 모두 활용할 수 있습니다. 초반에는 작은 몬스터로 전투를 반복하고, 상대 전장이 충분히 쌓였을 때 화산 폭발이나 폭발하는 산맥룡으로 한꺼번에 정리하십시오.',
     cardIds: [
       'last_ember', 'last_ember', 'last_ember',
       'living_smoke', 'living_smoke', 'living_smoke',
@@ -133,7 +133,7 @@ export const SAMPLE_DECKS: Record<SampleDeckId, SampleDeckDefinition> = {
       '진화할 빛 몬스터와 함께 잡힌 천공의 백마기사',
       '상대가 자신보다 많은 몬스터를 전개한 경우의 일식',
     ],
-    manaGuide: '일식을 손에서 사용할 때 빛 공명과 어둠 공명을 모두 충족하면 모든 몬스터를 소진한 뒤 묘지로 보냅니다. 자신의 전장도 함께 사라지므로, 유리할 때 굳히는 카드라기보다 불리한 전장을 초기화하는 카드로 사용하는 편이 좋습니다.',
+    manaGuide: '일식을 사용할 때 빛 공명과 어둠 공명을 모두 충족하면 모든 몬스터를 소진한 뒤 묘지로 보냅니다. 자신의 전장도 함께 사라지므로, 유리할 때 굳히는 카드라기보다 불리한 전장을 초기화하는 카드로 사용하는 편이 좋습니다.',
     cardIds: [
       'salvation_lancer', 'salvation_lancer', 'salvation_lancer',
       'temple_prospect', 'temple_prospect', 'temple_prospect',

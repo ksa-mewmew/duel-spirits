@@ -698,21 +698,9 @@ function placeCardInMana(
 function spend(
   player: PlayerState,
   amount: number,
-  manaIds: readonly string[],
 ): ManaCardInstance[] {
-  if (manaIds.length !== amount || new Set(manaIds).size !== manaIds.length) {
-    throw new GameRuleError(`비용으로 사용할 마나 ${amount}장을 정확히 선택해야 합니다.`)
-  }
-
-  const chosen = manaIds.map((id) =>
-    player.mana.find((mana) => mana.instanceId === id && !mana.exhausted),
-  )
-
-  if (chosen.some((mana) => !mana)) {
-    throw new GameRuleError('선택한 마나 중 사용할 수 없는 카드가 있습니다.')
-  }
-
-  const paid = chosen as ManaCardInstance[]
+  const paid = player.mana.filter((mana) => !mana.exhausted).slice(0, amount)
+  if (paid.length !== amount) throw new GameRuleError(`준비된 마나가 ${amount}장 필요합니다.`)
   for (const mana of paid) mana.exhausted = true
   return paid
 }
@@ -1362,23 +1350,23 @@ function resolveSpell(
 
   switch (card.cardId) {
     case 'burning_procession': {
-      const revealedCards = player.deck.slice(0, 3).map((item) => ({ ...item }))
-      if (revealedCards.length > 0) {
-        enqueueChoice(game, {
-          type: 'BURNING_PROCESSION',
-          playerId: actor,
-          revealedCards,
-          maxSummons: Math.min(2, getFieldLimit(game) - player.field.length),
-        })
-      }
+      player.burningProcessionActive = true
       break
     }
 
     case 'ebb':
-    case 'reverse_current': {
-      if (card.cardId === 'ebb' && player.mana.some((mana) => !hasAttribute(mana, 'water'))) {
-        throw new GameRuleError('마나에는 물 카드만 있어야 합니다.')
+      if (player.discard.length > 0) {
+        enqueueChoice(game, {
+          type: 'GRAVE_DIGGING_RETURN',
+          playerId: actor,
+          sourceCard: card,
+          maxCards: 1,
+        })
+        return
       }
+      break
+
+    case 'reverse_current': {
       const targetId = requireUnitTarget(selection)
       const index = enemy.field.findIndex(
         (unit) => (
@@ -1485,6 +1473,7 @@ function resolveSpell(
       if (player.life.length > 2) {
         throw new GameRuleError('라이프가 2장 이하일 때만 사용할 수 있습니다.')
       }
+      draw(player, random)
       placeInLife(game, actor, card)
       return
 
@@ -1544,10 +1533,13 @@ function resolveSpell(
     case 'rising_earth': {
       const manaId = selection?.effectManaId
       if (!manaId) throw new GameRuleError('소환할 마나 카드를 선택해야 합니다.')
-      if (paidMana.some((mana) => mana.instanceId === manaId)) {
-        throw new GameRuleError('비용으로 소진한 마나는 효과로 소환할 수 없습니다.')
-      }
-      const manaIndex = player.mana.findIndex((mana) => mana.instanceId === manaId)
+      const requested = player.mana.find((mana) => mana.instanceId === manaId)
+      const priorityIndex = requested
+        ? player.mana.findIndex((mana) => mana.cardId === requested.cardId && mana.exhausted)
+        : -1
+      const manaIndex = priorityIndex >= 0
+        ? priorityIndex
+        : player.mana.findIndex((mana) => mana.instanceId === manaId)
       const mana = player.mana[manaIndex]
       const definition = mana ? CARDS[mana.cardId] : null
       if (
@@ -1612,7 +1604,7 @@ function playCard(
   game: GameState,
   actor: PlayerId,
   instanceId: string,
-  manaIds: string[],
+  _manaIds: string[],
   selection: CardPlaySelection | undefined,
   random: RandomSource,
 ): GameState {
@@ -1625,6 +1617,9 @@ function playCard(
 
   const card = player.hand[index]!
   const definition = CARDS[card.cardId]
+  if (player.burningProcessionActive && definition.cost > 2) {
+    throw new GameRuleError('불타는 행렬 효과로 원래 비용이 2 이하인 카드만 사용할 수 있습니다.')
+  }
 
   if (
     definition.type === 'unit'
@@ -1633,20 +1628,21 @@ function playCard(
   ) {
     throw new GameRuleError('전장에 빈 슬롯이 없습니다.')
   }
-  const paidMana = spend(player, effectiveCost(player, card, definition), manaIds)
+  const resonanceMana = player.mana.map((mana) => ({ ...mana }))
+  spend(player, effectiveCost(player, card, definition))
   player.hand.splice(index, 1)
 
   if (definition.type === 'unit') {
     if (definition.evolutionAttribute) {
       const unit = evolveCard(game, actor, card, selection?.evolutionUnitId)
-      resolveArrival(game, actor, unit, paidMana, random, selection, true)
+      resolveArrival(game, actor, unit, resonanceMana, random, selection, true)
     } else {
       const fieldSlot = requireOpenFieldSlot(game, actor, selection?.fieldSlot)
       const unit = summonCard(game, actor, card, true, fieldSlot)
-      resolveArrival(game, actor, unit, paidMana, random, selection, false)
+      resolveArrival(game, actor, unit, resonanceMana, random, selection, false)
     }
   } else {
-    resolveSpell(game, actor, resetHandCost(card), paidMana, random, selection)
+    resolveSpell(game, actor, resetHandCost(card), resonanceMana, random, selection)
   }
 
   return game
@@ -1662,17 +1658,23 @@ function summonFromMana(
   ready(game, actor)
   assertNoPendingChoice(game)
   const player = game.players[actor]
-  const index = player.mana.findIndex(
+  const requested = player.mana.find(
     (mana) => mana.instanceId === instanceId && mana.cardId === 'heavy_seed',
   )
-  if (index < 0) {
+  if (!requested) {
     throw new GameRuleError('소환할 수 있는 마나 카드가 아닙니다.')
   }
   if (player.mana.filter((mana) => hasAttribute(mana, 'earth')).length < 4) {
     throw new GameRuleError('땅 마나가 4장 이상 필요합니다.')
   }
   const slotIndex = requireOpenFieldSlot(game, actor, fieldSlot)
-  const [mana] = player.mana.splice(index, 1)
+  const index = player.mana.findIndex(
+    (mana) => mana.cardId === requested.cardId && mana.exhausted,
+  )
+  const resolvedIndex = index >= 0
+    ? index
+    : player.mana.findIndex((mana) => mana.instanceId === requested.instanceId)
+  const [mana] = player.mana.splice(resolvedIndex, 1)
   summonCard(game, actor, mana!, true, slotIndex)
   cleanupDead(game, random)
   return game
@@ -2155,8 +2157,16 @@ function resolveChoice(
             assertCandidate(item.id)
             if (!open.has(item.slot)) throw new GameRuleError('선택한 전장 슬롯은 사용할 수 없습니다.')
           }
+          const reservedManaIds = new Set<string>()
           const summons = parsed.map((item) => {
-            const mana = sourcePlayer.mana.find((candidate) => candidate.instanceId === item.id)
+            const requested = sourcePlayer.mana.find((candidate) => candidate.instanceId === item.id)
+            const mana = requested && (
+              sourcePlayer.mana.find((candidate) => (
+                candidate.cardId === requested.cardId
+                && candidate.exhausted
+                && !reservedManaIds.has(candidate.instanceId)
+              )) ?? requested
+            )
             const definition = mana ? CARDS[mana.cardId] : null
             if (
               !mana
@@ -2167,10 +2177,11 @@ function resolveChoice(
             ) {
               throw new GameRuleError('현재 소환 조건을 만족하는 비용 2 이하 비진화 몬스터만 소환할 수 있습니다.')
             }
+            reservedManaIds.add(mana.instanceId)
             return { ...item, mana }
           })
           for (const item of summons) {
-            const index = sourcePlayer.mana.findIndex((mana) => mana.instanceId === item.id)
+            const index = sourcePlayer.mana.findIndex((mana) => mana.instanceId === item.mana.instanceId)
             if (index < 0) throw new GameRuleError('소환할 마나 카드를 찾지 못했습니다.')
             sourcePlayer.mana.splice(index, 1)
             summonCard(game, pending.sourcePlayerId, item.mana, true, item.slot, true)
@@ -2777,7 +2788,9 @@ function endTurn(
   }
   nextPlayer.manaPlacedThisTurn = false
   nextPlayer.attacksThisTurn = 0
-  const normalTurnDrawCount = getFormat(game.matchConfig.formatId).turnDrawCount
+  const normalTurnDrawCount = nextPlayer.burningProcessionActive
+    ? 3
+    : getFormat(game.matchConfig.formatId).turnDrawCount
   const turnDrawCount = game.turnNumber === 2 ? 1 : normalTurnDrawCount
   for (let drawIndex = 0; drawIndex < turnDrawCount; drawIndex += 1) {
     draw(nextPlayer, random)

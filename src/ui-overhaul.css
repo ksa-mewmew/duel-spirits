@@ -10127,8 +10127,18 @@ body.fixed-stage-active #app {
   pointer-events: none;
 }
 
-.room-screen--game .field-slot-frame.has-keyword-stealth {
-  --keyword-color: rgba(180, 112, 255, .92);
+.room-screen--game .field-slot-frame.has-keyword-rush { --keyword-color: rgba(255, 135, 58, .94); }
+.room-screen--game .field-slot-frame.has-keyword-charge { --keyword-color: rgba(255, 211, 79, .96); }
+.room-screen--game .field-slot-frame.has-keyword-windfury { --keyword-color: rgba(91, 228, 177, .94); }
+.room-screen--game .field-slot-frame.has-keyword-flying { --keyword-color: rgba(93, 194, 255, .96); }
+.room-screen--game .field-slot-frame.has-keyword-assassination { --keyword-color: rgba(244, 72, 104, .96); }
+.room-screen--game .field-slot-frame.has-keyword-last-words { --keyword-color: rgba(205, 205, 218, .9); }
+
+/* Stealth is the targeting-critical state, so purple wins when a unit carries
+   several keywords at once. The double line also keeps it recognizable without
+   relying on colour alone. */
+.room-screen--game .field-slot-frame.has-keyword-stealth.has-keyword-stealth {
+  --keyword-color: rgba(180, 112, 255, .96);
 }
 
 .room-screen--game .field-slot-frame.has-keyword-stealth::after {
@@ -10136,13 +10146,6 @@ body.fixed-stage-active #app {
   border-width: 4px;
   animation: stealth-pulse 1.8s ease-in-out infinite;
 }
-
-.room-screen--game .field-slot-frame.has-keyword-rush { --keyword-color: rgba(255, 135, 58, .94); }
-.room-screen--game .field-slot-frame.has-keyword-charge { --keyword-color: rgba(255, 211, 79, .96); }
-.room-screen--game .field-slot-frame.has-keyword-windfury { --keyword-color: rgba(91, 228, 177, .94); }
-.room-screen--game .field-slot-frame.has-keyword-flying { --keyword-color: rgba(93, 194, 255, .96); }
-.room-screen--game .field-slot-frame.has-keyword-assassination { --keyword-color: rgba(244, 72, 104, .96); }
-.room-screen--game .field-slot-frame.has-keyword-last-words { --keyword-color: rgba(205, 205, 218, .9); }
 
 .field-card-status__badge--stealth { background: #4d256d !important; border-color: #c68cff !important; color: #fff !important; }
 .field-card-status__badge--rush { background: #722f16 !important; border-color: #ff9b59 !important; color: #fff1df !important; }
@@ -10195,5 +10198,83 @@ body.fixed-stage-active #app {
   .turn-announcement__panel,
   .room-screen--game .field-slot-frame.has-keyword-stealth::after {
     animation: none;
+  }
+}
+
+/* Hearthstone-style keyword reference cards shown beside the hovered card. */
+.keyword-tooltip {
+  position: fixed;
+  z-index: 2600;
+  width: min(244px, calc(100vw - 24px));
+  display: grid;
+  gap: 7px;
+  pointer-events: none;
+  filter: drop-shadow(0 16px 24px rgba(0, 0, 0, .58));
+  animation: keyword-tooltip-in .14s ease-out both;
+}
+
+.keyword-tooltip__item {
+  --keyword-help-color: #d1c8ae;
+  position: relative;
+  padding: 11px 13px 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--keyword-help-color) 72%, #1a1b1c);
+  border-left: 4px solid var(--keyword-help-color);
+  border-radius: 6px;
+  background:
+    linear-gradient(110deg, color-mix(in srgb, var(--keyword-help-color) 13%, transparent), transparent 48%),
+    linear-gradient(180deg, rgba(48, 49, 47, .98), rgba(23, 25, 26, .99));
+  color: #f4f1e8;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, .08),
+    0 2px 0 rgba(0, 0, 0, .7);
+}
+
+.keyword-tooltip__item strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #fff;
+  font-family: 'Duel Spirits Display', 'Duel Spirits UI', system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.1;
+  letter-spacing: .04em;
+  text-shadow: 0 2px 4px #000;
+}
+
+.keyword-tooltip__item p {
+  margin: 0;
+  color: #e0ddd5;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
+.keyword-tooltip__item--stealth { --keyword-help-color: #bd78ff; }
+.keyword-tooltip__item--resonance { --keyword-help-color: #b994ff; }
+.keyword-tooltip__item--flying { --keyword-help-color: #66c8ff; }
+.keyword-tooltip__item--assassination { --keyword-help-color: #ff607f; }
+.keyword-tooltip__item--windfury { --keyword-help-color: #61e4ae; }
+.keyword-tooltip__item--rush { --keyword-help-color: #ff9454; }
+.keyword-tooltip__item--charge { --keyword-help-color: #f4d35f; }
+.keyword-tooltip__item--last-words { --keyword-help-color: #c9cad8; }
+
+@keyframes keyword-tooltip-in {
+  from { opacity: 0; transform: translateX(-7px) scale(.97); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+.keyword-tooltip--left {
+  transform-origin: right center;
+}
+
+@media (max-width: 700px), (pointer: coarse) {
+  .keyword-tooltip {
+    left: 12px !important;
+    right: 12px;
+    bottom: 12px;
+    top: auto !important;
+    width: auto;
+    max-height: min(42dvh, 360px);
+    overflow-y: auto;
   }
 }
