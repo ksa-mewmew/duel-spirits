@@ -236,14 +236,3 @@ select {
 .format-set-picker {
   margin: 0.75rem 0;
 }
-.peer-setup {
-  width: min(820px, calc(100% - 32px));
-}
-
-.peer-setup__actions {
-  min-height: 52px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}

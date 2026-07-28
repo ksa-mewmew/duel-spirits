@@ -21,9 +21,8 @@ const url = new URL(window.location.href)
 const roomId = url.searchParams.get('room')
 const roomKey = url.searchParams.get('key')
 const isTutorial = url.searchParams.get('tutorial') === '1'
-const isPeerRoom = url.searchParams.has('host') || url.searchParams.has('guest')
 
-if ((roomId && roomKey) || isTutorial || isPeerRoom) {
+if ((roomId && roomKey) || isTutorial) {
   void import('./game')
 } else {
   const renderSurface = (): void => {

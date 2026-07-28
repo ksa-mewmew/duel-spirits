@@ -5,7 +5,6 @@ import {
   SEAT_EXPIRY_OPTIONS,
   DRAFT_LIMIT_OPTIONS,
   TURN_LIMIT_OPTIONS,
-  normalizeRoomSettings,
 } from '../shared/room-settings'
 import { LOBBY_FORMATS, DEFAULT_FORMAT_ID, getFormat } from '../content/formats'
 import { CARD_SETS } from '../content/sets'
@@ -13,7 +12,6 @@ import { validateDeck } from '../shared/decks'
 import { getAppVersion } from '../shared/version'
 
 import { getActiveDeck } from './deck-storage'
-import { readInviteRoomSettings } from './manual-signal'
 
 import type { GameFormatId, SetId } from '../content/schema'
 import type { UpdateCheckResult } from '../shared/update'
@@ -26,9 +24,17 @@ let manualUpdateMessage = ''
 let settingsOpen = false
 let desktopResolution = '1600x900'
 let desktopResolutionLoaded = false
-let inspectedInvite = ''
-let inspectedInviteSettings: import('../shared/room-settings').RoomSettings | null = null
-let joinError = ''
+const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+
+function createRoomCode(length = 8): string {
+  const values = new Uint32Array(length)
+  crypto.getRandomValues(values)
+  return [...values].map((value) => ROOM_ALPHABET[value % ROOM_ALPHABET.length]).join('')
+}
+
+function normalizeRoomCode(value: string): string {
+  return value.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 24)
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -97,10 +103,6 @@ export function renderLobby(appElement: HTMLDivElement): void {
     DEFAULT_DRAFT_LIMIT_SECONDS,
   )).join('')
   const latestSetIds = Object.keys(CARD_SETS).slice(-3) as SetId[]
-  const inviteSummary = inspectedInviteSettings
-    ? `<section class="invite-rule-summary"><strong>${escapeHtml(getFormat(inspectedInviteSettings.formatId).name)}</strong><span>턴 ${inspectedInviteSettings.turnLimitSeconds === null ? '제한 없음' : `${inspectedInviteSettings.turnLimitSeconds}초`}</span><span>사용 세트: ${inspectedInviteSettings.selectedSetIds.map((id) => CARD_SETS[id]?.name ?? id).join(', ') || '전체 세트'}</span>${inspectedInviteSettings.formatId === 'draft-v1' ? `<span>드래프트 ${inspectedInviteSettings.draftLimitSeconds}초</span>` : ''}</section>`
-    : ''
-
   appElement.innerHTML = `<main class="app-shell lobby-screen">
     <header class="lobby-masthead">
       <div class="lobby-brand"><span class="lobby-brand__sigil" aria-hidden="true"></span><span>DUEL SPIRITS</span></div>
@@ -114,8 +116,8 @@ export function renderLobby(appElement: HTMLDivElement): void {
     <section class="lobby-hero" aria-labelledby="game-title">
       <p class="eyebrow">PRIVATE CARD DUEL</p>
       <h1 id="game-title">Duel<br>Spirits</h1>
-      <p class="lobby-hero__subtitle">20장의 덱과 다섯 속성으로 만드는 비공개 1대1 카드 대전. 서버에 방을 만들지 않고 압축 코드로 친구와 직접 연결합니다.</p>
-      <div class="lobby-hero__keywords" aria-label="게임 특징"><span>20장 덱</span><span>숨겨진 라이프</span><span>호스트 권위 P2P</span></div>
+      <p class="lobby-hero__subtitle">20장의 덱과 다섯 속성으로 만드는 비공개 1대1 카드 대전. 초대 링크 하나로 친구와 서버에 접속합니다.</p>
+      <div class="lobby-hero__keywords" aria-label="게임 특징"><span>20장 덱</span><span>숨겨진 라이프</span><span>서버 권위 대전</span></div>
     </section>
 
     <section class="panel lobby-command" aria-label="대전 시작">
@@ -129,8 +131,8 @@ export function renderLobby(appElement: HTMLDivElement): void {
       </section>
 
       <div id="lobby-action-menu" class="lobby-actions">
-        <button class="lobby-action-button is-primary" type="button" data-lobby-mode="create"><span><strong>비공개 방 만들기</strong><br><span>내 브라우저가 방장이 되어 P2P 방을 엽니다.</span></span><b>→</b></button>
-        <button class="lobby-action-button" type="button" data-lobby-mode="join"><span><strong>초대 코드로 참가</strong><br><span>방장이 보낸 코드를 붙여 넣습니다.</span></span><b>→</b></button>
+        <button class="lobby-action-button is-primary" type="button" data-lobby-mode="create"><span><strong>비공개 방 만들기</strong><br><span>포맷을 고르고 서버 방을 생성합니다.</span></span><b>→</b></button>
+        <button class="lobby-action-button" type="button" data-lobby-mode="join"><span><strong>초대 링크로 참가</strong><br><span>친구가 보낸 링크를 붙여 넣습니다.</span></span><b>→</b></button>
         <a class="lobby-action-button button-link" href="#decks"><span><strong>덱 빌더</strong><br><span>카드 풀을 살펴보고 사용할 덱을 구성합니다.</span></span><b>→</b></a>
         <a class="lobby-action-button button-link is-tutorial" href="?tutorial=1"><span><strong>튜토리얼</strong><br><span>첫 승리까지 핵심 조작을 차례로 연습합니다.</span></span><b>01—06</b></a>
       </div>
@@ -155,6 +157,8 @@ export function renderLobby(appElement: HTMLDivElement): void {
         <details>
           <summary>고급 설정</summary>
           <div class="lobby-advanced-fields">
+            <label class="field-label" for="room-code-input">방 코드</label>
+            <input id="room-code-input" type="text" maxlength="24" placeholder="비워두면 자동 생성" autocomplete="off">
             <label class="field-label" for="seat-expiry-select">연결 종료 후 자리 보존</label>
             <select id="seat-expiry-select">${expiryOptions}</select>
           </div>
@@ -163,12 +167,12 @@ export function renderLobby(appElement: HTMLDivElement): void {
       </section>
 
       <section id="lobby-join-panel" class="lobby-mode-panel" aria-labelledby="join-panel-title">
-        <h3 id="join-panel-title">초대 코드로 참가</h3>
-        <p class="field-help">방장이 보낸 초대 코드를 여기에 붙여 넣으면 응답 정보를 만들기 전에 방 규칙을 확인할 수 있습니다.</p>
-        <textarea id="join-invite-code" rows="4" placeholder="DSI1:으로 시작하는 초대 코드">${escapeHtml(inspectedInvite)}</textarea>
-        ${inviteSummary}
-        <p id="join-error" class="form-error" role="alert" aria-live="polite">${escapeHtml(joinError)}</p>
-        <div class="lobby-mode-panel__actions"><button type="button" data-lobby-back>뒤로</button><button id="inspect-invite-button" type="button">초대 정보 확인</button><button id="join-room-button" class="is-primary" type="button" ${inspectedInviteSettings ? '' : 'disabled'}>규칙 확인 후 참가</button></div>
+        <h3 id="join-panel-title">초대 링크로 참가</h3>
+        <p class="field-help">친구가 보낸 Duel Spirits 링크를 그대로 붙여 넣으세요.</p>
+        <label class="field-label" for="invite-link-input">초대 링크</label>
+        <input id="invite-link-input" type="url" placeholder="https://.../?room=...&key=..." autocomplete="off">
+        <p id="join-error" class="form-error" role="alert" aria-live="polite"></p>
+        <div class="lobby-mode-panel__actions"><button type="button" data-lobby-back>뒤로</button><button id="join-room-button" class="is-primary" type="button">방 참가</button></div>
       </section>
     </section>
 
@@ -208,6 +212,7 @@ export function renderLobby(appElement: HTMLDivElement): void {
     actionMenu?.toggleAttribute('hidden', mode !== 'menu')
     createPanel?.classList.toggle('is-active', mode === 'create')
     joinPanel?.classList.toggle('is-active', mode === 'join')
+    if (mode === 'join') requestAnimationFrame(() => document.querySelector<HTMLInputElement>('#invite-link-input')?.focus())
   }
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-lobby-mode]')) {
     button.addEventListener('click', () => setLobbyMode(button.dataset.lobbyMode === 'join' ? 'join' : 'create'))
@@ -274,6 +279,7 @@ export function renderLobby(appElement: HTMLDivElement): void {
   updateFormatHelp()
 
   document.querySelector<HTMLButtonElement>('#create-room-button')?.addEventListener('click', () => {
+    const roomCodeInput = document.querySelector<HTMLInputElement>('#room-code-input')
     const turnLimitSelect = document.querySelector<HTMLSelectElement>('#turn-limit-select')
     const seatExpirySelect = document.querySelector<HTMLSelectElement>('#seat-expiry-select')
     const draftLimitSelect = document.querySelector<HTMLSelectElement>('#draft-limit-select')
@@ -287,10 +293,13 @@ export function renderLobby(appElement: HTMLDivElement): void {
       return
     }
 
+    const roomId = normalizeRoomCode(roomCodeInput?.value ?? '') || createRoomCode()
+    const roomKey = crypto.randomUUID()
     const url = new URL(window.location.href)
     url.hash = ''
     url.search = ''
-    url.searchParams.set('host', '1')
+    url.searchParams.set('room', roomId)
+    url.searchParams.set('key', roomKey)
     url.searchParams.set('turn', turnLimitSelect?.value ?? '180')
     url.searchParams.set('seatExpiry', seatExpirySelect?.value ?? '900')
     url.searchParams.set('draft', draftLimitSelect?.value ?? String(DEFAULT_DRAFT_LIMIT_SECONDS))
@@ -299,34 +308,19 @@ export function renderLobby(appElement: HTMLDivElement): void {
     window.location.assign(url.toString())
   })
 
-  document.querySelector<HTMLButtonElement>('#inspect-invite-button')?.addEventListener('click', async () => {
-    const input = document.querySelector<HTMLTextAreaElement>('#join-invite-code')
-    inspectedInvite = input?.value.trim() ?? ''
-    try {
-      const settings = await readInviteRoomSettings(inspectedInvite)
-      if (!settings) throw new Error('이 초대 코드에는 방 규칙이 없습니다. 방장에게 새 초대 코드를 요청해 주세요.')
-      inspectedInviteSettings = normalizeRoomSettings(settings)
-      joinError = ''
-    } catch (error) {
-      inspectedInviteSettings = null
-      joinError = error instanceof Error ? error.message : '초대 정보를 확인하지 못했습니다.'
-    }
-    renderLobby(appElement)
-    document.querySelector<HTMLElement>('#lobby-action-menu')?.setAttribute('hidden', '')
-    document.querySelector<HTMLElement>('#lobby-join-panel')?.classList.add('is-active')
-  })
   document.querySelector<HTMLButtonElement>('#join-room-button')?.addEventListener('click', () => {
-    if (!inspectedInviteSettings || !inspectedInvite) return
-    window.sessionStorage.setItem('duel-spirits:pending-invite', inspectedInvite)
-    const guestUrl = new URL(window.location.href)
-    guestUrl.hash = ''
-    guestUrl.search = ''
-    guestUrl.searchParams.set('guest', '1')
-    guestUrl.searchParams.set('turn', inspectedInviteSettings.turnLimitSeconds === null ? 'none' : String(inspectedInviteSettings.turnLimitSeconds))
-    guestUrl.searchParams.set('seatExpiry', String(inspectedInviteSettings.seatExpirySeconds))
-    guestUrl.searchParams.set('draft', String(inspectedInviteSettings.draftLimitSeconds))
-    guestUrl.searchParams.set('format', inspectedInviteSettings.formatId)
-    guestUrl.searchParams.set('sets', inspectedInviteSettings.selectedSetIds.join(','))
-    window.location.assign(guestUrl.toString())
+    const inviteInput = document.querySelector<HTMLInputElement>('#invite-link-input')
+    const errorElement = document.querySelector<HTMLParagraphElement>('#join-error')
+    try {
+      const inviteUrl = new URL(inviteInput?.value.trim() ?? '')
+      if (
+        inviteUrl.origin !== window.location.origin
+        || !inviteUrl.searchParams.get('room')
+        || !inviteUrl.searchParams.get('key')
+      ) throw new Error('invalid-invite')
+      window.location.assign(inviteUrl.toString())
+    } catch {
+      if (errorElement) errorElement.textContent = '올바른 초대 링크를 입력해 주세요.'
+    }
   })
 }

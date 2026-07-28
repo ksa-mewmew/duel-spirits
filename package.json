@@ -1,7 +1,7 @@
 {
   "name": "duel-spirits",
   "private": true,
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "친구와 즐기는 1대1 전략 카드 게임",
   "main": "electron/main.cjs",
   "repository": {

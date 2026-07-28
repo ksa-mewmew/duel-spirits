@@ -37,11 +37,6 @@ import type { LoggedAction } from '../shared/match-log'
 import { getActiveDeck, loadDecks, setActiveDeckId } from './deck-storage'
 import {
   connectToRoom,
-  copyGuestResponseInformation,
-  copyHostInviteInformation,
-  getPeerSetupState,
-  importGuestInviteInformation,
-  importHostResponseInformation,
   sendDeck,
   sendDeckReady,
   sendDraftConfirm,
@@ -82,11 +77,10 @@ const BATTLEFIELD_SOF_EFFECTS = new Set<SofChoiceEffect>([
 
 const pageUrl = new URL(window.location.href)
 const isTutorial = pageUrl.searchParams.get('tutorial') === '1'
-const isPeerRoom = pageUrl.searchParams.has('host') || pageUrl.searchParams.has('guest')
 const roomIdParam = pageUrl.searchParams.get('room')
 const roomKeyParam = pageUrl.searchParams.get('key')
-if ((!roomIdParam || !roomKeyParam) && !isTutorial && !isPeerRoom) throw new Error('Room id and key are required.')
-const roomId = roomIdParam ?? (isTutorial ? 'TUTORIAL' : 'HOST')
+if ((!roomIdParam || !roomKeyParam) && !isTutorial) throw new Error('Room id and key are required.')
+const roomId = roomIdParam ?? 'TUTORIAL'
 const roomKey = roomKeyParam ?? 'LOCAL'
 
 const requestedFormatId = parseRoomFormatId(pageUrl.searchParams.get('format'))
@@ -340,15 +334,6 @@ const socket = connectToRoom(
     onClose: (event) => {
       if (isTutorial) return
       awaitingServer = false
-      if (isPeerRoom) {
-        joinRejectedMessage = pageUrl.searchParams.has('guest')
-          ? '방장이 연결을 종료해 방이 닫혔습니다.'
-          : '상대가 연결을 종료해 방이 닫혔습니다.'
-        game = null
-        networkStatus = 'P2P 연결 종료'
-        render()
-        return
-      }
       if (event.code === 4001) {
         joinRejectedMessage = '같은 자리가 다른 창에서 연결되었습니다.'
       } else if (event.code === 4002) {
@@ -2521,32 +2506,6 @@ function renderWaitingRoom(): string {
   </section></div>`
 }
 
-function renderPeerSetup(): string {
-  const setup = getPeerSetupState()
-  if (!setup || setup.connected) return ''
-  const isHost = setup.role === 'host'
-  const busy = ['creating-offer', 'reading-offer', 'creating-answer', 'applying-answer'].includes(setup.stage)
-  const hostCanImport = setup.stage === 'waiting-for-answer' || setup.stage === 'failed'
-  const guestCanCopy = setup.stage === 'answer-ready'
-  return `<div class="waiting-stage"><section class="panel match-lobby peer-setup">
-    <header class="match-lobby__header">
-      <div><p class="eyebrow">SERVERLESS P2P</p><h2>${isHost ? '친구를 초대하세요' : '방장에게 응답하세요'}</h2></div>
-      <span class="connection-state">${escapeHtml(setup.stage)}</span>
-    </header>
-    <p class="match-lobby__message">${escapeHtml(setup.status)}</p>
-    <div class="peer-setup__actions">
-      ${isHost
-        ? `<button id="copy-host-invite" class="is-primary" type="button" ${busy ? 'disabled' : ''}>${setup.stage === 'waiting-for-answer' ? '초대 정보 다시 복사' : '초대 정보 복사'}</button>
-          <button id="import-host-response" type="button" ${hostCanImport ? '' : 'disabled'}>응답 정보 가져오기</button>`
-        : `<button id="import-guest-invite" class="is-primary" type="button" ${busy ? 'disabled' : ''}>초대 정보 가져오기</button>
-          <button id="copy-guest-response" type="button" ${guestCanCopy ? '' : 'disabled'}>응답 정보 복사</button>`}
-      <button id="leave-peer-setup" type="button">로비로 돌아가기</button>
-    </div>
-    ${setup.error ? `<p class="form-error" role="alert">${escapeHtml(setup.error)}</p>` : ''}
-    <p class="field-help">게임 상태와 방 관리는 방장 브라우저에만 존재합니다. 방장이 페이지를 닫으면 방도 종료됩니다.</p>
-  </section></div>`
-}
-
 function render(): void {
   const manaDrawerScrollState = captureManaDrawerScrollState()
   const opponentId: PlayerId | null = game
@@ -2558,10 +2517,7 @@ function render(): void {
   document.body.classList.toggle('draft-active', roomPhase === 'drafting')
   document.body.classList.toggle('room-waiting-active', game === null && !joinRejectedMessage && !hasLeftRoom)
 
-  const peerSetup = getPeerSetupState()
-  if (peerSetup && !peerSetup.connected) {
-    content = renderPeerSetup()
-  } else if (joinRejectedMessage || hasLeftRoom) {
+  if (joinRejectedMessage || hasLeftRoom) {
     content = `<section class="panel room-ended-panel"><h2>${escapeHtml(joinRejectedMessage ?? '자리에서 나왔습니다.')}</h2><a class="button-link" href="./">첫 화면</a></section>`
   } else if (!game && roomPhase === 'drafting') content = renderDraftRoom()
   else if (!game) content = renderWaitingRoom()
@@ -3566,14 +3522,6 @@ function bindEvents(): void {
   bindAttackEvents()
   bindPendingChoiceEvents()
   bindRoomActionEvents()
-  document.querySelector<HTMLButtonElement>('#copy-host-invite')?.addEventListener('click', () => { void copyHostInviteInformation() })
-  document.querySelector<HTMLButtonElement>('#import-host-response')?.addEventListener('click', () => { void importHostResponseInformation() })
-  document.querySelector<HTMLButtonElement>('#import-guest-invite')?.addEventListener('click', () => { void importGuestInviteInformation() })
-  document.querySelector<HTMLButtonElement>('#copy-guest-response')?.addEventListener('click', () => { void copyGuestResponseInformation() })
-  document.querySelector<HTMLButtonElement>('#leave-peer-setup')?.addEventListener('click', () => {
-    socket.close()
-    window.location.assign(window.location.pathname)
-  })
 }
 
 window.setInterval(updateClock, 250)
