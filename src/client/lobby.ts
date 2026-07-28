@@ -110,6 +110,7 @@ export function renderLobby(appElement: HTMLDivElement): void {
         ${desktopUpdates ? '<button type="button" id="check-update-button">업데이트 확인</button>' : ''}
         ${desktopWindow ? '<button type="button" id="open-display-settings">설정</button>' : ''}
         <button type="button" id="lobby-rule-hint">게임 안내</button>
+        ${desktopWindow ? '<button type="button" id="exit-game-button">게임 종료</button>' : ''}
       </nav>
     </header>
 
@@ -222,6 +223,9 @@ export function renderLobby(appElement: HTMLDivElement): void {
   }
   document.querySelector<HTMLButtonElement>('#lobby-rule-hint')?.addEventListener('click', () => {
     window.alert('방을 만든 뒤 초대 링크를 친구에게 보내세요. 두 플레이어가 덱을 준비하면 대전이 시작됩니다.')
+  })
+  document.querySelector<HTMLButtonElement>('#exit-game-button')?.addEventListener('click', () => {
+    if (window.confirm('Duel Spirits를 종료할까요?')) void desktopWindow?.close()
   })
   document.querySelector<HTMLButtonElement>('#open-display-settings')?.addEventListener('click', () => {
     settingsOpen = true

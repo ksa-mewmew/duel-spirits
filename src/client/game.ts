@@ -121,6 +121,8 @@ let gameNotice: string | null = null
 let message = '서버에 연결하는 중입니다.'
 let networkStatus = '연결 중'
 let awaitingServer = false
+let awaitingServerTimer: number | null = null
+const SERVER_ACTION_TIMEOUT_MS = 10000
 let hasLeftRoom = false
 let joinRejectedMessage: string | null = null
 let selectedDeckId = getActiveDeck().id
@@ -129,17 +131,39 @@ let openManaPlayerId: PlayerId | null = null
 let pinnedPreviewCardId: CardId | null = null
 let pinnedPreviewInstanceId: string | null = null
 let roomMenuOpen = false
+let returnToLobbyOnLeave = false
 let rulebookOpen = false
 let matchLogOpen = false
 let matchLog: LoggedAction[] = []
 let turnAnnouncementKey: string | null = null
 let lastObservedTurnKey: string | null = null
 let turnAnnouncementTimer: number | null = null
+const TURN_ANNOUNCEMENT_DURATION_MS = 2000
 let decisionPanelCollapsed = false
 let decisionPanelKey: string | null = null
 let handScrollLeft = 0
 let lastCenteredHandCardId: string | null = null
 let tutorialStep = 0
+
+function clearServerRequest(): void {
+  awaitingServer = false
+  if (awaitingServerTimer !== null) {
+    window.clearTimeout(awaitingServerTimer)
+    awaitingServerTimer = null
+  }
+}
+
+function beginServerRequest(): void {
+  clearServerRequest()
+  awaitingServer = true
+  awaitingServerTimer = window.setTimeout(() => {
+    if (!awaitingServer) return
+    awaitingServer = false
+    awaitingServerTimer = null
+    message = '서버 응답이 지연되어 입력 잠금을 해제했습니다. 현재 상태를 확인한 뒤 다시 시도해 주세요.'
+    render()
+  }, SERVER_ACTION_TIMEOUT_MS)
+}
 
 const tutorialCard = (instanceId: string, cardId: CardId): CardInstance => ({
   instanceId,
@@ -333,7 +357,7 @@ const socket = connectToRoom(
     },
     onClose: (event) => {
       if (isTutorial) return
-      awaitingServer = false
+      clearServerRequest()
       if (event.code === 4001) {
         joinRejectedMessage = '같은 자리가 다른 창에서 연결되었습니다.'
       } else if (event.code === 4002) {
@@ -341,6 +365,10 @@ const socket = connectToRoom(
         game = null
         assignedPlayerId = null
         window.localStorage.removeItem(seatStorageKey)
+        if (returnToLobbyOnLeave) {
+          window.location.assign(window.location.pathname)
+          return
+        }
       } else if (!joinRejectedMessage && !hasLeftRoom) {
         networkStatus = '연결 끊김 · 재접속 시도 중'
       }
@@ -349,11 +377,12 @@ const socket = connectToRoom(
     onError: () => {
       if (isTutorial) return
       networkStatus = '연결 오류'
-      awaitingServer = false
+      clearServerRequest()
       render()
     },
     onMessage: (serverMessage) => {
       if (isTutorial) return
+      clearServerRequest()
       switch (serverMessage.type) {
         case 'ASSIGNED_PLAYER':
           seatToken = serverMessage.seatToken
@@ -422,7 +451,7 @@ const socket = connectToRoom(
                   turnAnnouncementKey = null
                   render()
                 }
-              }, 1500)
+              }, TURN_ANNOUNCEMENT_DURATION_MS)
             }
             lastObservedTurnKey = nextTurnKey
           }
@@ -2551,7 +2580,6 @@ function render(): void {
       ${renderManaDrawer()}
       ${renderDiscardModal()}
       ${renderEffectChoiceLayer()}
-      ${renderTurnAnnouncement()}
     </section>`
   }
 
@@ -2568,12 +2596,12 @@ function render(): void {
           ${renderRoomMenu()}
         </div>
       </header>`
-    : `<header class="room-topbar"><div class="brand-cluster"><strong>Duel Spirits</strong><span class="connection-state">${escapeHtml(networkStatus)}</span></div><span>친구와 대전 준비</span><button id="rulebook-button" class="topbar-text-button" type="button">룰북</button></header>`
+    : `<header class="room-topbar"><div class="brand-cluster"><strong>Duel Spirits</strong><span class="connection-state">${escapeHtml(networkStatus)}</span></div><span>친구와 대전 준비</span><button id="rulebook-button" class="topbar-text-button" type="button">룰북</button><button id="return-to-lobby-button" class="topbar-text-button" type="button">로비로 나가기</button></header>`
 
   const notice = gameNotice
     ? `<div class="game-notice" role="alert" aria-live="assertive"><span>${escapeHtml(gameNotice)}</span><button type="button" data-action="dismiss-game-notice" aria-label="알림 닫기">×</button></div>`
     : ''
-  appElement.innerHTML = `<div class="room-screen ${game ? 'room-screen--game' : ''} ${game?.status === 'finished' ? 'room-screen--finished' : ''}">${gameTopbar}${content}${notice}</div>${renderRulebookModal()}${renderMatchLogModal()}`
+  appElement.innerHTML = `<div class="room-screen ${game ? 'room-screen--game' : ''} ${game?.status === 'finished' ? 'room-screen--finished' : ''}">${gameTopbar}${content}${notice}</div>${renderTurnAnnouncement()}${renderRulebookModal()}${renderMatchLogModal()}`
   updateFixedStageScale()
   bindEvents()
   restoreManaDrawerScrollState(manaDrawerScrollState)
@@ -2611,13 +2639,18 @@ function sendAction(action: GameAction): void {
           turnAnnouncementKey = null
           render()
         }
-      }, 1500)
+      }, TURN_ANNOUNCEMENT_DURATION_MS)
     }
     render()
     return
   }
-  awaitingServer = true
-  sendPlayerAction(socket, action)
+  beginServerRequest()
+  try {
+    sendPlayerAction(socket, action)
+  } catch (error) {
+    clearServerRequest()
+    message = error instanceof Error ? error.message : '서버에 행동을 보내지 못했습니다.'
+  }
   render()
 }
 
@@ -3048,7 +3081,7 @@ function bindWaitingRoomEvents(): void {
   document.querySelector<HTMLButtonElement>('#deck-ready-button')?.addEventListener('click', () => {
     if (!assignedPlayerId || awaitingServer || !deckStates[assignedPlayerId].submitted) return
     const nextReady = !deckStates[assignedPlayerId].ready
-    awaitingServer = true
+    beginServerRequest()
     message = nextReady ? '준비 상태를 확정하고 있습니다.' : '준비를 취소하고 있습니다.'
     sendDeckReady(socket, nextReady)
     render()
@@ -3133,7 +3166,7 @@ function bindWaitingRoomEvents(): void {
   }
   document.querySelector<HTMLButtonElement>('#confirm-draft-button')?.addEventListener('click', () => {
     if (!draftView || draftView.confirmed || draftView.selectedIndices.length !== draftView.deckSize) return
-    awaitingServer = true
+    beginServerRequest()
     sendDraftConfirm(socket)
     message = '드래프트 덱을 서버에서 확인하고 있습니다.'
     render()
@@ -3257,12 +3290,6 @@ function bindPlayDraftEvents(): void {
     })
   }
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="confirm-play-card"]')) {
-    button.addEventListener('pointerdown', (event) => {
-      if (event.button !== 0) return
-      event.preventDefault()
-      event.stopPropagation()
-      confirmPlayDraft()
-    })
     button.addEventListener('click', confirmPlayDraft)
   }
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="cancel-play-card"]')) {
@@ -3493,6 +3520,10 @@ function bindRoomActionEvents(): void {
   document.querySelector<HTMLButtonElement>('#leave-room-button')?.addEventListener('click', () => {
     if (isTutorial) window.location.assign(window.location.pathname)
     else sendLeaveRoom(socket)
+  })
+  document.querySelector<HTMLButtonElement>('#return-to-lobby-button')?.addEventListener('click', () => {
+    returnToLobbyOnLeave = true
+    sendLeaveRoom(socket)
   })
   document.querySelector<HTMLButtonElement>('#copy-invite-button')?.addEventListener('click', async () => {
     try {

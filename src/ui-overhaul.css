@@ -10613,7 +10613,7 @@ body.fixed-stage-active #app {
   display: grid;
   place-items: center;
   pointer-events: none;
-  animation: turn-announcement-fade 1.5s ease both;
+  animation: turn-announcement-fade 2s ease both;
 }
 
 .turn-announcement__panel {

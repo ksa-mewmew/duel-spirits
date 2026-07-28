@@ -17,6 +17,7 @@ declare global {
       window?: {
         getResolution(): Promise<string>
         setResolution(resolution: string): Promise<string>
+        close(): Promise<void>
       }
       updates?: {
         check(): Promise<UpdateCheckResult>

@@ -127,6 +127,9 @@ function registerIpc() {
     applyWindowResolution(mainWindow, resolution)
     return resolution
   })
+  ipcMain.handle('window:close', (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.close()
+  })
   ipcMain.handle('updates:check', () => checkForUpdates(app.getVersion()))
   ipcMain.handle('updates:open-download-page', () => shell.openExternal(UPDATE_CONFIG.releasesUrl))
 }

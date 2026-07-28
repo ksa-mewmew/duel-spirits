@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('duelDesktop', {
   window: {
     getResolution: () => ipcRenderer.invoke('window:get-resolution'),
     setResolution: (resolution) => ipcRenderer.invoke('window:set-resolution', resolution),
+    close: () => ipcRenderer.invoke('window:close'),
   },
   updates: {
     check: () => ipcRenderer.invoke('updates:check'),
