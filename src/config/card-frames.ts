@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.BASE_URL
+import { getPublicAssetUrl } from './public-asset-url'
 
 export type CardFrameKey =
   | 'neutral'
@@ -10,13 +10,13 @@ export type CardFrameKey =
   | 'multi'
 
 const CARD_FRAME_PATHS: Record<CardFrameKey, string> = {
-  neutral: `${BASE_URL}ui/card-frames/neutral.png`,
-  fire: `${BASE_URL}ui/card-frames/fire.png`,
-  water: `${BASE_URL}ui/card-frames/water.png`,
-  earth: `${BASE_URL}ui/card-frames/earth.png`,
-  light: `${BASE_URL}ui/card-frames/light.png`,
-  dark: `${BASE_URL}ui/card-frames/dark.png`,
-  multi: `${BASE_URL}ui/card-frames/multi.png`,
+  neutral: getPublicAssetUrl('ui/card-frames/neutral.png'),
+  fire: getPublicAssetUrl('ui/card-frames/fire.png'),
+  water: getPublicAssetUrl('ui/card-frames/water.png'),
+  earth: getPublicAssetUrl('ui/card-frames/earth.png'),
+  light: getPublicAssetUrl('ui/card-frames/light.png'),
+  dark: getPublicAssetUrl('ui/card-frames/dark.png'),
+  multi: getPublicAssetUrl('ui/card-frames/multi.png'),
 }
 
 const SINGLE_ATTRIBUTE_FRAME_KEYS = new Set<CardFrameKey>([

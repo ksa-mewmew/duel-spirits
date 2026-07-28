@@ -15,3 +15,46 @@
 - 드래프트 제한 풀전
 - 금지·제한전
 - 캠페인 전용 덱 포맷
+# Duel Spirits
+
+## Web development
+
+```bash
+npm install
+npm run dev
+```
+
+## Electron desktop app
+
+```bash
+# Vite and Electron development processes
+npm run dev:desktop
+
+# Packaged application
+npm run package:desktop
+
+# Windows Squirrel installer
+npm run make:desktop
+```
+
+Windows artifacts are written to:
+
+```text
+out/make/squirrel.windows/x64/
+```
+
+Upload `Duel Spirits-<version> Setup.exe` to a public GitHub Release. The
+desktop app checks the latest public release for
+`ksa-mewmew/duel-spirits`, shows release notes in the lobby, and opens the
+release page in the system browser. It never downloads or installs updates
+automatically.
+
+The desktop renderer is isolated and sandboxed. Clipboard, app metadata, and
+update checks are exposed only through the limited preload API.
+
+### Windows icon
+
+No `.ico` source asset currently exists. Add a multi-resolution Windows icon
+at `build/icon.ico`, then set `packagerConfig.icon` and the Squirrel
+`setupIcon` in `forge.config.cjs`. Until then the package uses Electron's
+default executable icon.

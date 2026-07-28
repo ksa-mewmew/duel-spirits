@@ -45,7 +45,7 @@ export interface DeckValidationResult {
 }
 
 export type CountByCost = Record<number, number>
-export type CountByAttribute = Record<CardAttributeId, number>
+export type CountByAttribute = Record<CardAttributeId | 'multi', number>
 
 export function createDefaultFormatSelection(
   formatId: GameFormatId = DEFAULT_FORMAT_ID,
@@ -174,6 +174,7 @@ export function validateDeck(
       selection.draftPool.seed,
       selection.formatId,
       selection.draftPool.createdAt,
+      selection.draftPool.selectedSetIds,
     )
     const poolMatches = expectedPool.cardIds.length === selection.draftPool.cardIds.length
       && expectedPool.cardIds.every(
@@ -259,11 +260,14 @@ export function createDraftPool(
   seed = createRandomSeed('draft'),
   formatId: GameFormatId = 'draft-v1',
   now = Date.now(),
+  selectedSetIds?: readonly SetId[],
 ): DraftPool<CardId> {
   const format = getFormat(formatId)
   if (!format.draft) throw new Error('드래프트 규칙이 없는 포맷입니다.')
 
+  const selectedSets = selectedSetIds?.length ? new Set(selectedSetIds) : null
   const source = CURRENT_CARD_ACCESS_POLICY.getAvailableCardIds()
+    .filter((cardId) => !selectedSets || selectedSets.has(CARDS[cardId].setId))
   if (source.length * format.maxCopiesPerCard < format.draft.poolSize) {
     throw new Error('드래프트 풀을 만들 수 있는 카드 수가 부족합니다.')
   }
@@ -285,6 +289,7 @@ export function createDraftPool(
     seed,
     cardIds,
     createdAt: now,
+    selectedSetIds: selectedSetIds?.length ? [...selectedSetIds] : undefined,
   }
 }
 
@@ -309,9 +314,18 @@ export function getCardCounts(cardIds: readonly CardId[]): Map<CardId, number> {
 }
 
 export function getAttributeDistribution(cardIds: readonly CardId[]): CountByAttribute {
-  const counts: CountByAttribute = { fire: 0, water: 0, earth: 0, dark: 0, light: 0 }
+  const counts: CountByAttribute = {
+    fire: 0,
+    water: 0,
+    earth: 0,
+    dark: 0,
+    light: 0,
+    multi: 0,
+  }
   for (const cardId of cardIds) {
-    for (const attributeId of CARDS[cardId].attributes) counts[attributeId] += 1
+    const attributes = CARDS[cardId].attributes
+    if (attributes.length > 1) counts.multi += 1
+    else if (attributes[0]) counts[attributes[0]] += 1
   }
   return counts
 }

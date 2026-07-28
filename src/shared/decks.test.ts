@@ -46,11 +46,13 @@ describe('덱 통계', () => {
   test('속성 분포와 평균 비용을 계산한다', () => {
     const distribution = getAttributeDistribution(DEFAULT_DECK)
 
-    expect(distribution.fire).toBe(12)
+    expect(distribution.fire).toBe(10)
     expect(distribution.water).toBe(0)
     expect(distribution.earth).toBe(0)
     expect(distribution.dark).toBe(0)
-    expect(distribution.light).toBe(10)
+    expect(distribution.light).toBe(8)
+    expect(distribution.multi).toBe(2)
+    expect(Object.values(distribution).reduce((sum, count) => sum + count, 0)).toBe(DEFAULT_DECK.length)
     expect(getAverageCost(DEFAULT_DECK)).toBeGreaterThan(0)
   })
 })

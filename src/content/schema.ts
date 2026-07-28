@@ -12,7 +12,6 @@ export const FORMAT_IDS = [
   'set-constructed-v1',
   'open-v1',
   'draft-v1',
-  'restricted-v1',
 ] as const
 
 export type GameFormatId = typeof FORMAT_IDS[number]
@@ -72,6 +71,7 @@ export interface DraftPool<CardKey extends string = string> {
   seed: string
   cardIds: CardKey[]
   createdAt: number
+  selectedSetIds?: SetId[]
 }
 
 export interface DeckFormatSelection<CardKey extends string = string> {

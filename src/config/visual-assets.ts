@@ -1,5 +1,6 @@
 import type { CardId } from '../shared/cards'
 import type { SetId } from '../content/schema'
+import { getPublicAssetUrl } from './public-asset-url'
 
 export interface CardArtPresentation {
   /** public/card-art 아래에서 사용할 파일명입니다. 기본값은 `<card id>.webp`입니다. */
@@ -17,13 +18,6 @@ export interface CardArtPresentation {
 export const CARD_ART_PRESENTATION: Partial<Record<CardId, CardArtPresentation>> = {
   // volcano_mouse: { position: '50% 38%', scale: 1.04 },
   // funeral_inviter: { fileName: 'funeral_inviter_v2.webp', position: '48% 35%' },
-}
-
-function getPublicAssetUrl(relativePath: string): string {
-  const base = import.meta.env.BASE_URL.endsWith('/')
-    ? import.meta.env.BASE_URL
-    : `${import.meta.env.BASE_URL}/`
-  return `${base}${relativePath.replace(/^\/+/, '')}`
 }
 
 export function getCardArtPresentation(cardId: CardId, setId: SetId): {

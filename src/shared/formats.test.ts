@@ -28,12 +28,11 @@ const setDeck = [
 ] as const
 
 describe('콘텐츠와 포맷', () => {
-  test('요청한 다섯 포맷을 모두 제공한다', () => {
+  test('지원하는 네 포맷을 모두 제공한다', () => {
     expect(Object.keys(GAME_FORMATS).sort()).toEqual([
       'campaign-prologue-v1',
       'draft-v1',
       'open-v1',
-      'restricted-v1',
       'set-constructed-v1',
     ])
   })
@@ -120,19 +119,6 @@ describe('콘텐츠와 포맷', () => {
     ])
   })
 
-  test('금지·제한전은 제한 카드 수량을 검사한다', () => {
-    const deck = [...DEFAULT_DECK]
-    deck[0] = 'holy_mirror_wall'
-    const result = validateDeck(deck, {
-      formatId: 'restricted-v1',
-      selectedSetIds: [],
-      draftPool: null,
-    })
-
-    expect(result.valid).toBe(false)
-    expect(result.errors.some((error) => error.includes('최대 1장'))).toBe(true)
-  })
-
   test('드래프트는 60장 풀에서 20장 덱을 만든다', () => {
     const format = GAME_FORMATS['draft-v1']
     const pool = createDraftPool('pool-size-seed', 'draft-v1', 1)
@@ -145,6 +131,20 @@ describe('콘텐츠와 포맷', () => {
         pool.cardIds.filter((candidate) => candidate === cardId).length,
       ]),
     ).values())).toBeLessThanOrEqual(format.maxCopiesPerCard)
+  })
+
+  test('드래프트 풀은 방에서 선택한 세트의 카드만 사용한다', () => {
+    const pool = createDraftPool(
+      'selected-draft-set',
+      'draft-v1',
+      1,
+      ['evolution-begins-001'],
+    )
+
+    expect(pool.selectedSetIds).toEqual(['evolution-begins-001'])
+    expect(pool.cardIds.every(
+      (cardId) => CARDS[cardId].setId === 'evolution-begins-001',
+    )).toBe(true)
   })
 
   test('드래프트 덱은 생성된 풀의 수량을 넘을 수 없다', () => {

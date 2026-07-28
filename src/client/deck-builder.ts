@@ -112,16 +112,13 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     })
   }
 
-  function trimDeckToPool(): void {
-    const selection = getSelection()
-    const allowed = new Set(getFormatCardPool(selection))
-    const counts = new Map<CardId, number>()
-
-    state.cardIds = state.cardIds.filter((cardId) => {
-      const next = (counts.get(cardId) ?? 0) + 1
-      counts.set(cardId, next)
-      return allowed.has(cardId) && next <= getCardCopyLimit(cardId, selection)
-    })
+  function selectLatestSets(): void {
+    state.selectedSetIds = Object.values(CARD_SETS)
+      .slice(-3)
+      .map((set) => set.id)
+    state.setFilter = 'all'
+    state.message = `최신 세트 ${state.selectedSetIds.map((id) => CARD_SETS[id].code).join(' · ')}를 사용합니다. 기존 덱 카드는 그대로 보존됩니다.`
+    render(true)
   }
 
   function selectDeck(deckId: string): void {
@@ -469,21 +466,26 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     const attributeCounts = getAttributeDistribution(state.cardIds)
     const costCounts = getCostDistribution(state.cardIds)
     const attributeIds: CardAttributeId[] = ['fire', 'water', 'earth', 'dark', 'light']
+    const sixPlusCount = Object.entries(costCounts)
+      .filter(([cost]) => Number(cost) >= 6)
+      .reduce((sum, [, count]) => sum + count, 0)
     const maxCount = Math.max(
       1,
       ...attributeIds.map((attributeId) => attributeCounts[attributeId]),
+      attributeCounts.multi,
       ...[0, 1, 2, 3, 4, 5].map((cost) => costCounts[cost] ?? 0),
+      sixPlusCount,
     )
 
     const attributeRows = attributeIds.map((attributeId) => {
       const count = attributeCounts[attributeId]
       return `<div class="distribution-row"><span>${escapeHtml(getAttributeLabel(attributeId))}</span><span class="distribution-track"><span style="width:${count / maxCount * 100}%"></span></span><strong>${count}</strong></div>`
-    }).join('')
+    }).join('') + `<div class="distribution-row"><span>다속성</span><span class="distribution-track"><span style="width:${attributeCounts.multi / maxCount * 100}%"></span></span><strong>${attributeCounts.multi}</strong></div>`
 
     const costRows = [0, 1, 2, 3, 4, 5].map((cost) => {
       const count = costCounts[cost] ?? 0
       return `<div class="distribution-row"><span>비용 ${cost}</span><span class="distribution-track"><span style="width:${count / maxCount * 100}%"></span></span><strong>${count}</strong></div>`
-    }).join('')
+    }).join('') + `<div class="distribution-row"><span>비용 6 이상</span><span class="distribution-track"><span style="width:${sixPlusCount / maxCount * 100}%"></span></span><strong>${sixPlusCount}</strong></div>`
 
     return `<section class="deck-stats"><h3>속성 분포</h3>${attributeRows}<h3>비용 분포</h3>${costRows}<p>평균 비용: <strong>${getAverageCost(state.cardIds).toFixed(2)}</strong></p></section>`
   }
@@ -517,7 +519,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     ].join('')
 
     return `<section class="card-set-tabs" aria-label="카드 세트 필터">
-      <div class="card-set-tabs__label"><strong>카드 세트</strong><span>EVO를 눌러 새 카드만 볼 수 있습니다.</span></div>
+      <div class="card-set-tabs__label"><strong>카드 세트</strong></div>
       <div class="card-set-tabs__buttons">${buttons}</div>
     </section>`
   }
@@ -643,7 +645,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     const validation = validateDeck(state.cardIds, selection)
 
     const setControls = format.cardPool.type === 'selected-sets'
-      ? `<fieldset class="format-set-picker"><legend>사용 세트</legend>${Object.values(CARD_SETS).map((set) => `<label><input type="checkbox" data-set-id="${set.id}" ${state.selectedSetIds.includes(set.id) ? 'checked' : ''}>${escapeHtml(set.name)} <small>${escapeHtml(set.code)}</small></label>`).join('')}</fieldset>`
+      ? `<fieldset class="format-set-picker builder-set-picker"><legend>사용 세트</legend><button id="builder-latest-sets-button" class="set-preset-button" type="button">최신 세트 사용</button>${Object.values(CARD_SETS).map((set) => `<label><input type="checkbox" data-set-id="${set.id}" ${state.selectedSetIds.includes(set.id) ? 'checked' : ''}><span><strong>${escapeHtml(set.name)}</strong><small>${escapeHtml(set.code)}</small></span></label>`).join('')}</fieldset>`
       : ''
 
     const restrictionSummary = format.kind === 'restricted'
@@ -655,6 +657,12 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
       : ''
 
     const previewCardId = currentPreviewCardId()
+    const usedSetIds = [...new Set(state.cardIds.map((cardId) => CARDS[cardId].setId))]
+    const usedSetSummary = format.cardPool.type === 'selected-sets'
+      ? `<div class="current-deck-used-sets"><span>이 덱에 사용된 세트</span><div>${usedSetIds.length
+          ? usedSetIds.map((setId) => `<strong title="${escapeHtml(CARD_SETS[setId].name)}">${escapeHtml(CARD_SETS[setId].code)}</strong>`).join('')
+          : '<em>아직 사용된 세트가 없습니다.</em>'}</div></div>`
+      : ''
 
     appElement.innerHTML = `<main class="app-shell deck-builder-screen">
       <header class="builder-header">
@@ -694,6 +702,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
           ${renderCardPreview(previewCardId)}
           <section class="panel current-deck-panel">
             <header class="section-heading"><div><h2>현재 덱</h2><p>${escapeHtml(getFormat(state.formatId).shortName)}</p></div><strong>${state.cardIds.length}/${format.deckSize}</strong></header>
+            ${usedSetSummary}
             <ol class="deck-list">${deckRows || '<li class="empty-row">카드를 추가해 주세요.</li>'}</ol>
             <p class="builder-message" role="status">${escapeHtml(state.message || validation.errors[0] || '덱을 구성하고 저장하세요.')}</p>
           </section>
@@ -791,21 +800,21 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
       const input = event.currentTarget as HTMLInputElement
       const cursor = input.selectionStart ?? input.value.length
       state.searchQuery = input.value
-      render()
+      render(true)
       const nextInput = document.querySelector<HTMLInputElement>('#card-search')
-      nextInput?.focus()
+      nextInput?.focus({ preventScroll: true })
       nextInput?.setSelectionRange(cursor, cursor)
     })
-    document.querySelector<HTMLSelectElement>('#attribute-filter')?.addEventListener('change', (event) => { const value = (event.currentTarget as HTMLSelectElement).value; state.attributeFilter = value === 'all' ? 'all' : value as CardAttributeId; render() })
-    document.querySelector<HTMLSelectElement>('#type-filter')?.addEventListener('change', (event) => { const value = (event.currentTarget as HTMLSelectElement).value; state.typeFilter = value === 'unit' || value === 'spell' ? value : 'all'; render() })
-    document.querySelector<HTMLSelectElement>('#cost-filter')?.addEventListener('change', (event) => { const value = (event.currentTarget as HTMLSelectElement).value; state.costFilter = value === 'all' ? 'all' : Number(value); render() })
+    document.querySelector<HTMLSelectElement>('#attribute-filter')?.addEventListener('change', (event) => { const value = (event.currentTarget as HTMLSelectElement).value; state.attributeFilter = value === 'all' ? 'all' : value as CardAttributeId; render(true) })
+    document.querySelector<HTMLSelectElement>('#type-filter')?.addEventListener('change', (event) => { const value = (event.currentTarget as HTMLSelectElement).value; state.typeFilter = value === 'unit' || value === 'spell' ? value : 'all'; render(true) })
+    document.querySelector<HTMLSelectElement>('#cost-filter')?.addEventListener('change', (event) => { const value = (event.currentTarget as HTMLSelectElement).value; state.costFilter = value === 'all' ? 'all' : Number(value); render(true) })
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-card-set-filter]')) {
       button.addEventListener('click', () => {
         const value = button.dataset.cardSetFilter
         if (!value) return
         if (value === 'all') {
           state.setFilter = 'all'
-          render()
+          render(true)
           return
         }
 
@@ -819,7 +828,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
           state.message = `${CARD_SETS[setId].name}(${CARD_SETS[setId].code}) 카드를 카드 풀에 포함했습니다.`
         }
         state.setFilter = setId
-        render()
+        render(true)
       })
     }
 
@@ -853,10 +862,12 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
           ? [...new Set([...state.selectedSetIds, setId])]
           : state.selectedSetIds.filter((id) => id !== setId)
         if (state.selectedSetIds.length === 0) state.selectedSetIds = [setId]
-        trimDeckToPool()
-        render()
+        state.message = `${CARD_SETS[setId].code} 세트 사용 설정을 변경했습니다. 기존 덱 카드는 그대로 보존됩니다.`
+        render(true)
       })
     }
+    document.querySelector<HTMLButtonElement>('#builder-latest-sets-button')
+      ?.addEventListener('click', selectLatestSets)
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-add-card]')) button.addEventListener('click', () => { const id = button.dataset.addCard as CardId | undefined; if (id) addCard(id) })
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-remove-card]')) button.addEventListener('click', () => { const id = button.dataset.removeCard as CardId | undefined; if (id) removeCard(id) })
 

@@ -1,7 +1,16 @@
 import { CARD_ATTRIBUTES, CARDS } from '../shared/cards'
-import { DECK_SCHEMA_VERSION, isDeckCompatibleWithFormat, validateDeck } from '../shared/decks'
+import {
+  DECK_SCHEMA_VERSION,
+  getAttributeDistribution,
+  getAverageCost,
+  getCostDistribution,
+  isDeckCompatibleWithFormat,
+  validateDeck,
+} from '../shared/decks'
 import { getFormat } from '../content/formats'
 import { createRulebookDocument } from '../content/rulebook'
+import { CARD_SETS } from '../content/sets'
+import { createMatchConfig } from '../shared/match-config'
 import { LIFE_SIZE } from '../shared/rules'
 import {
   parseRoomFormatId,
@@ -12,8 +21,9 @@ import {
 } from '../shared/room-settings'
 import { renderCard, renderCardBack } from '../components/card-renderer'
 import { bindCardKeywordTooltips } from '../components/keyword-tooltip'
+import { getPublicAssetUrl } from '../config/public-asset-url'
 
-import type { CardId } from '../shared/cards'
+import type { CardAttributeId, CardId } from '../shared/cards'
 import type { CardPlaySelection, GameAction } from '../shared/actions'
 import type { PublicDeckStates } from '../shared/messages'
 import type { RoomPhase } from '../shared/room-lifecycle'
@@ -27,6 +37,11 @@ import type { LoggedAction } from '../shared/match-log'
 import { getActiveDeck, loadDecks, setActiveDeckId } from './deck-storage'
 import {
   connectToRoom,
+  copyGuestResponseInformation,
+  copyHostInviteInformation,
+  getPeerSetupState,
+  importGuestInviteInformation,
+  importHostResponseInformation,
   sendDeck,
   sendDeckReady,
   sendDraftConfirm,
@@ -51,8 +66,7 @@ interface PlayDraft {
 const appQuery = document.querySelector<HTMLDivElement>('#app')
 if (!appQuery) throw new Error('App element was not found.')
 const appElement: HTMLDivElement = appQuery
-const BATTLEFIELD_BACKGROUND_URL =
-  `${import.meta.env.BASE_URL}ui/battlefield/battlefield.webp`
+const BATTLEFIELD_BACKGROUND_URL = getPublicAssetUrl('ui/battlefield/battlefield.webp')
 const BATTLEFIELD_SOF_EFFECTS = new Set<SofChoiceEffect>([
   'BOMB_MOUSE_DAMAGE',
   'ICE_MIRROR_FREEZE',
@@ -67,11 +81,13 @@ const BATTLEFIELD_SOF_EFFECTS = new Set<SofChoiceEffect>([
 ])
 
 const pageUrl = new URL(window.location.href)
+const isTutorial = pageUrl.searchParams.get('tutorial') === '1'
+const isPeerRoom = pageUrl.searchParams.has('host') || pageUrl.searchParams.has('guest')
 const roomIdParam = pageUrl.searchParams.get('room')
 const roomKeyParam = pageUrl.searchParams.get('key')
-if (!roomIdParam || !roomKeyParam) throw new Error('Room id and key are required.')
-const roomId = roomIdParam
-const roomKey = roomKeyParam
+if ((!roomIdParam || !roomKeyParam) && !isTutorial && !isPeerRoom) throw new Error('Room id and key are required.')
+const roomId = roomIdParam ?? (isTutorial ? 'TUTORIAL' : 'HOST')
+const roomKey = roomKeyParam ?? 'LOCAL'
 
 const requestedFormatId = parseRoomFormatId(pageUrl.searchParams.get('format'))
 const requestedSettings: RoomSettings = {
@@ -97,6 +113,11 @@ let deckStates: PublicDeckStates = {
   P2: { submitted: false, ready: false, name: null },
 }
 let draftView: DraftPlayerView | null = null
+let draftSearchQuery = ''
+let draftAttributeFilter: CardAttributeId | 'all' = 'all'
+let draftTypeFilter: 'all' | 'unit' | 'spell' = 'all'
+let draftCostFilter: number | 'all' = 'all'
+let draftSetFilter: import('../content/schema').SetId | 'all' = 'all'
 let selectedAttackerId: string | null = null
 let selectedAttackLifeSlotIndices: number[] = []
 let playDraft: PlayDraft | null = null
@@ -124,6 +145,117 @@ let decisionPanelCollapsed = false
 let decisionPanelKey: string | null = null
 let handScrollLeft = 0
 let lastCenteredHandCardId: string | null = null
+let tutorialStep = 0
+
+const tutorialCard = (instanceId: string, cardId: CardId): CardInstance => ({
+  instanceId,
+  cardId,
+  ownerId: instanceId.startsWith('enemy') ? 'P2' : 'P1',
+  controllerId: instanceId.startsWith('enemy') ? 'P2' : 'P1',
+})
+
+const tutorialUnit = (instanceId: string, cardId: CardId, slotIndex = 0): UnitInstance => ({
+  ...tutorialCard(instanceId, cardId),
+  slotIndex,
+  battlefieldEntrySeq: slotIndex + 1,
+  damage: 0,
+  exhausted: false,
+  summonedThisTurn: false,
+  attacksThisTurn: 0,
+  temporaryAttackModifier: 0,
+  temporaryHealthModifier: 0,
+})
+
+function createTutorialView(step: number): GameView {
+  const turnNumber = step <= 1 ? 3 : step <= 3 ? 4 : step <= 5 ? 5 : 6
+  const firstSummoned = step >= 3
+  const enemyDefeated = step >= 5
+  const lifeBroken = step >= 7
+  const evolved = step >= 8
+  const won = step >= 9
+  const manaCount = step === 0 ? 2 : 3
+  const hand = [
+    ...(step < 1 ? [tutorialCard('mana-source', 'volcano_mouse')] : []),
+    ...(step >= 2 && step < 3 ? [tutorialCard('summon-card', 'flame_javelin_soldier')] : []),
+    ...(step >= 7 && step < 8 ? [tutorialCard('evolution-card', 'flame_mane_captain')] : []),
+  ]
+  const mana = Array.from({ length: manaCount }, (_, index) => ({
+    ...tutorialCard(`tutorial-mana-${index}`, index === 0 ? 'volcano_mouse' : 'living_flame'),
+    exhausted: step === 3,
+  }))
+  const player = (playerId: PlayerId, isViewer: boolean): PlayerView => ({
+    playerId,
+    isViewer,
+    deckCount: 12,
+    handCount: isViewer ? hand.length : 2,
+    hand: isViewer ? hand : [],
+    lifeCount: playerId === 'P1' ? lifeBroken ? 1 : 2 : lifeBroken ? 0 : 1,
+    lifeSlotIndices: playerId === 'P1' ? lifeBroken ? [1] : [0, 1] : lifeBroken ? [] : [0],
+    mana: isViewer ? mana : [],
+    field: playerId === 'P1'
+      ? firstSummoned ? [{
+          ...tutorialUnit(
+            'tutorial-unit',
+            evolved ? 'flame_mane_captain' : 'flame_javelin_soldier',
+          ),
+          damage: enemyDefeated && !evolved ? 2 : 0,
+          attacksThisTurn: step === 5 ? 1 : 0,
+          evolutionStack: evolved ? [tutorialCard('evolution-base', 'flame_javelin_soldier')] : undefined,
+          evolvedThisTurn: evolved,
+        }] : []
+      : enemyDefeated ? [] : [tutorialUnit('enemy-unit', 'unexploded_bomb_mouse')],
+    discard: playerId === 'P2' && enemyDefeated
+      ? [
+          tutorialCard('enemy-unit', 'unexploded_bomb_mouse'),
+          ...(lifeBroken ? [tutorialCard('enemy-awakened-life', 'holy_mirror_wall')] : []),
+        ]
+      : [],
+    manaPlacedThisTurn: step === 1,
+    extraLifeLossOnDirectAttack: false,
+    attacksThisTurn: 0,
+    darkCardsDiscardedThisTurn: 0,
+    burningProcessionActive: false,
+  })
+  return {
+    matchConfig: createMatchConfig({ randomSeed: 'tutorial', createdAt: 1 }),
+    actionSequence: step,
+    status: won ? 'finished' : 'playing',
+    currentPlayer: 'P1',
+    turnNumber,
+    winner: won ? 'P1' : null,
+    viewer: 'P1',
+    players: { P1: player('P1', true), P2: player('P2', false) },
+    pendingChoice: null,
+  }
+}
+
+const TUTORIAL_MESSAGES = [
+  '1/6 · 손의 「화산쥐」에서 마나 버튼을 눌러 마나로 놓으세요. 마나는 매 턴 1장만 놓을 수 있습니다.',
+  '턴 종료를 눌러 현재 턴을 마치세요. 상대 턴은 자동으로 진행되고 다음 내 턴에 사용한 마나가 다시 준비됩니다.',
+  '2/6 · 「화염 투창병」을 소환하세요. 이번 훈련에서는 반드시 가장 왼쪽의 1번 필드에 놓습니다. 소환한 턴에는 특별한 능력이 없는 한 공격할 수 없습니다.',
+  '소환을 마쳤습니다. 턴 종료를 눌러 다음 턴으로 진행하세요.',
+  '3/6 · 화염 투창병을 선택한 뒤 상대의 「터지지 않은 폭탄쥐」를 공격하세요.',
+  '유언 발동! 화염 투창병이 전투 전에 피해 1을 주어 폭탄쥐를 먼저 무덤으로 보냈으므로 일반 전투는 일어나지 않았습니다. 폭탄쥐는 무덤으로 갈 때 유언으로 투창병에게 피해 2를 주었고, 투창병은 체력 2로 생존했습니다. 이번 턴의 공격은 끝났습니다. 턴 종료를 누르세요.',
+  '4/6 · 다음 내 턴입니다. 준비된 화염 투창병을 선택하고 상대 라이프를 공격하세요.',
+  '각성이란 공격받은 라이프가 손으로 들어올 때, 각성 문구가 있는 카드가 비용 없이 즉시 효과를 발동하는 능력입니다. 일반 카드는 손으로만 가지만 각성 카드는 효과부터 처리합니다. 「성스러운 거울의 벽」은 내 라이프 하나를 추가로 무덤에 보냈습니다. 5/6 · 이제 「화염갈기 대장」으로 1번 필드의 몬스터를 진화시키세요.',
+  '6/6 · 진화 몬스터는 소환한 턴에도 공격할 수 있습니다. 몬스터를 선택하고 상대를 직접 공격해 승리하세요.',
+]
+
+function setTutorialStep(step: number): void {
+  tutorialStep = step
+  game = createTutorialView(step)
+  roomPhase = 'playing'
+  assignedPlayerId = 'P1'
+  connectedPlayers = ['P1', 'P2']
+  networkStatus = '로컬 튜토리얼'
+  awaitingServer = false
+  selectedAttackerId = null
+  selectedAttackLifeSlotIndices = []
+  playDraft = null
+  gameNotice = step < TUTORIAL_MESSAGES.length ? TUTORIAL_MESSAGES[step]! : null
+}
+
+if (isTutorial) setTutorialStep(0)
 
 interface ManaDrawerScrollState {
   groupScrollTops: number[]
@@ -201,11 +333,22 @@ const socket = connectToRoom(
   },
   {
     onOpen: () => {
+      if (isTutorial) return
       networkStatus = '서버 연결됨'
       render()
     },
     onClose: (event) => {
+      if (isTutorial) return
       awaitingServer = false
+      if (isPeerRoom) {
+        joinRejectedMessage = pageUrl.searchParams.has('guest')
+          ? '방장이 연결을 종료해 방이 닫혔습니다.'
+          : '상대가 연결을 종료해 방이 닫혔습니다.'
+        game = null
+        networkStatus = 'P2P 연결 종료'
+        render()
+        return
+      }
       if (event.code === 4001) {
         joinRejectedMessage = '같은 자리가 다른 창에서 연결되었습니다.'
       } else if (event.code === 4002) {
@@ -219,11 +362,13 @@ const socket = connectToRoom(
       render()
     },
     onError: () => {
+      if (isTutorial) return
       networkStatus = '연결 오류'
       awaitingServer = false
       render()
     },
     onMessage: (serverMessage) => {
+      if (isTutorial) return
       switch (serverMessage.type) {
         case 'ASSIGNED_PLAYER':
           seatToken = serverMessage.seatToken
@@ -306,7 +451,7 @@ const socket = connectToRoom(
           pendingChoiceIds = []
           awaitingServer = false
           message = game.status === 'finished'
-            ? game.winner === game.viewer ? '승리했습니다.' : '패배했습니다.'
+            ? game.winner === game.viewer ? '승리!' : '패배...'
             : game.pendingChoice
               ? game.pendingChoice.playerId === game.viewer
                 ? '각성 또는 카드 효과를 선택해야 합니다.'
@@ -1189,6 +1334,9 @@ function renderField(player: PlayerView, isSelf: boolean): string {
     const unit = unitsBySlot.get(slotIndex)
     if (!unit) {
       if (slotSelectionActive) {
+        if (isTutorial && slotIndex !== 0) {
+          return `<div class="field-slot is-empty" data-field-slot="${slotIndex}"></div>`
+        }
         const selected = playDraft?.fieldSlot === slotIndex
         return `<button type="button" class="field-slot field-slot--selectable is-empty ${selected ? 'is-selected' : ''}" data-action="select-summon-slot" data-field-slot="${slotIndex}"><strong>${selected ? '선택됨' : '여기에 소환'}</strong></button>`
       }
@@ -2042,7 +2190,7 @@ function renderGameResultOverlay(): string {
   return `<section class="game-result-overlay game-result-overlay--${won ? 'victory' : 'defeat'}" role="dialog" aria-modal="true" aria-labelledby="game-result-title">
     <div class="game-result-panel">
       <h2 id="game-result-title">${won ? '승리했습니다' : '패배했습니다'}</h2>
-      <button id="rematch-button" type="button">재대전</button>
+      <button id="rematch-button" type="button">${isTutorial ? '로비로 가기' : '재대전'}</button>
     </div>
   </section>`
 }
@@ -2053,7 +2201,7 @@ function renderRoomMenu(): string {
     <div class="room-menu__summary"><span>방 ${escapeHtml(roomId)}</span><span>턴 ${game.turnNumber}</span></div>
     <button id="copy-invite-button" type="button" role="menuitem">초대 링크 복사</button>
     <button id="surrender-button" type="button" role="menuitem" ${game.status === 'playing' ? '' : 'disabled'}>항복</button>
-    <button id="leave-room-button" type="button" role="menuitem">자리 나가기</button>
+    <button id="leave-room-button" type="button" role="menuitem">${isTutorial ? '튜토리얼 나가기' : '자리 나가기'}</button>
   </div>`
 }
 
@@ -2201,37 +2349,123 @@ function renderDraftRoom(): string {
 
   const view = draftView
   const selected = new Set(view.selectedIndices)
-  const cards = view.pool.cardIds.map((cardId, index) => {
-    const isSelected = selected.has(index)
-    return `<article class="draft-pool-card ${isSelected ? 'is-selected' : ''}">
-      ${renderCard(cardId, { compact: true, classNames: ['draft-choice-card'] })}
-      <button type="button" data-action="toggle-draft-card" data-draft-index="${index}" aria-pressed="${isSelected}" ${view.confirmed ? 'disabled' : ''}>
-        ${isSelected ? '선택 해제' : '덱에 추가'}
+  const selectedCount = view.selectedIndices.length
+  const normalizedQuery = draftSearchQuery.trim().toLocaleLowerCase('ko-KR')
+  const indexedPool = view.pool.cardIds
+    .map((cardId, index) => ({ cardId, index }))
+    .sort((left, right) => {
+      const leftCard = CARDS[left.cardId]
+      const rightCard = CARDS[right.cardId]
+      return leftCard.cost - rightCard.cost
+        || leftCard.attributes[0].localeCompare(rightCard.attributes[0])
+        || leftCard.name.localeCompare(rightCard.name, 'ko-KR')
+        || left.index - right.index
+    })
+  const filteredPool = indexedPool
+    .filter(({ cardId }) => {
+      const card = CARDS[cardId]
+      return (!normalizedQuery
+          || card.name.toLocaleLowerCase('ko-KR').includes(normalizedQuery)
+          || card.rulesText.toLocaleLowerCase('ko-KR').includes(normalizedQuery))
+        && (draftAttributeFilter === 'all' || card.attributes.includes(draftAttributeFilter))
+        && (draftTypeFilter === 'all' || card.type === draftTypeFilter)
+        && (draftCostFilter === 'all' || (draftCostFilter === 6 ? card.cost >= 6 : card.cost === draftCostFilter))
+        && (draftSetFilter === 'all' || card.setId === draftSetFilter)
+    })
+  const groupedPool = [...filteredPool.reduce((groups, entry) => {
+    const existing = groups.get(entry.cardId)
+    if (existing) existing.push(entry.index)
+    else groups.set(entry.cardId, [entry.index])
+    return groups
+  }, new Map<CardId, number[]>())]
+  const cards = groupedPool.map(([cardId, indices]) => {
+    const selectedIndices = indices.filter((index) => selected.has(index))
+    const selectedCopies = selectedIndices.length
+    const removeIndex = selectedIndices.at(-1)
+    const addIndex = indices.find((index) => !selected.has(index))
+    const isSelected = selectedCopies > 0
+    return `<article class="card-pool-item draft-pool-card ${isSelected ? 'is-selected' : ''}" data-preview-card-id="${cardId}" tabindex="0" aria-label="${escapeHtml(CARDS[cardId].name)} 상세 보기">
+      <button type="button" class="card-pool-card" data-draft-preview="${cardId}" aria-label="${escapeHtml(CARDS[cardId].name)} 상세 고정">
+        ${renderCard(cardId, { interactive: false, classNames: ['builder-pool-card', 'game-card--center-name'] })}
       </button>
+      <div class="card-pool-item__footer draft-quantity-footer">
+        <button type="button" class="card-quantity-button" data-action="toggle-draft-card" data-draft-index="${removeIndex ?? ''}" aria-label="${escapeHtml(CARDS[cardId].name)} 한 장 빼기" ${view.confirmed || removeIndex === undefined ? 'disabled' : ''}>−</button>
+        <strong class="card-copy-count">${selectedCopies} / ${indices.length}</strong>
+        <button type="button" class="card-quantity-button" data-action="toggle-draft-card" data-draft-index="${addIndex ?? ''}" aria-label="${escapeHtml(CARDS[cardId].name)} 한 장 넣기" ${view.confirmed || addIndex === undefined || selectedCount >= view.deckSize ? 'disabled' : ''}>＋</button>
+      </div>
     </article>`
   }).join('')
-  const selectedCount = view.selectedIndices.length
   const remaining = view.deckSize - selectedCount
+  const selectedCardIds = view.selectedIndices.map((index) => view.pool.cardIds[index]).filter(Boolean)
+  const attributeCounts = getAttributeDistribution(selectedCardIds)
+  const costCounts = getCostDistribution(selectedCardIds)
+  const distributionMax = Math.max(1, ...Object.values(attributeCounts), ...Object.values(costCounts))
+  const attributeRows = (['fire', 'water', 'earth', 'dark', 'light'] as CardAttributeId[])
+    .map((id) => `<div class="distribution-row"><span>${escapeHtml(CARD_ATTRIBUTES[id].name)}</span><span class="distribution-track"><span style="width:${attributeCounts[id] / distributionMax * 100}%"></span></span><strong>${attributeCounts[id]}</strong></div>`).join('')
+    + `<div class="distribution-row"><span>다속성</span><span class="distribution-track"><span style="width:${attributeCounts.multi / distributionMax * 100}%"></span></span><strong>${attributeCounts.multi}</strong></div>`
+  const sixPlus = Object.entries(costCounts).filter(([cost]) => Number(cost) >= 6).reduce((sum, [, count]) => sum + count, 0)
+  const costRows = [0, 1, 2, 3, 4, 5]
+    .map((cost) => `<div class="distribution-row"><span>비용 ${cost}</span><span class="distribution-track"><span style="width:${(costCounts[cost] ?? 0) / distributionMax * 100}%"></span></span><strong>${costCounts[cost] ?? 0}</strong></div>`).join('')
+    + `<div class="distribution-row"><span>비용 6 이상</span><span class="distribution-track"><span style="width:${sixPlus / distributionMax * 100}%"></span></span><strong>${sixPlus}</strong></div>`
+  const selectedGroups = [...indexedPool.reduce((groups, { cardId, index }) => {
+    if (!selected.has(index)) return groups
+    const existing = groups.get(cardId)
+    if (existing) existing.push(index)
+    else groups.set(cardId, [index])
+    return groups
+  }, new Map<CardId, number[]>())]
+  const selectedCards = selectedGroups.map(([cardId, indices]) => {
+    const card = CARDS[cardId]
+    const attributes = card.attributes.map((attributeId) => CARD_ATTRIBUTES[attributeId].shortName).join('·')
+    const availableIndices = indexedPool.filter((entry) => entry.cardId === cardId).map((entry) => entry.index)
+    const addIndex = availableIndices.find((index) => !selected.has(index))
+    const removeIndex = indices.at(-1)
+    return `<li class="draft-deck-row" data-preview-card-id="${cardId}" tabindex="0">
+      <button type="button" class="draft-deck-row__card" data-draft-preview="${cardId}">
+        <span>${card.cost}</span><span><strong>${escapeHtml(card.name)}</strong><small>${escapeHtml(attributes)} · ${card.type === 'unit' ? '몬스터' : '주문'}</small></span>
+      </button>
+      <div class="draft-deck-row__quantity">
+        <button type="button" data-action="toggle-draft-card" data-draft-index="${removeIndex ?? ''}" aria-label="${escapeHtml(card.name)} 한 장 빼기" ${view.confirmed ? 'disabled' : ''}>−</button>
+        <strong>×${indices.length}</strong>
+        <button type="button" data-action="toggle-draft-card" data-draft-index="${addIndex ?? ''}" aria-label="${escapeHtml(card.name)} 한 장 넣기" ${view.confirmed || addIndex === undefined || selectedCount >= view.deckSize ? 'disabled' : ''}>＋</button>
+      </div>
+    </li>`
+  }).join('')
+  const setTabs = [...new Set(view.pool.cardIds.map((cardId) => CARDS[cardId].setId))]
+    .map((setId) => `<button type="button" class="card-set-tab ${draftSetFilter === setId ? 'is-active' : ''}" data-draft-set-filter="${setId}"><strong>${escapeHtml(CARD_SETS[setId].code)}</strong><span>${view.pool.cardIds.filter((id) => CARDS[id].setId === setId).length}</span></button>`).join('')
 
-  return `<main class="server-draft" aria-labelledby="draft-title">
-    <header class="server-draft__header">
-      <div>
-        <p class="eyebrow">SERVER DRAFT · ${view.poolSize} CARD POOL</p>
-        <h2 id="draft-title">${view.deckSize}장의 덱을 고르세요</h2>
-        <p>두 플레이어에게 각자의 카드 풀이 지급되었습니다. 같은 카드는 최대 ${getFormat(roomSettings.formatId).maxCopiesPerCard}장까지 선택할 수 있습니다.</p>
-      </div>
-      <div class="draft-clock" aria-label="남은 드래프트 시간">
-        <span>남은 시간</span>
-        <strong id="draft-timer">${formatDuration(view.deadlineAt - Date.now())}</strong>
-      </div>
+  return `<main class="app-shell deck-builder-screen draft-deck-builder-screen" aria-labelledby="draft-title">
+    <header class="builder-header">
+      <div class="builder-header__brand"><div><p class="eyebrow">SERVER DRAFT</p><h1 id="draft-title">덱 빌더</h1></div></div>
+      <div class="draft-builder-header-status"><span>내 덱 <strong>${selectedCount}/${view.deckSize}</strong></span><span>상대 <strong>${view.opponentSelectedCount}/${view.deckSize}</strong></span><small>${view.opponentConfirmed ? '상대 확정 완료' : '상대 선택 중'}</small></div>
+      <div class="draft-clock" aria-label="남은 드래프트 시간"><span>남은 시간</span><strong id="draft-timer">${formatDuration(view.deadlineAt - Date.now())}</strong></div>
     </header>
-    <section class="draft-status-row" aria-live="polite">
-      <div class="${view.confirmed ? 'is-ready' : ''}"><span>내 덱</span><strong>${selectedCount} / ${view.deckSize}</strong><small>${view.confirmed ? '확정 완료' : remaining > 0 ? `${remaining}장 더 선택` : '확정 가능'}</small></div>
-      <div class="${view.opponentConfirmed ? 'is-ready' : ''}"><span>상대</span><strong>${view.opponentSelectedCount} / ${view.deckSize}</strong><small>${view.opponentConfirmed ? '확정 완료' : '선택 중'}</small></div>
-      <button id="confirm-draft-button" class="ready-primary" type="button" ${selectedCount === view.deckSize && !view.confirmed ? '' : 'disabled'}>${view.confirmed ? '확정 완료' : '이 덱으로 확정'}</button>
+    <section class="deck-builder-workspace">
+      <aside class="panel deck-filters">
+        <div class="section-heading"><h2>카드 찾기</h2><span>${filteredPool.length}장</span></div>
+        <label>검색<input id="draft-card-search" type="search" value="${escapeHtml(draftSearchQuery)}" placeholder="이름 또는 능력"></label>
+        <label>속성<select id="draft-attribute-filter"><option value="all">전체 속성</option>${Object.values(CARD_ATTRIBUTES).map((attribute) => `<option value="${attribute.id}" ${draftAttributeFilter === attribute.id ? 'selected' : ''}>${escapeHtml(attribute.name)}</option>`).join('')}</select></label>
+        <label>종류<select id="draft-type-filter"><option value="all">전체 종류</option><option value="unit" ${draftTypeFilter === 'unit' ? 'selected' : ''}>몬스터</option><option value="spell" ${draftTypeFilter === 'spell' ? 'selected' : ''}>주문</option></select></label>
+        <label>비용<select id="draft-cost-filter"><option value="all">전체 비용</option>${[0,1,2,3,4,5,6].map((cost) => `<option value="${cost}" ${draftCostFilter === cost ? 'selected' : ''}>비용 ${cost}${cost === 6 ? ' 이상' : ''}</option>`).join('')}</select></label>
+        <div class="deck-format-note"><strong>드래프트</strong>${view.poolSize}장 중 ${view.deckSize}장을 선택합니다. 같은 카드는 최대 ${getFormat(roomSettings.formatId).maxCopiesPerCard}장입니다.</div>
+        <section class="deck-stats"><h3>속성 분포</h3>${attributeRows}<h3>비용 분포</h3>${costRows}<p>평균 비용: <strong>${getAverageCost(selectedCardIds).toFixed(2)}</strong></p></section>
+      </aside>
+      <section class="panel card-pool-panel">
+        <header class="section-heading"><div><h2>카드 풀</h2><p>클릭해 상세 고정 · 버튼으로 추가</p></div><span>${view.poolSize}장 지급</span></header>
+        <div class="card-pool-stage">
+          <section class="card-set-tabs"><div class="card-set-tabs__label"><strong>카드 세트</strong></div><div class="card-set-tabs__buttons"><button type="button" class="card-set-tab ${draftSetFilter === 'all' ? 'is-active' : ''}" data-draft-set-filter="all"><strong>전체</strong><span>${view.poolSize}</span></button>${setTabs}</div></section>
+          <div class="card-pool-grid draft-pool-grid" aria-label="드래프트 카드 풀">${cards || '<p class="empty-row">조건에 맞는 카드가 없습니다.</p>'}</div>
+        </div>
+      </section>
+      <aside class="builder-side-rail">
+        ${renderCardInspector()}
+        <section class="panel current-deck-panel draft-current-deck">
+          <header class="section-heading"><div><h2>현재 덱</h2><p>${view.confirmed ? '확정 완료' : remaining > 0 ? `${remaining}장 더 선택` : '확정 가능'}</p></div><strong>${selectedCount}/${view.deckSize}</strong></header>
+          <ol class="deck-list">${selectedCards || '<li class="draft-deck-empty">카드 풀에서 카드를 추가해 주세요.</li>'}</ol>
+          <div class="draft-current-deck__footer"><p>${escapeHtml(message)}</p><button id="confirm-draft-button" class="ready-primary" type="button" ${selectedCount === view.deckSize && !view.confirmed ? '' : 'disabled'}>${view.confirmed ? '확정 완료' : '이 덱으로 확정'}</button></div>
+        </section>
+      </aside>
     </section>
-    <section class="draft-pool-grid" aria-label="드래프트 카드 풀">${cards}</section>
-    <footer class="server-draft__footer"><span>${escapeHtml(message)}</span><span>시간이 끝나면 선택하지 못한 자리는 서버가 자동으로 채웁니다.</span></footer>
   </main>`
 }
 
@@ -2287,6 +2521,32 @@ function renderWaitingRoom(): string {
   </section></div>`
 }
 
+function renderPeerSetup(): string {
+  const setup = getPeerSetupState()
+  if (!setup || setup.connected) return ''
+  const isHost = setup.role === 'host'
+  const busy = ['creating-offer', 'reading-offer', 'creating-answer', 'applying-answer'].includes(setup.stage)
+  const hostCanImport = setup.stage === 'waiting-for-answer' || setup.stage === 'failed'
+  const guestCanCopy = setup.stage === 'answer-ready'
+  return `<div class="waiting-stage"><section class="panel match-lobby peer-setup">
+    <header class="match-lobby__header">
+      <div><p class="eyebrow">SERVERLESS P2P</p><h2>${isHost ? '친구를 초대하세요' : '방장에게 응답하세요'}</h2></div>
+      <span class="connection-state">${escapeHtml(setup.stage)}</span>
+    </header>
+    <p class="match-lobby__message">${escapeHtml(setup.status)}</p>
+    <div class="peer-setup__actions">
+      ${isHost
+        ? `<button id="copy-host-invite" class="is-primary" type="button" ${busy ? 'disabled' : ''}>${setup.stage === 'waiting-for-answer' ? '초대 정보 다시 복사' : '초대 정보 복사'}</button>
+          <button id="import-host-response" type="button" ${hostCanImport ? '' : 'disabled'}>응답 정보 가져오기</button>`
+        : `<button id="import-guest-invite" class="is-primary" type="button" ${busy ? 'disabled' : ''}>초대 정보 가져오기</button>
+          <button id="copy-guest-response" type="button" ${guestCanCopy ? '' : 'disabled'}>응답 정보 복사</button>`}
+      <button id="leave-peer-setup" type="button">로비로 돌아가기</button>
+    </div>
+    ${setup.error ? `<p class="form-error" role="alert">${escapeHtml(setup.error)}</p>` : ''}
+    <p class="field-help">게임 상태와 방 관리는 방장 브라우저에만 존재합니다. 방장이 페이지를 닫으면 방도 종료됩니다.</p>
+  </section></div>`
+}
+
 function render(): void {
   const manaDrawerScrollState = captureManaDrawerScrollState()
   const opponentId: PlayerId | null = game
@@ -2298,7 +2558,10 @@ function render(): void {
   document.body.classList.toggle('draft-active', roomPhase === 'drafting')
   document.body.classList.toggle('room-waiting-active', game === null && !joinRejectedMessage && !hasLeftRoom)
 
-  if (joinRejectedMessage || hasLeftRoom) {
+  const peerSetup = getPeerSetupState()
+  if (peerSetup && !peerSetup.connected) {
+    content = renderPeerSetup()
+  } else if (joinRejectedMessage || hasLeftRoom) {
     content = `<section class="panel room-ended-panel"><h2>${escapeHtml(joinRejectedMessage ?? '자리에서 나왔습니다.')}</h2><a class="button-link" href="./">첫 화면</a></section>`
   } else if (!game && roomPhase === 'drafting') content = renderDraftRoom()
   else if (!game) content = renderWaitingRoom()
@@ -2362,6 +2625,41 @@ function render(): void {
 }
 
 function sendAction(action: GameAction): void {
+  if (isTutorial) {
+    const expectedTypes: GameAction['type'][] = [
+      'PLACE_MANA',
+      'END_TURN',
+      'PLAY_CARD',
+      'END_TURN',
+      'ATTACK_UNIT',
+      'END_TURN',
+      'ATTACK_PLAYER',
+      'PLAY_CARD',
+      'ATTACK_PLAYER',
+    ]
+    if (action.type !== expectedTypes[tutorialStep]) {
+      gameNotice = TUTORIAL_MESSAGES[tutorialStep] ?? null
+      render()
+      return
+    }
+    if (tutorialStep === 0 && action.type === 'PLACE_MANA' && action.cardInstanceId !== 'mana-source') return
+    if (tutorialStep === 2 && action.type === 'PLAY_CARD' && action.cardInstanceId !== 'summon-card') return
+    if (tutorialStep === 7 && action.type === 'PLAY_CARD' && action.cardInstanceId !== 'evolution-card') return
+    setTutorialStep(tutorialStep + 1)
+    if (action.type === 'END_TURN' && game) {
+      const key = `${game.turnNumber}:${game.viewer}`
+      turnAnnouncementKey = key
+      if (turnAnnouncementTimer !== null) window.clearTimeout(turnAnnouncementTimer)
+      turnAnnouncementTimer = window.setTimeout(() => {
+        if (turnAnnouncementKey === key) {
+          turnAnnouncementKey = null
+          render()
+        }
+      }, 1500)
+    }
+    render()
+    return
+  }
   awaitingServer = true
   sendPlayerAction(socket, action)
   render()
@@ -2799,6 +3097,50 @@ function bindWaitingRoomEvents(): void {
     sendDeckReady(socket, nextReady)
     render()
   })
+  const renderDraftFilters = (focusSearch = false): void => {
+    const scrollTop = document.querySelector<HTMLElement>('.draft-pool-grid')?.scrollTop ?? 0
+    const cursor = document.querySelector<HTMLInputElement>('#draft-card-search')?.selectionStart ?? draftSearchQuery.length
+    render()
+    const pool = document.querySelector<HTMLElement>('.draft-pool-grid')
+    if (pool) pool.scrollTop = scrollTop
+    if (focusSearch) {
+      const input = document.querySelector<HTMLInputElement>('#draft-card-search')
+      input?.focus({ preventScroll: true })
+      input?.setSelectionRange(cursor, cursor)
+    }
+  }
+  document.querySelector<HTMLInputElement>('#draft-card-search')?.addEventListener('input', (event) => {
+    draftSearchQuery = (event.currentTarget as HTMLInputElement).value
+    renderDraftFilters(true)
+  })
+  document.querySelector<HTMLSelectElement>('#draft-attribute-filter')?.addEventListener('change', (event) => {
+    const value = (event.currentTarget as HTMLSelectElement).value
+    draftAttributeFilter = value === 'all' ? 'all' : value as CardAttributeId
+    renderDraftFilters()
+  })
+  document.querySelector<HTMLSelectElement>('#draft-type-filter')?.addEventListener('change', (event) => {
+    const value = (event.currentTarget as HTMLSelectElement).value
+    draftTypeFilter = value === 'unit' || value === 'spell' ? value : 'all'
+    renderDraftFilters()
+  })
+  document.querySelector<HTMLSelectElement>('#draft-cost-filter')?.addEventListener('change', (event) => {
+    const value = (event.currentTarget as HTMLSelectElement).value
+    draftCostFilter = value === 'all' ? 'all' : Number(value)
+    renderDraftFilters()
+  })
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-draft-set-filter]')) {
+    button.addEventListener('click', () => {
+      const value = button.dataset.draftSetFilter
+      draftSetFilter = value === 'all' || !value ? 'all' : value as import('../content/schema').SetId
+      renderDraftFilters()
+    })
+  }
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-draft-preview]')) {
+    button.addEventListener('click', () => {
+      const cardId = button.dataset.draftPreview as CardId | undefined
+      if (cardId) setCardInspector(cardId, true)
+    })
+  }
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-action="toggle-draft-card"]')) {
     button.addEventListener('click', () => {
       if (!draftView || draftView.confirmed) return
@@ -2810,7 +3152,7 @@ function bindWaitingRoomEvents(): void {
       } else {
         if (selected.size >= draftView.deckSize) {
           message = `드래프트 덱은 ${draftView.deckSize}장입니다.`
-          render()
+          renderDraftFilters()
           return
         }
         const cardId = draftView.pool.cardIds[index]
@@ -2820,7 +3162,7 @@ function bindWaitingRoomEvents(): void {
         const copyLimit = getFormat(roomSettings.formatId).maxCopiesPerCard
         if (copyCount >= copyLimit) {
           message = `같은 카드는 최대 ${copyLimit}장까지 선택할 수 있습니다.`
-          render()
+          renderDraftFilters()
           return
         }
         selected.add(index)
@@ -2830,7 +3172,7 @@ function bindWaitingRoomEvents(): void {
         selectedIndices: [...selected].sort((left, right) => left - right),
       }
       sendDraftSelection(socket, draftView.selectedIndices)
-      render()
+      renderDraftFilters()
     })
   }
   document.querySelector<HTMLButtonElement>('#confirm-draft-button')?.addEventListener('click', () => {
@@ -3179,6 +3521,10 @@ function bindRoomActionEvents(): void {
   document.querySelector<HTMLButtonElement>('#end-turn-button')?.addEventListener('click', () => sendAction({ type: 'END_TURN' }))
   document.querySelector<HTMLButtonElement>('#surrender-button')?.addEventListener('click', () => sendAction({ type: 'SURRENDER' }))
   document.querySelector<HTMLButtonElement>('#rematch-button')?.addEventListener('click', () => {
+    if (isTutorial) {
+      window.location.assign(window.location.pathname)
+      return
+    }
     if (game) {
       gameNotice = null
       sendRematchReady(socket, true)
@@ -3188,7 +3534,10 @@ function bindRoomActionEvents(): void {
     gameNotice = null
     render()
   })
-  document.querySelector<HTMLButtonElement>('#leave-room-button')?.addEventListener('click', () => sendLeaveRoom(socket))
+  document.querySelector<HTMLButtonElement>('#leave-room-button')?.addEventListener('click', () => {
+    if (isTutorial) window.location.assign(window.location.pathname)
+    else sendLeaveRoom(socket)
+  })
   document.querySelector<HTMLButtonElement>('#copy-invite-button')?.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(pageUrl.toString())
@@ -3217,6 +3566,14 @@ function bindEvents(): void {
   bindAttackEvents()
   bindPendingChoiceEvents()
   bindRoomActionEvents()
+  document.querySelector<HTMLButtonElement>('#copy-host-invite')?.addEventListener('click', () => { void copyHostInviteInformation() })
+  document.querySelector<HTMLButtonElement>('#import-host-response')?.addEventListener('click', () => { void importHostResponseInformation() })
+  document.querySelector<HTMLButtonElement>('#import-guest-invite')?.addEventListener('click', () => { void importGuestInviteInformation() })
+  document.querySelector<HTMLButtonElement>('#copy-guest-response')?.addEventListener('click', () => { void copyGuestResponseInformation() })
+  document.querySelector<HTMLButtonElement>('#leave-peer-setup')?.addEventListener('click', () => {
+    socket.close()
+    window.location.assign(window.location.pathname)
+  })
 }
 
 window.setInterval(updateClock, 250)

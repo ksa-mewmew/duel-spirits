@@ -56,13 +56,16 @@ export function parseRoomFormatId(rawValue: string | null): GameFormatId {
 
 export function parseSelectedSetIds(rawValue: string | null, formatId: GameFormatId): SetId[] {
   const format = getFormat(formatId)
-  if (format.cardPool.type !== 'selected-sets') return []
+  if (format.cardPool.type !== 'selected-sets' && format.deckSource !== 'draft') return []
 
   const parsed = (rawValue ?? '')
     .split(',')
     .filter((value): value is SetId => SET_IDS.includes(value as SetId))
 
-  return parsed.length ? [...new Set(parsed)] : [...format.cardPool.defaultSetIds]
+  if (parsed.length) return [...new Set(parsed)]
+  return format.cardPool.type === 'selected-sets'
+    ? [...format.cardPool.defaultSetIds]
+    : [...SET_IDS]
 }
 
 export function createDefaultRoomSettings(): RoomSettings {
