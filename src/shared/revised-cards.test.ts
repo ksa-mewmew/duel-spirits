@@ -201,13 +201,17 @@ describe('카드군 1 최신 능력', () => {
       { instanceId: 'seeder', cardId: 'seeding_fairy' },
       { instanceId: 'effect-extra', cardId: 'living_flame' },
     ]
-    effectGame.players.P1.mana = [mana('earth-1', 'heavy_seed')]
+    effectGame.players.P1.mana = [
+      mana('earth-1', 'heavy_seed'),
+      mana('earth-2', 'heavy_seed'),
+      mana('earth-3', 'heavy_seed'),
+    ]
     effectGame.players.P1.deck = [{ instanceId: 'tree-effect', cardId: 'tree_fairy' }]
 
     const choosingFromEffect = applyAction(effectGame, 'P1', {
       type: 'PLAY_CARD',
       cardInstanceId: 'seeder',
-      manaIds: ['earth-1'],
+      manaIds: ['earth-1', 'earth-2', 'earth-3'],
       selection: { fieldSlot: 0 },
     })
     expect(choosingFromEffect.players.P1.mana).toContainEqual(

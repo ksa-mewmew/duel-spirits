@@ -126,16 +126,18 @@ describe('MatchHost', () => {
     const player = snapshot.game.players.P1
     const seedingFairy = player.hand[0]!
     seedingFairy.cardId = 'seeding_fairy'
-    const [payment] = player.hand.splice(1, 1)
-    payment!.cardId = 'heavy_seed'
-    player.mana.push({ ...payment!, exhausted: false })
     player.deck[0]!.cardId = 'tree_fairy'
+    const payments = player.deck.splice(1, 3)
+    for (const payment of payments) {
+      payment.cardId = 'heavy_seed'
+      player.mana.push({ ...payment, exhausted: false })
+    }
 
     const host = MatchHost.restore(snapshot)
     const next = host.dispatch('P1', {
       type: 'PLAY_CARD',
       cardInstanceId: seedingFairy.instanceId,
-      manaIds: [payment!.instanceId],
+      manaIds: payments.map((payment) => payment.instanceId),
       selection: { fieldSlot: 0 },
     }, { createdAt: 2_000 })
 

@@ -1,4 +1,5 @@
 import { SAMPLE_DECK_LIST } from '../content/sample-decks'
+import { validateDeck } from '../shared/decks'
 import { createMatchConfig } from '../shared/match-config'
 import { LocalMatchAuthorityAdapter } from '../shared/match-authority-adapters'
 import { createGameView } from '../shared/views'
@@ -25,21 +26,25 @@ export class LocalAiSocket implements MessageSocket {
   private localDeck: SubmittedDeck | null = null
   private localReady = false
   private botDeckCardIds: SubmittedDeck['cardIds'] = []
+  private botDeckName = '랜덤 견본 덱'
   private closed = false
   private botTimer: number | null = null
   private readonly bot = getBotPolicy('value')
   private readonly roomId: string
   private readonly settings: RoomSettings
   private readonly handlers: RoomConnectionHandlers
+  private readonly requestedBotDeckId: string | null
 
   constructor(
     roomId: string,
     settings: RoomSettings,
     handlers: RoomConnectionHandlers,
+    requestedBotDeckId: string | null = null,
   ) {
     this.roomId = roomId
     this.settings = settings
     this.handlers = handlers
+    this.requestedBotDeckId = requestedBotDeckId
     queueMicrotask(() => {
       if (this.closed) return
       this.handlers.onOpen?.()
@@ -86,7 +91,7 @@ export class LocalAiSocket implements MessageSocket {
       P2: {
         submitted: true,
         ready: true,
-        name: 'AI · 가치형',
+        name: `AI · ${this.botDeckName}`,
       },
     }
   }
@@ -143,7 +148,15 @@ export class LocalAiSocket implements MessageSocket {
 
   private startMatch(): void {
     if (!this.localDeck) return
-    const sampleAiDeck = SAMPLE_DECK_LIST.find((deck) => deck.formatId === this.localDeck?.formatId)
+    const compatibleSampleDecks = SAMPLE_DECK_LIST.filter((deck) => (
+      deck.formatId === this.localDeck?.formatId
+      && this.localDeck
+      && validateDeck(deck.cardIds, this.localDeck).valid
+    ))
+    const requestedDeck = compatibleSampleDecks.find((deck) => deck.id === this.requestedBotDeckId)
+    const sampleAiDeck = requestedDeck
+      ?? compatibleSampleDecks[Math.floor(Math.random() * compatibleSampleDecks.length)]
+      ?? SAMPLE_DECK_LIST.find((deck) => deck.formatId === this.localDeck?.formatId)
       ?? SAMPLE_DECK_LIST[0]
     if (!sampleAiDeck) throw new Error('AI 기본 덱을 찾지 못했습니다.')
     // Draft pools are private to one room, so an offline AI uses a mirror of
@@ -151,6 +164,7 @@ export class LocalAiSocket implements MessageSocket {
     const mirrorLocalDeck = this.localDeck.formatId === 'draft-v1'
     const aiCardIds = mirrorLocalDeck ? this.localDeck.cardIds : sampleAiDeck.cardIds
     this.botDeckCardIds = [...aiCardIds]
+    this.botDeckName = mirrorLocalDeck ? `${this.localDeck.name} 미러` : sampleAiDeck.name
 
     const matchConfig = createMatchConfig({
       formatId: this.localDeck.formatId,

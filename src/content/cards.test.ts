@@ -20,7 +20,7 @@ const BALANCE = {
   reverse_current: ['역류', 'spell', 2, null, null, ['water']],
   tsunami: ['쓰나미', 'spell', 2, null, null, ['water', 'earth']],
   tree_fairy: ['나무에 사는 요정', 'unit', 1, 1, 1, ['earth']],
-  seeding_fairy: ['씨 뿌리는 요정', 'unit', 1, 1, 1, ['earth']],
+  seeding_fairy: ['씨 뿌리는 요정', 'unit', 3, 1, 1, ['earth']],
   heavy_seed: ['너무 무거운 씨앗', 'unit', 3, 1, 3, ['earth']],
   rock_armor_knight: ['바위 갑옷 기사', 'unit', 3, 2, 4, ['earth']],
   desertification: ['사막화', 'spell', 5, null, null, ['earth']],

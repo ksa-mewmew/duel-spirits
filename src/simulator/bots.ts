@@ -629,6 +629,40 @@ function publicDeltaForAction(
   ) * weights.stateDelta
 }
 
+function evolutionAttackOpportunityCost(
+  action: Extract<GameAction, { type: 'PLAY_CARD' }>,
+  context: BotDecisionContext,
+  weights: HeuristicWeights,
+): number {
+  const baseId = action.selection?.evolutionUnitId
+  if (!baseId) return 0
+  const own = context.view.players[context.actor]
+  const enemy = context.view.players[enemyOf(context.actor)]
+  const attacker = own.field.find((unit) => unit.instanceId === baseId)
+  if (!attacker) return 0
+
+  let hasFavorableUnitAttack = false
+  const attackValues = context.legalActions.flatMap((candidate) => {
+    if (candidate.type === 'ATTACK_PLAYER' && candidate.attackerId === baseId) {
+      const lifeLoss = candidate.lifeSlotIndices?.length ?? 0
+      const lethal = enemy.lifeCount <= lifeLoss ? 100000 : 0
+      return [weights.directAttack * Math.max(1, lifeLoss) + lethal]
+    }
+    if (candidate.type === 'ATTACK_UNIT' && candidate.attackerId === baseId) {
+      const defender = enemy.field.find((unit) => unit.instanceId === candidate.defenderId)
+      if (!defender) return []
+      const value = combatScore(attacker, defender, weights)
+      if (value > weights.unitAttack) hasFavorableUnitAttack = true
+      return [value]
+    }
+    return []
+  })
+  const bestAttack = Math.max(0, ...attackValues)
+  // The same unit can attack, then be evolved, and the evolved unit can attack
+  // again. Never throw away a favorable first combat by evolving prematurely.
+  return hasFavorableUnitAttack ? 10_000 + bestAttack : bestAttack
+}
+
 function scoreAction(
   action: GameAction,
   context: BotDecisionContext,
@@ -653,6 +687,7 @@ function scoreAction(
         + strategicPlayBonus(card, context, weights, strategy)
         + paidAttributes.size * 10
         - action.manaIds.length * 3
+        - evolutionAttackOpportunityCost(action, context, weights) * 1.05
         + stateDelta
     }
     case 'SUMMON_FROM_MANA': {

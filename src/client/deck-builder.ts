@@ -757,8 +757,8 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
           </section>
         </aside>
       </section>
-      ${renderRulebookModal()}
-    </main>`
+    </main>
+    ${renderRulebookModal()}`
 
     bindCardKeywordTooltips(appElement)
     document.querySelector<HTMLButtonElement>('#builder-rulebook-button')?.addEventListener('click', openRulebook)

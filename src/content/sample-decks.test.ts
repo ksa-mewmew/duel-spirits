@@ -10,7 +10,7 @@ describe('sample decks', () => {
     expect(SAMPLE_DECK_LIST.map((deck) => deck.name)).toEqual([
       '잿더미의 산맥',
       '일어서는 대지',
-      '일식의 징조',
+      '성령의 계율',
       '소용돌이치는 파도',
     ])
 

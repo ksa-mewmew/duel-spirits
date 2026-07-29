@@ -81,7 +81,12 @@ export function connectToRoom(
     }
   }
   if (pageUrl.searchParams.get('ai') === '1') {
-    return new LocalAiSocket(roomId, credentials.requestedSettings, handlers)
+    return new LocalAiSocket(
+      roomId,
+      credentials.requestedSettings,
+      handlers,
+      pageUrl.searchParams.get('aiDeck'),
+    )
   }
   const socket = new PartySocket({
     host: getGameServerHost(),

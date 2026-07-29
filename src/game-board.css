@@ -1462,7 +1462,9 @@ button.card-pile {
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 12px;
   width: min(940px, 100%);
-  max-height: min(90svh, 820px);
+  height: min(88svh, 820px);
+  max-height: min(88svh, 820px);
+  box-sizing: border-box;
   padding: 17px;
   border: 1px solid #505662;
   border-radius: 16px;
@@ -1507,6 +1509,8 @@ button.card-pile {
   min-height: 0;
   padding: 4px 7px 12px 2px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   scroll-behavior: smooth;
 }
 

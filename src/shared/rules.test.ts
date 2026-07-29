@@ -305,6 +305,8 @@ describe('카드 상호작용 보강', () => {
     ]
     game.players.P1.mana = [
       { instanceId: 'earth-mana', cardId: 'seeding_fairy', exhausted: false },
+      { instanceId: 'earth-mana-2', cardId: 'heavy_seed', exhausted: false },
+      { instanceId: 'earth-mana-3', cardId: 'tree_fairy', exhausted: false },
     ]
     game.players.P1.deck = [
       { instanceId: 'tree-on-top', cardId: 'tree_fairy' },
@@ -313,7 +315,7 @@ describe('카드 상호작용 보강', () => {
     const choosing = applyAction(game, 'P1', {
       type: 'PLAY_CARD',
       cardInstanceId: 'seeder',
-      manaIds: ['earth-mana'],
+      manaIds: ['earth-mana', 'earth-mana-2', 'earth-mana-3'],
       selection: { fieldSlot: 0 },
     })
 

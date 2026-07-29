@@ -859,6 +859,27 @@ select {
   display: none !important;
 }
 
+.lobby-ai-action {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(190px, .9fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid rgba(219, 191, 112, .48);
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(219, 191, 112, .13), rgba(12, 17, 23, .88));
+}
+
+.lobby-ai-action label {
+  display: grid;
+  gap: 3px;
+}
+
+.lobby-ai-action label strong { color: #fff3ca; font-size: 15px; }
+.lobby-ai-action label span { color: var(--muted); font-size: 12px; }
+.lobby-ai-action select,
+.lobby-ai-action button { min-height: 42px; }
+
 .lobby-action-button {
   width: 100%;
   min-height: 6.4cqh;
@@ -2121,7 +2142,14 @@ body.room-waiting-active { background: #030506; }
 .discard-backdrop .discard-dialog {
   width: min(1040px, 100%) !important;
 }
-.rulebook-dialog { max-height: min(88vh, 850px); }
+.rulebook-dialog {
+  height: min(88svh, 820px);
+  max-height: min(88svh, 820px);
+}
+
+.rulebook-backdrop--page {
+  z-index: 190;
+}
 
 @media (max-aspect-ratio: 16 / 9) {
   body { min-width: 0; }

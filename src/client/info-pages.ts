@@ -29,17 +29,30 @@ export function renderPatchNotes(appElement: HTMLDivElement): void {
 
 export function renderRulebookPage(appElement: HTMLDivElement): void {
   const document = createRulebookDocument(getFormat(DEFAULT_FORMAT_ID))
-  const sections = document.sections.map((section) => `<article id="${escapeHtml(section.id)}" class="rulebook-page-section">
-    <h2>${escapeHtml(section.title)}</h2>
+  const index = document.sections
+    .map((section) => `<a href="#${escapeHtml(section.id)}">${escapeHtml(section.navLabel)}</a>`)
+    .join('')
+  const sections = document.sections.map((section) => `<section id="${escapeHtml(section.id)}">
+    <h3>${escapeHtml(section.title)}</h3>
     ${section.blocks.map((block) => {
       if (block.type === 'paragraph') return `<p>${escapeHtml(block.text)}</p>`
-      if (block.type === 'callout') return `<aside><strong>${escapeHtml(block.title)}</strong><p>${escapeHtml(block.text)}</p></aside>`
-      if (block.type === 'terms') return `<dl>${block.items.map((item) => `<dt>${escapeHtml(item.term)}</dt><dd>${escapeHtml(item.description)}</dd>`).join('')}</dl>`
+      if (block.type === 'callout') return `<p><strong>${escapeHtml(block.title)}</strong><br>${escapeHtml(block.text)}</p>`
+      if (block.type === 'terms') return `<dl class="keyword-list">${block.items.map((item) => `<div><dt>${escapeHtml(item.term)}</dt><dd>${escapeHtml(item.description)}</dd></div>`).join('')}</dl>`
       const tag = block.ordered ? 'ol' : 'ul'
       return `<${tag}>${block.items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</${tag}>`
     }).join('')}
-  </article>`).join('')
-  appElement.innerHTML = pageShell(document.title, `<p class="info-lead">${escapeHtml(document.formatSummary)}</p>${sections}`)
+  </section>`).join('')
+  appElement.innerHTML = `<div class="modal-backdrop rulebook-backdrop rulebook-backdrop--page">
+    <section class="rulebook-dialog" role="dialog" aria-labelledby="rulebook-page-title">
+      <header class="rulebook-dialog__header">
+        <div><p class="eyebrow">DUEL SPIRITS</p><h2 id="rulebook-page-title">${escapeHtml(document.title)}</h2></div>
+        <a class="button-link" href="./" aria-label="룰북 닫기">닫기</a>
+      </header>
+      <nav class="rulebook-index" aria-label="룰북 목차">${index}</nav>
+      <div class="rulebook-content">${sections}</div>
+      <footer class="rulebook-dialog__footer"><span>규칙 ${escapeHtml(document.rulesVersion)} · ${escapeHtml(document.formatName)} · 카드 문구가 일반 규칙보다 우선합니다.</span><a class="button-link" href="./">로비로 돌아가기</a></footer>
+    </section>
+  </div>`
 }
 
 export function renderSupportPage(appElement: HTMLDivElement): void {

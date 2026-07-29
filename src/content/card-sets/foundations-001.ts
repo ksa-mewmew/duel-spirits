@@ -113,7 +113,7 @@ export const FOUNDATIONS_001_CARDS = {
     },
   ),
   seeding_fairy: u(
-    'seeding_fairy', '씨 뿌리는 요정', 1, 1, 1, ['earth'],
+    'seeding_fairy', '씨 뿌리는 요정', 3, 1, 1, ['earth'],
     '출현 - 자신의 덱에 카드가 있다면, 덱 맨 위 카드를 소진된 상태로 자신의 마나에 놓는다.',
     {
       flavorText: '씨앗은 땅에 묻혀야만 자라는 법이랍니다.',

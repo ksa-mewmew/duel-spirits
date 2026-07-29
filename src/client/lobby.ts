@@ -8,6 +8,7 @@ import {
 } from '../shared/room-settings'
 import { LOBBY_FORMATS, DEFAULT_FORMAT_ID, getFormat } from '../content/formats'
 import { CARD_SETS } from '../content/sets'
+import { SAMPLE_DECK_LIST } from '../content/sample-decks'
 import { validateDeck } from '../shared/decks'
 import { getAppVersion } from '../shared/version'
 
@@ -85,6 +86,11 @@ export function renderLobby(appElement: HTMLDivElement): void {
   const initialFormatId = LOBBY_FORMATS.some((format) => format.id === activeDeck.formatId)
     ? activeDeck.formatId
     : DEFAULT_FORMAT_ID
+  const compatibleAiDecks = SAMPLE_DECK_LIST
+    .filter((deck) => deck.formatId === activeDeck.formatId && validateDeck(deck.cardIds, activeDeck).valid)
+  const aiDeckOptions = compatibleAiDecks
+    .map((deck) => `<option value="${escapeHtml(deck.id)}">${escapeHtml(deck.name)} · ${escapeHtml(deck.styleLabel)}</option>`)
+    .join('')
 
   const turnOptions = TURN_LIMIT_OPTIONS.map((seconds) => createOptionMarkup(
     seconds,
@@ -134,7 +140,11 @@ export function renderLobby(appElement: HTMLDivElement): void {
       </section>
 
       <div id="lobby-action-menu" class="lobby-actions">
-        <a class="lobby-action-button button-link is-primary" href="?ai=1&format=${encodeURIComponent(activeDeck.formatId)}&sets=${encodeURIComponent(activeDeck.selectedSetIds.join(','))}"><span><strong>AI 대전</strong><br><span>현재 덱을 혼자 시험하고 패치를 검증합니다.</span></span><b>→</b></a>
+        <div class="lobby-ai-action">
+          <label for="ai-deck-select"><strong>AI 대전</strong><span>상대할 견본 덱을 선택하세요.</span></label>
+          <select id="ai-deck-select"><option value="random">랜덤 견본 덱</option>${aiDeckOptions}</select>
+          <button id="start-ai-match" class="is-primary" type="button" ${deckValidation.valid && compatibleAiDecks.length > 0 ? '' : 'disabled'}>대전 시작 →</button>
+        </div>
         <button class="lobby-action-button is-primary" type="button" data-lobby-mode="create"><span><strong>비공개 방 만들기</strong><br><span>포맷을 고르고 서버 방을 생성합니다.</span></span><b>→</b></button>
         <button class="lobby-action-button" type="button" data-lobby-mode="join"><span><strong>친구 방 참가</strong><br><span>방 코드 또는 초대 링크를 입력합니다.</span></span><b>→</b></button>
         <a class="lobby-action-button button-link" href="#decks"><span><strong>덱 빌더</strong><br><span>카드 풀을 살펴보고 사용할 덱을 구성합니다.</span></span><b>→</b></a>
@@ -227,6 +237,17 @@ export function renderLobby(appElement: HTMLDivElement): void {
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-lobby-back]')) {
     button.addEventListener('click', () => setLobbyMode('menu'))
   }
+  document.querySelector<HTMLButtonElement>('#start-ai-match')?.addEventListener('click', () => {
+    const aiDeckId = document.querySelector<HTMLSelectElement>('#ai-deck-select')?.value ?? 'random'
+    const url = new URL(window.location.href)
+    url.hash = ''
+    url.search = ''
+    url.searchParams.set('ai', '1')
+    url.searchParams.set('aiDeck', aiDeckId)
+    url.searchParams.set('format', activeDeck.formatId)
+    url.searchParams.set('sets', activeDeck.selectedSetIds.join(','))
+    window.location.assign(url.toString())
+  })
   document.querySelector<HTMLButtonElement>('#exit-game-button')?.addEventListener('click', () => {
     if (window.confirm('Duel Spirits를 종료할까요?')) void desktopWindow?.close()
   })
