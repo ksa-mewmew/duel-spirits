@@ -57,6 +57,43 @@ function settingsPath() {
   return path.join(app.getPath('userData'), 'desktop-settings.json')
 }
 
+function decksPath() {
+  return path.join(app.getPath('userData'), 'decks.json')
+}
+
+function decksBackupPath() {
+  return path.join(app.getPath('userData'), 'decks.backup.json')
+}
+
+function readDecksFile() {
+  const readValidDeckArray = (target) => {
+    try {
+      const raw = fs.readFileSync(target, 'utf8')
+      if (!Array.isArray(JSON.parse(raw))) return null
+      return raw
+    } catch {
+      return null
+    }
+  }
+  return readValidDeckArray(decksPath()) ?? readValidDeckArray(decksBackupPath())
+}
+
+function writeDecksFile(serializedDecks) {
+  if (typeof serializedDecks !== 'string' || serializedDecks.length > 2_000_000) {
+    throw new Error('덱 데이터가 올바르지 않습니다.')
+  }
+  const parsed = JSON.parse(serializedDecks)
+  if (!Array.isArray(parsed)) throw new Error('덱 데이터가 올바르지 않습니다.')
+
+  const target = decksPath()
+  const backup = decksBackupPath()
+  const temporary = `${target}.tmp`
+  fs.mkdirSync(path.dirname(target), { recursive: true })
+  if (fs.existsSync(target)) fs.copyFileSync(target, backup)
+  fs.writeFileSync(temporary, serializedDecks, 'utf8')
+  fs.renameSync(temporary, target)
+}
+
 function readResolution() {
   try {
     const saved = JSON.parse(fs.readFileSync(settingsPath(), 'utf8'))
@@ -116,6 +153,12 @@ function registerIpc() {
     clipboard.writeText(value)
   })
   ipcMain.handle('clipboard:read-text', () => clipboard.readText())
+  ipcMain.on('decks:load-sync', (event) => {
+    event.returnValue = readDecksFile()
+  })
+  ipcMain.handle('decks:save', (_event, serializedDecks) => {
+    writeDecksFile(serializedDecks)
+  })
   ipcMain.handle('app:get-version', () => app.getVersion())
   ipcMain.handle('app:get-platform', () => process.platform)
   ipcMain.handle('window:get-resolution', () => readResolution())

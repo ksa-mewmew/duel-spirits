@@ -70,7 +70,9 @@ function parseSavedDeck(value: unknown): SavedDeck | null {
 
 export function loadDecks(): SavedDeck[] {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
+    const desktopRaw = window.duelDesktop?.storage?.loadDecks() ?? null
+    const raw = desktopRaw ?? window.localStorage.getItem(STORAGE_KEY)
+    if (desktopRaw) window.localStorage.setItem(STORAGE_KEY, desktopRaw)
 
     if (!raw) {
       return saveInitialDecks()
@@ -107,10 +109,14 @@ export function loadDecks(): SavedDeck[] {
 }
 
 export function saveDecks(decks: SavedDeck[]): void {
+  const serialized = JSON.stringify(decks.slice(0, MAX_SAVED_DECKS))
   window.localStorage.setItem(
     STORAGE_KEY,
-    JSON.stringify(decks.slice(0, MAX_SAVED_DECKS)),
+    serialized,
   )
+  void window.duelDesktop?.storage?.saveDecks(serialized).catch((error) => {
+    console.error('덱 파일 백업에 실패했습니다.', error)
+  })
 }
 
 export function getActiveDeckId(): string | null {

@@ -109,7 +109,9 @@ export function renderLobby(appElement: HTMLDivElement): void {
       <nav class="lobby-utility" aria-label="빠른 메뉴">
         ${desktopUpdates ? '<button type="button" id="check-update-button">업데이트 확인</button>' : ''}
         ${desktopWindow ? '<button type="button" id="open-display-settings">설정</button>' : ''}
-        <button type="button" id="lobby-rule-hint">게임 안내</button>
+        <a class="button-link" href="#rulebook">룰북</a>
+        <a class="button-link" href="#patch-notes">패치 노트</a>
+        <a class="button-link" href="#support">버그 신고</a>
         ${desktopWindow ? '<button type="button" id="exit-game-button">게임 종료</button>' : ''}
       </nav>
     </header>
@@ -132,8 +134,9 @@ export function renderLobby(appElement: HTMLDivElement): void {
       </section>
 
       <div id="lobby-action-menu" class="lobby-actions">
+        <a class="lobby-action-button button-link is-primary" href="?ai=1&format=${encodeURIComponent(activeDeck.formatId)}&sets=${encodeURIComponent(activeDeck.selectedSetIds.join(','))}"><span><strong>AI 대전</strong><br><span>현재 덱을 혼자 시험하고 패치를 검증합니다.</span></span><b>→</b></a>
         <button class="lobby-action-button is-primary" type="button" data-lobby-mode="create"><span><strong>비공개 방 만들기</strong><br><span>포맷을 고르고 서버 방을 생성합니다.</span></span><b>→</b></button>
-        <button class="lobby-action-button" type="button" data-lobby-mode="join"><span><strong>초대 링크로 참가</strong><br><span>친구가 보낸 링크를 붙여 넣습니다.</span></span><b>→</b></button>
+        <button class="lobby-action-button" type="button" data-lobby-mode="join"><span><strong>친구방 참가</strong><br><span>방 코드 또는 초대 링크를 입력합니다.</span></span><b>→</b></button>
         <a class="lobby-action-button button-link" href="#decks"><span><strong>덱 빌더</strong><br><span>카드 풀을 살펴보고 사용할 덱을 구성합니다.</span></span><b>→</b></a>
         <a class="lobby-action-button button-link is-tutorial" href="?tutorial=1"><span><strong>튜토리얼</strong><br><span>첫 승리까지 핵심 조작을 차례로 연습합니다.</span></span><b>01—06</b></a>
       </div>
@@ -168,8 +171,11 @@ export function renderLobby(appElement: HTMLDivElement): void {
       </section>
 
       <section id="lobby-join-panel" class="lobby-mode-panel" aria-labelledby="join-panel-title">
-        <h3 id="join-panel-title">초대 링크로 참가</h3>
-        <p class="field-help">친구가 보낸 Duel Spirits 링크를 그대로 붙여 넣으세요.</p>
+        <h3 id="join-panel-title">친구방 참가</h3>
+        <p class="field-help">방 코드만 입력하거나 친구가 보낸 초대 링크를 붙여 넣으세요.</p>
+        <label class="field-label" for="join-room-code-input">방 코드</label>
+        <input id="join-room-code-input" type="text" maxlength="24" placeholder="예: A7K9M2QP" autocomplete="off">
+        <div class="field-separator" aria-hidden="true">또는</div>
         <label class="field-label" for="invite-link-input">초대 링크</label>
         <input id="invite-link-input" type="url" placeholder="https://.../?room=...&key=..." autocomplete="off">
         <p id="join-error" class="form-error" role="alert" aria-live="polite"></p>
@@ -221,9 +227,6 @@ export function renderLobby(appElement: HTMLDivElement): void {
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-lobby-back]')) {
     button.addEventListener('click', () => setLobbyMode('menu'))
   }
-  document.querySelector<HTMLButtonElement>('#lobby-rule-hint')?.addEventListener('click', () => {
-    window.alert('방을 만든 뒤 초대 링크를 친구에게 보내세요. 두 플레이어가 덱을 준비하면 대전이 시작됩니다.')
-  })
   document.querySelector<HTMLButtonElement>('#exit-game-button')?.addEventListener('click', () => {
     if (window.confirm('Duel Spirits를 종료할까요?')) void desktopWindow?.close()
   })
@@ -298,7 +301,10 @@ export function renderLobby(appElement: HTMLDivElement): void {
     }
 
     const roomId = normalizeRoomCode(roomCodeInput?.value ?? '') || createRoomCode()
-    const roomKey = crypto.randomUUID()
+    // A room code is an invitation secret in this small-group product. Keeping
+    // the room key equal to the generated code lets friends join with either
+    // the short code or the complete URL without an account/directory service.
+    const roomKey = roomId
     const url = new URL(window.location.href)
     url.hash = ''
     url.search = ''
@@ -314,8 +320,19 @@ export function renderLobby(appElement: HTMLDivElement): void {
 
   document.querySelector<HTMLButtonElement>('#join-room-button')?.addEventListener('click', () => {
     const inviteInput = document.querySelector<HTMLInputElement>('#invite-link-input')
+    const codeInput = document.querySelector<HTMLInputElement>('#join-room-code-input')
     const errorElement = document.querySelector<HTMLParagraphElement>('#join-error')
     try {
+      const code = normalizeRoomCode(codeInput?.value ?? '')
+      if (code) {
+        const roomUrl = new URL(window.location.href)
+        roomUrl.hash = ''
+        roomUrl.search = ''
+        roomUrl.searchParams.set('room', code)
+        roomUrl.searchParams.set('key', code)
+        window.location.assign(roomUrl.toString())
+        return
+      }
       const inviteUrl = new URL(inviteInput?.value.trim() ?? '')
       if (
         inviteUrl.origin !== window.location.origin
@@ -324,7 +341,7 @@ export function renderLobby(appElement: HTMLDivElement): void {
       ) throw new Error('invalid-invite')
       window.location.assign(inviteUrl.toString())
     } catch {
-      if (errorElement) errorElement.textContent = '올바른 초대 링크를 입력해 주세요.'
+      if (errorElement) errorElement.textContent = '올바른 방 코드 또는 초대 링크를 입력해 주세요.'
     }
   })
 }

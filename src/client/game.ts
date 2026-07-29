@@ -77,10 +77,11 @@ const BATTLEFIELD_SOF_EFFECTS = new Set<SofChoiceEffect>([
 
 const pageUrl = new URL(window.location.href)
 const isTutorial = pageUrl.searchParams.get('tutorial') === '1'
+const isAiMatch = pageUrl.searchParams.get('ai') === '1'
 const roomIdParam = pageUrl.searchParams.get('room')
 const roomKeyParam = pageUrl.searchParams.get('key')
-if ((!roomIdParam || !roomKeyParam) && !isTutorial) throw new Error('Room id and key are required.')
-const roomId = roomIdParam ?? 'TUTORIAL'
+if ((!roomIdParam || !roomKeyParam) && !isTutorial && !isAiMatch) throw new Error('Room id and key are required.')
+const roomId = roomIdParam ?? (isAiMatch ? 'AI' : 'TUTORIAL')
 const roomKey = roomKeyParam ?? 'LOCAL'
 
 const requestedFormatId = parseRoomFormatId(pageUrl.searchParams.get('format'))
@@ -583,13 +584,14 @@ function actionButton(
   valueName?: string,
   value?: string,
   disabled = false,
+  disabledReason = '',
 ): string {
   const tone = action.startsWith('confirm-') || action === 'attack-unit'
     ? 'primary'
     : action.startsWith('cancel-') || action.startsWith('close-')
       ? 'secondary'
       : 'choice'
-  return `<button type="button" class="action-button action-button--${tone}" data-action="${action}" ${valueName && value !== undefined ? `data-${valueName}="${escapeHtml(value)}"` : ''} ${disabled ? 'disabled' : ''}>${escapeHtml(label)}</button>`
+  return `<button type="button" class="action-button action-button--${tone}" data-action="${action}" ${valueName && value !== undefined ? `data-${valueName}="${escapeHtml(value)}"` : ''} ${disabled ? 'disabled' : ''} ${disabledReason ? `title="${escapeHtml(disabledReason)}" aria-description="${escapeHtml(disabledReason)}"` : ''}>${escapeHtml(label)}</button>`
 }
 
 function effectiveCost(card: CardInstance): number {
@@ -1246,32 +1248,55 @@ function renderHand(player: PlayerView, isSelf: boolean): string {
       && pending === null
       && playDraft === null
     const actions: string[] = []
+    const actionBlockReason = currentGame.status !== 'playing'
+      ? '이미 종료된 대전입니다.'
+      : roomPhase !== 'playing'
+        ? '상대의 연결 또는 대전 시작을 기다리고 있습니다.'
+        : !isMyTurn
+          ? '상대 턴에는 사용할 수 없습니다.'
+          : awaitingServer
+            ? '서버가 이전 행동을 처리하고 있습니다.'
+            : pending !== null
+              ? '먼저 진행 중인 카드 효과를 선택하세요.'
+              : playDraft !== null
+                ? '먼저 선택 중인 카드 사용을 완료하거나 취소하세요.'
+                : ''
 
     if (pending?.playerId === currentGame.viewer && pending.type === 'TEMPLE_PROSPECT_HAND') {
       actions.push(actionButton('라이프로', 'resolve-hand-choice', 'card-instance-id', card.instanceId))
     } else if (pending?.playerId === currentGame.viewer && pending.type === 'DEMON_FINGER_DISCARD') {
       actions.push(actionButton('묘지로', 'resolve-hand-discard-choice', 'card-instance-id', card.instanceId))
-    } else if (canAct) {
+    } else {
+      const manaReason = actionBlockReason || (player.manaPlacedThisTurn ? '이번 턴에는 이미 마나를 배치했습니다.' : '')
       actions.push(actionButton(
         '마나',
         'place-mana',
         'card-instance-id',
         card.instanceId,
-        player.manaPlacedThisTurn,
+        !canAct || player.manaPlacedThisTurn,
+        manaReason,
       ))
+      const playReason = actionBlockReason
+        || (readyMana < effectiveCost(card) ? `준비된 마나가 ${effectiveCost(card)}개 필요합니다.` : '')
+        || (player.burningProcessionActive && definition.cost > 2 ? '불타는 행렬 효과로 비용 2 이하 카드만 사용할 수 있습니다.' : '')
+        || (definition.type === 'unit' && !definition.evolutionAttribute && player.field.length >= currentFieldLimit() ? '전장에 빈 슬롯이 없습니다.' : '')
+        || (!hasLegalPlayTarget(card, player, enemy) ? '현재 선택할 수 있는 유효한 대상이나 조건이 없습니다.' : '')
+      const playDisabled = !canAct
+        || readyMana < effectiveCost(card)
+        || (player.burningProcessionActive && definition.cost > 2)
+        || (
+          definition.type === 'unit'
+          && !definition.evolutionAttribute
+          && player.field.length >= currentFieldLimit()
+        )
+        || !hasLegalPlayTarget(card, player, enemy)
       actions.push(actionButton(
         definition.type === 'unit' ? '소환' : '사용',
         'begin-play-card',
         'card-instance-id',
         card.instanceId,
-        readyMana < effectiveCost(card)
-          || (player.burningProcessionActive && definition.cost > 2)
-          || (
-            definition.type === 'unit'
-            && !definition.evolutionAttribute
-            && player.field.length >= currentFieldLimit()
-          )
-          || !hasLegalPlayTarget(card, player, enemy),
+        playDisabled,
+        playReason,
       ))
     }
 
@@ -2204,6 +2229,7 @@ function renderGameResultOverlay(): string {
   return `<section class="game-result-overlay game-result-overlay--${won ? 'victory' : 'defeat'}" role="dialog" aria-modal="true" aria-labelledby="game-result-title">
     <div class="game-result-panel">
       <h2 id="game-result-title">${won ? '승리했습니다' : '패배했습니다'}</h2>
+      ${isTutorial ? '' : '<button id="edit-deck-after-match-button" type="button">덱 수정</button>'}
       <button id="rematch-button" type="button">${isTutorial ? '로비로 가기' : '재대전'}</button>
     </div>
   </section>`
@@ -3520,6 +3546,9 @@ function bindRoomActionEvents(): void {
   document.querySelector<HTMLButtonElement>('#leave-room-button')?.addEventListener('click', () => {
     if (isTutorial) window.location.assign(window.location.pathname)
     else sendLeaveRoom(socket)
+  })
+  document.querySelector<HTMLButtonElement>('#edit-deck-after-match-button')?.addEventListener('click', () => {
+    window.location.assign(`${window.location.pathname}#decks`)
   })
   document.querySelector<HTMLButtonElement>('#return-to-lobby-button')?.addEventListener('click', () => {
     returnToLobbyOnLeave = true

@@ -10,6 +10,10 @@ declare global {
         writeText(value: string): Promise<void>
         readText(): Promise<string>
       }
+      storage?: {
+        loadDecks(): string | null
+        saveDecks(serializedDecks: string): Promise<void>
+      }
       app?: {
         getVersion(): Promise<string>
         getPlatform(): Promise<string>

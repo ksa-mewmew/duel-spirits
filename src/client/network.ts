@@ -7,6 +7,8 @@ import type {
   ServerMessage,
 } from '../shared/messages'
 import type { RoomSettings } from '../shared/room-settings'
+import { LocalAiSocket } from './local-ai-socket'
+import { getAppVersion, NETWORK_PROTOCOL_VERSION } from '../shared/version'
 
 export interface MessageSocket {
   send(message: string): void
@@ -78,6 +80,9 @@ export function connectToRoom(
       close: () => {},
     }
   }
+  if (pageUrl.searchParams.get('ai') === '1') {
+    return new LocalAiSocket(roomId, credentials.requestedSettings, handlers)
+  }
   const socket = new PartySocket({
     host: getGameServerHost(),
     party: 'main',
@@ -97,6 +102,8 @@ export function connectToRoom(
       ),
       formatId: credentials.requestedSettings.formatId,
       selectedSetIds: credentials.requestedSettings.selectedSetIds.join(','),
+      appVersion: getAppVersion(),
+      protocolVersion: NETWORK_PROTOCOL_VERSION,
     }),
   })
 

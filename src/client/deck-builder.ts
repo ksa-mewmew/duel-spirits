@@ -20,6 +20,8 @@ import {
 } from '../shared/decks'
 import { renderCard } from '../components/card-renderer'
 import { bindCardKeywordTooltips } from '../components/keyword-tooltip'
+import { exportDeckCode, importDeckCode } from '../shared/deck-code'
+import { createClipboardAdapter } from './clipboard'
 
 import type { CardAttributeId, CardId } from '../shared/cards'
 import type { GameFormatId, SetId } from '../content/schema'
@@ -140,6 +142,53 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     state.draftPool = null
     state.setFilter = 'all'
     state.message = '포맷을 고르고 카드 풀에서 덱을 구성하세요.'
+    render()
+  }
+
+  function duplicateCurrentDeck(): void {
+    state.editingDeckId = crypto.randomUUID()
+    state.name = `${state.name} 복사본`.slice(0, 40)
+    state.message = '덱을 복제했습니다. 저장하면 새 덱으로 추가됩니다.'
+    render()
+  }
+
+  async function copyCurrentDeckCode(): Promise<void> {
+    const validation = validateDeck(state.cardIds, getSelection())
+    if (!validation.valid) {
+      state.message = validation.errors.join(' ')
+      render()
+      return
+    }
+    const now = Date.now()
+    const code = exportDeckCode({
+      schemaVersion: DECK_SCHEMA_VERSION,
+      id: state.editingDeckId,
+      name: state.name.trim() || '이름 없는 덱',
+      cardIds: [...state.cardIds],
+      ...getSelection(),
+      createdAt: now,
+      updatedAt: now,
+    })
+    try {
+      await createClipboardAdapter().writeText(code)
+      state.message = '덱 코드를 클립보드에 복사했습니다.'
+    } catch {
+      window.prompt('아래 덱 코드를 복사하세요.', code)
+      state.message = '덱 코드를 만들었습니다.'
+    }
+    render()
+  }
+
+  function importDeckFromCode(): void {
+    const code = window.prompt('친구에게 받은 덱 코드를 붙여 넣으세요.')
+    if (!code) return
+    try {
+      const deck = importDeckCode(code)
+      applyDeckToState(state, deck)
+      state.message = '덱 코드를 불러왔습니다. 저장하면 내 덱에 추가됩니다.'
+    } catch (error) {
+      state.message = error instanceof Error ? error.message : '덱 코드를 불러오지 못했습니다.'
+    }
     render()
   }
 
@@ -672,7 +721,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
           <label><span>덱 이름</span><input id="deck-name" value="${escapeHtml(state.name)}" maxlength="40" aria-label="덱 이름"></label>
           <label><span>포맷</span><select id="format-select" aria-label="포맷">${DECK_BUILDER_FORMATS.map((item) => `<option value="${item.id}" ${item.id === state.formatId ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('')}</select></label>
         </div>
-        <div class="builder-header__summary"><span>현재 덱</span><strong>${state.cardIds.length}/${format.deckSize}</strong><button id="new-deck-button" type="button">새 덱</button><button id="save-deck-button" type="button" ${validation.valid ? '' : 'disabled'}>저장·사용</button><button id="delete-deck-button" type="button">삭제</button><button id="builder-rulebook-button" type="button">룰북</button></div>
+        <div class="builder-header__summary"><span>현재 덱</span><strong>${state.cardIds.length}/${format.deckSize}</strong><button id="new-deck-button" type="button">새 덱</button><button id="duplicate-deck-button" type="button">복제</button><button id="export-deck-button" type="button">코드 복사</button><button id="import-deck-button" type="button">코드 불러오기</button><button id="save-deck-button" type="button" ${validation.valid ? '' : 'disabled'}>저장·사용</button><button id="delete-deck-button" type="button">삭제</button><button id="builder-rulebook-button" type="button">룰북</button></div>
       </header>
 
       <section class="deck-builder-workspace">
@@ -792,6 +841,9 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
     document.querySelector<HTMLInputElement>('#deck-name')?.addEventListener('input', (event) => { state.name = (event.currentTarget as HTMLInputElement).value })
     document.querySelector<HTMLSelectElement>('#format-select')?.addEventListener('change', (event) => changeFormat((event.currentTarget as HTMLSelectElement).value as GameFormatId))
     document.querySelector<HTMLButtonElement>('#new-deck-button')?.addEventListener('click', createNewDeck)
+    document.querySelector<HTMLButtonElement>('#duplicate-deck-button')?.addEventListener('click', duplicateCurrentDeck)
+    document.querySelector<HTMLButtonElement>('#export-deck-button')?.addEventListener('click', () => void copyCurrentDeckCode())
+    document.querySelector<HTMLButtonElement>('#import-deck-button')?.addEventListener('click', importDeckFromCode)
     document.querySelector<HTMLButtonElement>('#save-deck-button')?.addEventListener('click', saveCurrentDeck)
     document.querySelector<HTMLButtonElement>('#delete-deck-button')?.addEventListener('click', deleteCurrentDeck)
     document.querySelector<HTMLButtonElement>('#generate-draft-button')?.addEventListener('click', generateDraft)

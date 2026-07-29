@@ -49,6 +49,7 @@ export type JoinRejectReason =
   | 'INVALID_SEAT_TOKEN'
   | 'ROOM_FULL'
   | 'MISSING_ROOM_KEY'
+  | 'INCOMPATIBLE_VERSION'
 
 export type ServerMessage =
   | {

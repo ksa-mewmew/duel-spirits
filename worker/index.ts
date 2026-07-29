@@ -91,9 +91,13 @@ import type {
   GameState,
   PlayerId,
 } from '../src/shared/types'
+import { CARDS } from '../src/shared/cards'
+import { getAppVersion, NETWORK_PROTOCOL_VERSION } from '../src/shared/version'
 
 interface Env extends Cloudflare.Env {
   Main: DurableObjectNamespace<Main>
+  Analytics: DurableObjectNamespace
+  INTERNAL_STATS_TOKEN?: string
 }
 
 type GameConnection = Connection<ConnectionState>
@@ -114,6 +118,8 @@ interface PersistedRoomState {
   deckReady?: DeckReadiness
   actionLog?: LoggedAction[]
   draft?: RoomDraftState | null
+  statsRecorded?: boolean
+  startingPlayer?: PlayerId | null
 }
 
 interface StoredRoomState {
@@ -128,6 +134,8 @@ interface StoredRoomState {
   deckReady: DeckReadiness
   actionLog: LoggedAction[]
   draft: RoomDraftState | null
+  statsRecorded: boolean
+  startingPlayer: PlayerId | null
 }
 
 const STORAGE_KEY = 'card-duel-room-state'
@@ -329,6 +337,8 @@ export class Main extends Server<Env> {
         persisted.deckReady ?? createEmptyDeckReadiness(),
       actionLog: persisted.actionLog ?? [],
       draft: persisted.draft ?? null,
+      statsRecorded: persisted.statsRecorded ?? false,
+      startingPlayer: persisted.startingPlayer ?? null,
     }
 
     await this.scheduleNextAlarm()
@@ -339,6 +349,14 @@ export class Main extends Server<Env> {
     context: ConnectionContext,
   ): Promise<void> {
     const requestUrl = new URL(context.request.url)
+    if (requestUrl.searchParams.get('protocolVersion') !== NETWORK_PROTOCOL_VERSION) {
+      this.rejectConnection(
+        connection,
+        'INCOMPATIBLE_VERSION',
+        '게임 버전이 서버와 호환되지 않습니다. 최신 버전으로 업데이트해 주세요.',
+      )
+      return
+    }
     const roomKey = requestUrl.searchParams.get('roomKey') ?? ''
     const suppliedSeatToken =
       requestUrl.searchParams.get('seatToken') ?? ''
@@ -384,6 +402,8 @@ export class Main extends Server<Env> {
         deckReady: createEmptyDeckReadiness(),
         actionLog: [],
         draft: null,
+        statsRecorded: false,
+        startingPlayer: null,
       }
     } else if (this.roomState.roomKey !== roomKey) {
       this.rejectConnection(
@@ -843,6 +863,9 @@ export class Main extends Server<Env> {
       if (this.roomState.game.status === 'finished') {
         this.roomState.rematchReady = createEmptyRematchReadiness()
         this.roomState.turnClock = createStoppedTurnClock()
+        await this.recordFinishedMatch().catch((error) => {
+          console.error('경기 통계를 저장하지 못했습니다.', error)
+        })
       } else if ((this.roomState.game.pendingChoices?.length ?? 0) > 0) {
         this.roomState.turnClock = createStoppedTurnClock()
       } else if (action.type === 'END_TURN' || action.type === 'RESOLVE_CHOICE') {
@@ -1047,6 +1070,7 @@ export class Main extends Server<Env> {
       },
     })
     this.storeMatchAuthority(authority)
+    this.roomState.startingPlayer = authority.getSnapshot().game.currentPlayer
     this.roomState.draft = null
     this.roomState.deckReady = createEmptyDeckReadiness()
     this.roomState.rematchReady = createEmptyRematchReadiness()
@@ -1054,6 +1078,7 @@ export class Main extends Server<Env> {
       this.roomState.settings.turnLimitSeconds,
       Date.now(),
     )
+    this.roomState.statsRecorded = false
   }
 
   private clearCurrentGame(): void {
@@ -1064,6 +1089,7 @@ export class Main extends Server<Env> {
     this.roomState.deckReady = createEmptyDeckReadiness()
     this.roomState.rematchReady = createEmptyRematchReadiness()
     this.roomState.turnClock = createStoppedTurnClock()
+    this.roomState.startingPlayer = null
   }
 
   private releasePlayerData(playerId: PlayerId): void {
@@ -1251,6 +1277,66 @@ export class Main extends Server<Env> {
     await this.scheduleNextAlarm()
   }
 
+  private async recordFinishedMatch(): Promise<void> {
+    if (
+      !this.roomState
+      || !this.roomState.game
+      || this.roomState.game.status !== 'finished'
+      || this.roomState.statsRecorded
+    ) return
+
+    const decks = this.roomState.submittedDecks
+    const attributesFor = (playerId: PlayerId) => [
+      ...new Set(
+        (decks[playerId]?.cardIds ?? []).flatMap((cardId) => CARDS[cardId].attributes),
+      ),
+    ]
+    const usedCardIds = [
+      ...new Set(
+        this.roomState.actionLog.flatMap((entry) => [
+          entry.detail?.sourceCardId,
+          ...(entry.detail?.summonedCardIds ?? []),
+        ]).filter((cardId): cardId is keyof typeof CARDS => Boolean(cardId)),
+      ),
+    ]
+    const firstPlayer = this.roomState.startingPlayer
+    const lastAction = this.roomState.actionLog.at(-1)?.action.type
+    const record = {
+      id: crypto.randomUUID(),
+      recordedAt: Date.now(),
+      roomId: this.name,
+      appVersion: getAppVersion(),
+      rulesVersion: this.roomState.game.matchConfig.rulesVersion,
+      contentVersion: this.roomState.game.matchConfig.contentVersion,
+      formatId: this.roomState.settings.formatId,
+      selectedSetIds: [...this.roomState.settings.selectedSetIds],
+      winner: this.roomState.game.winner,
+      firstPlayer,
+      turnCount: this.roomState.game.turnNumber,
+      endReason: lastAction === 'SURRENDER' ? 'surrender' : 'game',
+      decks: {
+        P1: decks.P1 ? {
+          name: decks.P1.name,
+          cardIds: [...decks.P1.cardIds],
+          attributes: attributesFor('P1'),
+        } : null,
+        P2: decks.P2 ? {
+          name: decks.P2.name,
+          cardIds: [...decks.P2.cardIds],
+          attributes: attributesFor('P2'),
+        } : null,
+      },
+      usedCardIds,
+    }
+    const analyticsId = this.env.Analytics.idFromName('global')
+    const response = await this.env.Analytics.get(analyticsId).fetch('https://analytics/record', {
+      method: 'POST',
+      body: JSON.stringify(record),
+    })
+    if (!response.ok) throw new Error('경기 통계를 저장하지 못했습니다.')
+    this.roomState.statsRecorded = true
+  }
+
   private async scheduleNextAlarm(): Promise<void> {
     const roomAlarm = this.roomState
       ? getNextAlarmAt(
@@ -1305,6 +1391,43 @@ export class Main extends Server<Env> {
   }
 }
 
+interface AnalyticsRecord {
+  id: string
+  recordedAt: number
+  [key: string]: unknown
+}
+
+export class Analytics implements DurableObject {
+  private readonly storage: DurableObjectStorage
+
+  constructor(ctx: DurableObjectState, _env: Env) {
+    this.storage = ctx.storage
+  }
+
+  async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url)
+    if (request.method === 'POST' && url.pathname === '/record') {
+      const record = await request.json<AnalyticsRecord>()
+      if (!record?.id || !Number.isFinite(record.recordedAt)) {
+        return new Response('Invalid record', { status: 400 })
+      }
+      const key = `match:${String(record.recordedAt).padStart(16, '0')}:${record.id}`
+      await this.storage.put(key, record)
+      const records = await this.storage.list<AnalyticsRecord>({ prefix: 'match:' })
+      const overflow = records.size - 2_000
+      if (overflow > 0) {
+        await this.storage.delete([...records.keys()].slice(0, overflow))
+      }
+      return new Response(null, { status: 204 })
+    }
+    if (request.method === 'GET' && url.pathname === '/records') {
+      const records = await this.storage.list<AnalyticsRecord>({ prefix: 'match:', reverse: true })
+      return Response.json([...records.values()])
+    }
+    return new Response('Not Found', { status: 404 })
+  }
+}
+
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -1315,6 +1438,15 @@ export default {
         ok: true,
         service: 'duel-spirits-server',
       })
+    }
+
+    if (url.pathname === '/internal/stats') {
+      const expected = env.INTERNAL_STATS_TOKEN
+      if (!expected || request.headers.get('authorization') !== `Bearer ${expected}`) {
+        return new Response('Not Found', { status: 404 })
+      }
+      const analyticsId = env.Analytics.idFromName('global')
+      return env.Analytics.get(analyticsId).fetch('https://analytics/records')
     }
 
     return (
