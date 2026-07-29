@@ -9,7 +9,7 @@ export const SAMPLE_DECK_IDS = [
 ] as const
 
 export type SampleDeckId = typeof SAMPLE_DECK_IDS[number]
-export type SampleDeckStyle = 'mountain' | 'earth' | 'eclipse' | 'wave'
+export type SampleDeckStyle = 'mountain' | 'earth' | 'light' | 'wave'
 
 export interface SampleDeckDefinition {
   id: SampleDeckId
@@ -110,7 +110,7 @@ export const SAMPLE_DECKS: Record<SampleDeckId, SampleDeckDefinition> = {
   'spirit-discipline': {
     id: 'spirit-discipline',
     name: '성령의 계율',
-    style: 'eclipse',
+    style: 'light',
     styleLabel: '공격 질서',
     buttonLabel: '계율',
     difficulty: '어려움',

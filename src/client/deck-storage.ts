@@ -13,6 +13,10 @@ import type { SavedDeck } from '../shared/decks'
 const STORAGE_KEY = 'card-duel:decks:v1'
 const ACTIVE_DECK_KEY = 'card-duel:active-deck:v1'
 const LEGACY_DEFAULT_DECK_ID = 'default-deck'
+const SAMPLE_DECK_ID_PREFIX = 'sample-'
+const LEGACY_SAMPLE_DECK_REPLACEMENTS: Record<string, string> = {
+  'sample-eclipse-omen': 'sample-spirit-discipline',
+}
 
 function createInitialDecks(createdAt = Date.now()): SavedDeck[] {
   return SAMPLE_DECK_LIST.map((sampleDeck, index) => ({
@@ -90,15 +94,29 @@ export function loadDecks(): SavedDeck[] {
     }
 
     const hasLegacyDefault = decks.some((deck) => deck.id === LEGACY_DEFAULT_DECK_ID)
-    const nextDecks = hasLegacyDefault
-      ? [
-          ...createInitialDecks(),
-          ...decks.filter((deck) => deck.id !== LEGACY_DEFAULT_DECK_ID),
-        ].slice(0, MAX_SAVED_DECKS)
-      : decks.slice(0, MAX_SAVED_DECKS)
+    const currentSamples = createInitialDecks()
+    const savedById = new Map(decks.map((deck) => [deck.id, deck]))
+    const synchronizedSamples = currentSamples.map((sample) => {
+      const saved = savedById.get(sample.id)
+      return saved ? { ...sample, createdAt: saved.createdAt } : sample
+    })
+    const customDecks = decks.filter((deck) => (
+      deck.id !== LEGACY_DEFAULT_DECK_ID
+      && !deck.id.startsWith(SAMPLE_DECK_ID_PREFIX)
+    ))
+    const nextDecks = [...synchronizedSamples, ...customDecks].slice(0, MAX_SAVED_DECKS)
 
     saveDecks(nextDecks)
-    if (hasLegacyDefault && getActiveDeckId() === LEGACY_DEFAULT_DECK_ID) {
+    const activeDeckId = getActiveDeckId()
+    const replacementActiveId = activeDeckId
+      ? LEGACY_SAMPLE_DECK_REPLACEMENTS[activeDeckId]
+      : undefined
+    if (replacementActiveId && nextDecks.some((deck) => deck.id === replacementActiveId)) {
+      setActiveDeckId(replacementActiveId)
+    } else if (
+      (hasLegacyDefault && activeDeckId === LEGACY_DEFAULT_DECK_ID)
+      || (activeDeckId?.startsWith(SAMPLE_DECK_ID_PREFIX) && !nextDecks.some((deck) => deck.id === activeDeckId))
+    ) {
       const firstDeck = nextDecks[0]
       if (firstDeck) setActiveDeckId(firstDeck.id)
     }

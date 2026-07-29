@@ -4576,10 +4576,10 @@ body.room-waiting-active { background: #030506; }
   color: #edf6d5;
 }
 
-.sample-deck-button--eclipse {
-  border-color: rgba(177, 142, 210, .78);
-  background: linear-gradient(180deg, rgba(84, 56, 111, .82), rgba(27, 20, 36, .96));
-  color: #f0e2ff;
+.sample-deck-button--light {
+  border-color: rgba(240, 214, 111, .84);
+  background: linear-gradient(180deg, rgba(145, 116, 36, .84), rgba(48, 39, 15, .96));
+  color: #fff6c9;
 }
 
 .sample-deck-button--wave {
@@ -4598,9 +4598,9 @@ body.room-waiting-active { background: #030506; }
   --sample-glow: rgba(124, 151, 79, .18);
 }
 
-.sample-deck-guide--eclipse {
-  --sample-accent: #bd8fe2;
-  --sample-glow: rgba(150, 91, 199, .18);
+.sample-deck-guide--light {
+  --sample-accent: #f0d66f;
+  --sample-glow: rgba(231, 199, 76, .18);
 }
 
 .sample-deck-guide--wave {
