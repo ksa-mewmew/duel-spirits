@@ -136,7 +136,7 @@ export function renderLobby(appElement: HTMLDivElement): void {
       <div id="lobby-action-menu" class="lobby-actions">
         <a class="lobby-action-button button-link is-primary" href="?ai=1&format=${encodeURIComponent(activeDeck.formatId)}&sets=${encodeURIComponent(activeDeck.selectedSetIds.join(','))}"><span><strong>AI 대전</strong><br><span>현재 덱을 혼자 시험하고 패치를 검증합니다.</span></span><b>→</b></a>
         <button class="lobby-action-button is-primary" type="button" data-lobby-mode="create"><span><strong>비공개 방 만들기</strong><br><span>포맷을 고르고 서버 방을 생성합니다.</span></span><b>→</b></button>
-        <button class="lobby-action-button" type="button" data-lobby-mode="join"><span><strong>친구방 참가</strong><br><span>방 코드 또는 초대 링크를 입력합니다.</span></span><b>→</b></button>
+        <button class="lobby-action-button" type="button" data-lobby-mode="join"><span><strong>친구 방 참가</strong><br><span>방 코드 또는 초대 링크를 입력합니다.</span></span><b>→</b></button>
         <a class="lobby-action-button button-link" href="#decks"><span><strong>덱 빌더</strong><br><span>카드 풀을 살펴보고 사용할 덱을 구성합니다.</span></span><b>→</b></a>
         <a class="lobby-action-button button-link is-tutorial" href="?tutorial=1"><span><strong>튜토리얼</strong><br><span>첫 승리까지 핵심 조작을 차례로 연습합니다.</span></span><b>01—06</b></a>
       </div>
@@ -171,7 +171,7 @@ export function renderLobby(appElement: HTMLDivElement): void {
       </section>
 
       <section id="lobby-join-panel" class="lobby-mode-panel" aria-labelledby="join-panel-title">
-        <h3 id="join-panel-title">친구방 참가</h3>
+        <h3 id="join-panel-title">친구 방 참가</h3>
         <p class="field-help">방 코드만 입력하거나 친구가 보낸 초대 링크를 붙여 넣으세요.</p>
         <label class="field-label" for="join-room-code-input">방 코드</label>
         <input id="join-room-code-input" type="text" maxlength="24" placeholder="예: A7K9M2QP" autocomplete="off">

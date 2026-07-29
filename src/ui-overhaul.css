@@ -9673,6 +9673,30 @@ body.fixed-stage-active #app {
   pointer-events: auto;
 }
 
+/* Chromium can corrupt a card's composited bitmap when a filtered hand card
+   is transformed on hover. Keep the same depth cue without creating a
+   filter-backed offscreen layer. */
+.room-screen--game .hand-zone--self .hand-card,
+.room-screen--game .hand-zone--self .hand-card:hover,
+.room-screen--game .hand-zone--self .hand-card:focus-within,
+.room-screen--game .hand-zone--self .hand-card.is-selected {
+  filter: none !important;
+}
+
+.room-screen--game .hand-zone--self .hand-card {
+  box-shadow:
+    0 13px 10px rgba(0, 0, 0, .48),
+    inset 0 0 0 1px rgba(255, 255, 255, .03);
+}
+
+.room-screen--game .hand-zone--self .hand-card:hover,
+.room-screen--game .hand-zone--self .hand-card:focus-within,
+.room-screen--game .hand-zone--self .hand-card.is-selected {
+  box-shadow:
+    0 20px 16px rgba(0, 0, 0, .62),
+    inset 0 0 0 1px rgba(255, 255, 255, .03);
+}
+
 /* The confirmation lane sits directly above the hand. Disable the normal card
    lift while it is open so the selected card cannot slide behind that lane. */
 .room-screen--game .battle-board:has(.decision-dock.has-selection) .hand-zone--self .hand-card:hover,
