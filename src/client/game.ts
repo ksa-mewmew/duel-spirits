@@ -606,6 +606,14 @@ function effectiveCost(card: CardInstance): number {
   return Math.max(0, definition.cost - (card.costReduction ?? 0))
 }
 
+function automaticPaymentIds(card: CardInstance): string[] {
+  if (!game) return []
+  return game.players[game.viewer].mana
+    .filter((mana) => !mana.exhausted)
+    .slice(0, effectiveCost(card))
+    .map((mana) => mana.instanceId)
+}
+
 function findVisibleCardInstance(instanceId: string | null): CardInstance | undefined {
   if (!game || !instanceId) return undefined
 
@@ -2757,7 +2765,10 @@ function confirmPlayDraft(): void {
   sendAction({
     type: 'PLAY_CARD',
     cardInstanceId: playDraft.cardInstanceId,
-    manaIds: [...playDraft.manaIds],
+    // The current rules engine determines payment from the first ready mana,
+    // but including the same IDs keeps action logs and older deployed room
+    // authorities compatible with the automatic-payment UI.
+    manaIds: automaticPaymentIds(card),
     selection,
   })
 }
