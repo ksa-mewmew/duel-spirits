@@ -121,6 +121,35 @@ describe('MatchHost', () => {
     })
   })
 
+  it('restores after seeding fairy places tree fairy in mana', () => {
+    const snapshot = createTestHost().getSnapshot()
+    const player = snapshot.game.players.P1
+    const seedingFairy = player.hand[0]!
+    seedingFairy.cardId = 'seeding_fairy'
+    const [payment] = player.hand.splice(1, 1)
+    payment!.cardId = 'heavy_seed'
+    player.mana.push({ ...payment!, exhausted: false })
+    player.deck[0]!.cardId = 'tree_fairy'
+
+    const host = MatchHost.restore(snapshot)
+    const next = host.dispatch('P1', {
+      type: 'PLAY_CARD',
+      cardInstanceId: seedingFairy.instanceId,
+      manaIds: [payment!.instanceId],
+      selection: { fieldSlot: 0 },
+    }, { createdAt: 2_000 })
+
+    expect(next.players.P1.field[0]).toMatchObject({ cardId: 'seeding_fairy' })
+    expect(next.players.P1.mana).toEqual(expect.arrayContaining([
+      expect.objectContaining({ cardId: 'tree_fairy', exhausted: true }),
+    ]))
+    expect(next.pendingChoices[0]).toMatchObject({
+      type: 'SOF_CHOICE',
+      effect: 'TREE_FAIRY_HAND_MANA',
+    })
+    expect(() => MatchHost.restore(host.getSnapshot())).not.toThrow()
+  })
+
   it('migrates a missing battlefield entry sequence', () => {
     const host = createTestHost()
     const snapshot = host.getSnapshot()

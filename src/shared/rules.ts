@@ -686,7 +686,6 @@ function placeCardInMana(
       effect: 'TREE_FAIRY_HAND_MANA',
       playerId: owner,
       sourcePlayerId: owner,
-      sourceCard: { ...manaCard },
       candidateIds: game.players[owner].hand.map((handCard) => handCard.instanceId),
       minChoices: 0,
       maxChoices: 1,
