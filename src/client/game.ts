@@ -2237,7 +2237,6 @@ function renderGameResultOverlay(): string {
   return `<section class="game-result-overlay game-result-overlay--${won ? 'victory' : 'defeat'}" role="dialog" aria-modal="true" aria-labelledby="game-result-title">
     <div class="game-result-panel">
       <h2 id="game-result-title">${won ? '승리했습니다' : '패배했습니다'}</h2>
-      ${isTutorial ? '' : '<button id="edit-deck-after-match-button" type="button">덱 수정</button>'}
       <button id="rematch-button" type="button">${isTutorial ? '로비로 가기' : '재대전'}</button>
     </div>
   </section>`
@@ -2520,6 +2519,10 @@ function renderDraftRoom(): string {
 function renderWaitingRoom(): string {
   const waitingFormat = getFormat(roomSettings.formatId)
   const decks = loadDecks()
+  const deckBuilderUrl = new URL(pageUrl.toString())
+  deckBuilderUrl.search = ''
+  deckBuilderUrl.hash = 'decks'
+  deckBuilderUrl.searchParams.set('returnTo', pageUrl.toString())
   const options = decks.map((deck) => {
     const compatible = isDeckCompatibleWithFormat(
       deck,
@@ -2563,7 +2566,7 @@ function renderWaitingRoom(): string {
       : `<div class="match-deck-controls">
           <label class="match-deck-picker"><span>사용할 덱</span><strong>${ready ? '준비 완료' : awaitingServer ? '덱 확인 중' : myDeckState?.submitted ? '제출 완료 · 준비 전' : '선택 시 자동 제출'}</strong><select id="room-deck-select" ${awaitingServer ? 'disabled' : ''}>${options}</select></label>
           <button id="deck-ready-button" class="ready-primary${ready ? ' is-ready' : ''}" type="button" ${awaitingServer || !myDeckState?.submitted ? 'disabled' : ''}>${ready ? '준비 취소' : '준비 완료'}</button>
-          <a class="button-link" href="./#decks" target="_blank">덱 편집</a>
+          <a class="button-link" href="${escapeHtml(deckBuilderUrl.toString())}">덱 수정·변경</a>
           <p class="match-lobby__message" role="status">${escapeHtml(message || (connectedPlayers.length < 2 ? '초대 링크를 친구에게 보내세요.' : '두 플레이어가 준비하면 대전이 시작됩니다.'))}</p>
         </div>`}
   </section></div>`
@@ -3557,9 +3560,6 @@ function bindRoomActionEvents(): void {
   document.querySelector<HTMLButtonElement>('#leave-room-button')?.addEventListener('click', () => {
     if (isTutorial) window.location.assign(window.location.pathname)
     else sendLeaveRoom(socket)
-  })
-  document.querySelector<HTMLButtonElement>('#edit-deck-after-match-button')?.addEventListener('click', () => {
-    window.location.assign(`${window.location.pathname}#decks`)
   })
   document.querySelector<HTMLButtonElement>('#return-to-lobby-button')?.addEventListener('click', () => {
     returnToLobbyOnLeave = true

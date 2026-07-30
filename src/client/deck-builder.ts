@@ -104,6 +104,21 @@ function getInitialState(): BuilderState {
 }
 
 export function renderDeckBuilder(appElement: HTMLDivElement): void {
+  const builderPageUrl = new URL(window.location.href)
+  const requestedReturnUrl = builderPageUrl.searchParams.get('returnTo')
+  let returnUrl = './'
+  let returnsToRoom = false
+  if (requestedReturnUrl) {
+    try {
+      const candidate = new URL(requestedReturnUrl, builderPageUrl)
+      if (candidate.origin === builderPageUrl.origin && candidate.pathname === builderPageUrl.pathname) {
+        returnUrl = candidate.toString()
+        returnsToRoom = candidate.searchParams.has('room') && candidate.searchParams.has('key')
+      }
+    } catch {
+      // 잘못된 복귀 주소는 기본 메인 화면 링크로 대체한다.
+    }
+  }
   const state = getInitialState()
 
   function getSelection() {
@@ -715,7 +730,7 @@ export function renderDeckBuilder(appElement: HTMLDivElement): void {
 
     appElement.innerHTML = `<main class="app-shell deck-builder-screen">
       <header class="builder-header">
-        <div class="builder-header__brand"><a class="button-link" href="./" aria-label="메인 화면으로">←</a><div><p class="eyebrow">DUEL SPIRITS</p><h1>덱 빌더</h1></div></div>
+        <div class="builder-header__brand"><a class="button-link" href="${escapeHtml(returnUrl)}" aria-label="${returnsToRoom ? '대기방으로 돌아가기' : '메인 화면으로'}">${returnsToRoom ? '← 대기방' : '←'}</a><div><p class="eyebrow">DUEL SPIRITS</p><h1>덱 빌더</h1></div></div>
         <div class="builder-header__editor">
           <label><span>저장 덱</span><select id="deck-select" aria-label="저장 덱">${deckOptions}</select></label>
           <label><span>덱 이름</span><input id="deck-name" value="${escapeHtml(state.name)}" maxlength="40" aria-label="덱 이름"></label>
