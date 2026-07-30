@@ -77,7 +77,7 @@ describe('카드군 1 최신 능력', () => {
     })).toThrow('이번 턴에 소환된 몬스터')
   })
 
-  test('불타는 행렬은 이후 3장 드로우와 원래 비용 2 이하 제한을 적용한다', () => {
+  test('불타는 행렬은 이후 3장 드로우와 원래 비용 2 이하 불 카드 제한을 적용한다', () => {
     const game = createTestGame()
     game.players.P1.hand = [{ instanceId: 'procession', cardId: 'burning_procession' }]
     game.players.P1.mana = Array.from({ length: 4 }, (_, index) => mana(`m${index}`, 'living_flame'))
@@ -86,11 +86,19 @@ describe('카드군 1 최신 능력', () => {
     })
     expect(active.players.P1.burningProcessionActive).toBe(true)
 
-    active.players.P1.hand = [{ instanceId: 'expensive', cardId: 'high_tide' }]
+    active.players.P1.hand = [{ instanceId: 'non-fire', cardId: 'ebb' }]
     active.players.P1.mana.forEach((item) => { item.exhausted = false })
     expect(() => applyAction(active, 'P1', {
-      type: 'PLAY_CARD', cardInstanceId: 'expensive', manaIds: [],
-    })).toThrow('원래 비용이 2 이하')
+      type: 'PLAY_CARD', cardInstanceId: 'non-fire', manaIds: [],
+    })).toThrow('비용이 2 이하인 불 카드')
+
+    active.players.P1.hand = [{ instanceId: 'fire', cardId: 'ash_hound' }]
+    expect(() => applyAction(active, 'P1', {
+      type: 'PLAY_CARD',
+      cardInstanceId: 'fire',
+      manaIds: [],
+      selection: { fieldSlot: 0 },
+    })).not.toThrow()
   })
 
   test('살아 움직이는 연기는 전투할 때마다 공격력 2를 누적한다', () => {
@@ -262,48 +270,17 @@ describe('카드군 1 최신 능력', () => {
     expect(attacked.players.P2.life).toHaveLength(0)
   })
 
-  test('검푸른 들개는 마나 속성과 관계없이 돌진하며 직접 공격할 수 없다', () => {
-    const resonant = createTestGame()
-    resonant.players.P1.hand = [{ instanceId: 'hound', cardId: 'blue_black_hound' }]
-    resonant.players.P1.mana = [
-      mana('dark', 'corpse_cat'),
-      mana('earth', 'tree_fairy'),
-    ]
-    resonant.players.P2.field = [unit('target', 'rock_armor_knight')]
+  test('검푸른 들개는 잠행을 가지며 공격할 때 공격력 +2를 얻는다', () => {
+    const game = createTestGame()
+    game.players.P1.field = [unit('hound', 'blue_black_hound')]
+    game.players.P2.field = [unit('target', 'rock_armor_knight')]
 
-    const summoned = applyAction(resonant, 'P1', {
-      type: 'PLAY_CARD',
-      cardInstanceId: 'hound',
-      manaIds: ['dark', 'earth'],
-      selection: { fieldSlot: 0 },
-    })
-    expect(summoned.players.P1.field[0]?.temporaryCharge).toBe(true)
-    const attacked = applyAction(summoned, 'P1', {
+    const attacked = applyAction(game, 'P1', {
       type: 'ATTACK_UNIT',
       attackerId: 'hound',
       defenderId: 'target',
     })
-    expect(attacked.players.P2.field).toHaveLength(0)
-
-    const nonResonant = createTestGame()
-    nonResonant.players.P1.hand = [{ instanceId: 'hound-2', cardId: 'blue_black_hound' }]
-    nonResonant.players.P1.mana = [
-      mana('earth-1', 'tree_fairy'),
-      mana('earth-2', 'seeding_fairy'),
-    ]
-    nonResonant.players.P2.field = [unit('target-2', 'rock_armor_knight')]
-    const noCharge = applyAction(nonResonant, 'P1', {
-      type: 'PLAY_CARD',
-      cardInstanceId: 'hound-2',
-      manaIds: ['earth-1', 'earth-2'],
-      selection: { fieldSlot: 0 },
-    })
-    expect(noCharge.players.P1.field[0]?.temporaryCharge).not.toBe(true)
-    expect(() => applyAction(noCharge, 'P1', {
-      type: 'ATTACK_UNIT',
-      attackerId: 'hound-2',
-      defenderId: 'target-2',
-    })).not.toThrow()
+    expect(attacked.players.P2.field[0]?.damage).toBe(3)
 
     const directGame = createTestGame()
     directGame.players.P1.field = [unit('direct-hound', 'blue_black_hound')]
@@ -313,7 +290,36 @@ describe('카드군 1 최신 능력', () => {
       type: 'ATTACK_PLAYER',
       attackerId: 'direct-hound',
       lifeSlotIndices: [0],
-    })).toThrow('직접 공격할 수 없습니다')
+    })).not.toThrow()
+  })
+
+  test('준비된 수호가 여럿이면 그중 하나를 공격하고, 모두 소진되면 다른 대상을 공격할 수 있다', () => {
+    const game = createTestGame()
+    game.players.P1.field = [unit('attacker', 'rock_armor_knight')]
+    game.players.P2.field = [
+      unit('guard-a', 'cathedral_guard', 0),
+      unit('guard-b', 'sky_white_horse_knight', 1),
+      unit('other', 'living_flame', 2),
+    ]
+
+    expect(() => applyAction(game, 'P1', {
+      type: 'ATTACK_UNIT',
+      attackerId: 'attacker',
+      defenderId: 'other',
+    })).toThrow('수호 몬스터')
+    expect(() => applyAction(game, 'P1', {
+      type: 'ATTACK_UNIT',
+      attackerId: 'attacker',
+      defenderId: 'guard-b',
+    })).not.toThrow()
+
+    game.players.P2.field[0]!.exhausted = true
+    game.players.P2.field[1]!.exhausted = true
+    expect(() => applyAction(game, 'P1', {
+      type: 'ATTACK_UNIT',
+      attackerId: 'attacker',
+      defenderId: 'other',
+    })).not.toThrow()
   })
 
   test('한 턴에 어둠 카드 두 장이 묘지로 가면 관 속의 전사를 비용 없이 낸다', () => {

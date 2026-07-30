@@ -446,6 +446,42 @@ describe('SOF 불·물 전투', () => {
 })
 
 describe('SOF 땅·빛·어둠과 공명', () => {
+  test('용암 정원사는 땅 공명 중 비용이 1 감소하고 지불한 마나를 다시 준비하지 않는다', () => {
+    const game = createTestGame()
+    game.players.P1.hand = [card('gardener', 'lava_gardener')]
+    game.players.P1.mana = [
+      mana('earth', 'tree_fairy'),
+      mana('fire', 'living_flame'),
+      mana('spare', 'living_flame'),
+    ]
+
+    const next = applyAction(game, 'P1', {
+      type: 'PLAY_CARD',
+      cardInstanceId: 'gardener',
+      manaIds: ['earth', 'fire'],
+      selection: { fieldSlot: 0 },
+    })
+
+    expect(next.players.P1.field[0]?.cardId).toBe('lava_gardener')
+    expect(next.players.P1.mana.map((item) => item.exhausted)).toEqual([true, true, false])
+  })
+
+  test('용암 정원사는 땅 공명이 없으면 원래 비용 3을 지불한다', () => {
+    const game = createTestGame()
+    game.players.P1.hand = [card('gardener', 'lava_gardener')]
+    game.players.P1.mana = [
+      mana('fire-a', 'living_flame'),
+      mana('fire-b', 'living_flame'),
+    ]
+
+    expect(() => applyAction(game, 'P1', {
+      type: 'PLAY_CARD',
+      cardInstanceId: 'gardener',
+      manaIds: ['fire-a', 'fire-b'],
+      selection: { fieldSlot: 0 },
+    })).toThrow()
+  })
+
   test('땅을 가는 요정으로 나무 요정을 마나에 놓으면 나무 요정의 추가 마나 효과가 이어진다', () => {
     const game = createTestGame()
     game.players.P1.hand = [

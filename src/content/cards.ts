@@ -86,6 +86,7 @@ export type CardKeyword =
   | 'stealth'
   | 'last_words'
   | 'assassination'
+  | 'guard'
 
 export interface CardBase {
   artUrl?: string
@@ -151,7 +152,7 @@ const CARD_SIMULATION_HINTS: Partial<Record<CardId, CardSimulationHints>> = {
   demon_breath: { playSelectionFields: ['unitId'] },
   holy_mirror_wall: { playSelectionFields: ['lifeIndex'] },
   rising_earth: { playSelectionFields: ['effectManaId', 'fieldSlot'] },
-  lava_gardener: { playSelectionFields: ['unitId', 'effectManaId'] },
+  lava_gardener: { playSelectionFields: ['unitId'] },
   crematory_smoke: { playSelectionFields: ['unitId'] },
 }
 

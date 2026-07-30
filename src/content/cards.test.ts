@@ -30,10 +30,10 @@ const BALANCE = {
   carrion_crow: ['시체를 먹는 까마귀', 'unit', 2, 1, 1, ['dark']],
   corpse_cat: ['시체에 숨은 고양이', 'unit', 1, 1, 2, ['dark']],
   nameless_shadow: ['이름 없는 그림자', 'unit', 1, 1, 2, ['dark']],
-  blue_black_hound: ['검푸른 들개', 'unit', 2, 4, 1, ['dark']],
+  blue_black_hound: ['검푸른 들개', 'unit', 2, 1, 2, ['dark']],
   weakened_giant: ['쇠약한 거인', 'unit', 2, 3, 3, ['dark']],
   coffin_warrior: ['관 속의 전사', 'unit', 4, 3, 3, ['dark']],
-  demon_finger: ['악마의 손가락', 'unit', 4, 4, 4, ['dark']],
+  demon_finger: ['악마의 손가락', 'unit', 4, 3, 4, ['dark']],
   demon_breath: ['악마의 숨결', 'spell', 5, null, null, ['dark']],
   eclipse: ['일식', 'spell', 6, null, null, ['dark', 'light']],
   pegasus_rider: ['페가수스 기마병', 'unit', 1, 1, 1, ['light']],
@@ -41,7 +41,7 @@ const BALANCE = {
   cathedral_guard: ['성당 경비병', 'unit', 2, 1, 4, ['light']],
   prophet: ['예언자', 'unit', 2, 2, 3, ['light']],
   apostle_pigeon: ['사도의 비둘기', 'unit', 2, 1, 3, ['light']],
-  devotion: ['헌신', 'spell', 4, null, null, ['light']],
+  devotion: ['헌신', 'spell', 3, null, null, ['light']],
   holy_mirror_wall: ['성스러운 거울의 벽', 'spell', 6, null, null, ['light']],
   battle_campfire: ['전장의 모닥불', 'spell', 3, null, null, ['fire', 'light']],
 } as const
@@ -81,7 +81,7 @@ describe('카드군 1 개정 원고', () => {
     expect(CARDS.grave_digging.rulesText).toContain('카드 2장을 손으로')
     expect(CARDS.demon_breath.rulesText).toContain('남은 체력이 가장 높은 몬스터 중 1장')
     expect(CARDS.overgrown_sprout.rulesText).toContain('비행을 얻는다')
-    expect(CARDS.cathedral_guard.rulesText).toContain('비용 1 이하 몬스터로 공격할 수 없다')
+    expect(CARDS.cathedral_guard.rulesText).toContain('수호')
     expect(CARDS.nameless_shadow.rulesText).toContain('암살')
     expect(CARDS.coffin_warrior.rulesText).toContain('비용 없이')
   })

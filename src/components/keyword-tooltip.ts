@@ -15,6 +15,7 @@ const KEYWORD_HELP: KeywordHelp[] = [
   { id: 'stealth', name: '잠행', description: '상대 몬스터의 공격 대상으로 선택되지 않습니다.', className: 'stealth', textPattern: /잠행/ },
   { id: 'flying', name: '비행', description: '공격 가능한 상대 몬스터가 있어도 플레이어를 직접 공격할 수 있습니다.', className: 'flying', textPattern: /비행/ },
   { id: 'assassination', name: '암살', description: '몬스터와 전투한 뒤, 전투한 상대 몬스터를 묘지로 보냅니다.', className: 'assassination', textPattern: /암살/ },
+  { id: 'guard', name: '수호', description: '준비 상태라면 상대는 공격 가능한 수호 몬스터 중 하나를 먼저 공격해야 합니다.', className: 'guard', textPattern: /수호/ },
   { id: 'windfury', name: '질풍', description: '한 턴에 최대 두 번 공격할 수 있습니다.', className: 'windfury', textPattern: /질풍/ },
   { id: 'rush', name: '기습', description: '소환한 턴에도 몬스터와 플레이어를 공격할 수 있습니다.', className: 'rush', textPattern: /기습/ },
   { id: 'charge', name: '돌진', description: '소환한 턴에는 상대 몬스터를 공격할 수 있습니다.', className: 'charge', textPattern: /돌진/ },

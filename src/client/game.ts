@@ -603,7 +603,11 @@ function effectiveCost(card: CardInstance): number {
     && isInCurrentHand
     && (self?.darkCardsDiscardedThisTurn ?? 0) >= 2
   ) return 0
-  return Math.max(0, definition.cost - (card.costReduction ?? 0))
+  const resonanceReduction = card.cardId === 'lava_gardener'
+    && self?.mana.some((mana) => CARDS[mana.cardId].attributes.includes('earth'))
+    ? 1
+    : 0
+  return Math.max(0, definition.cost - (card.costReduction ?? 0) - resonanceReduction)
 }
 
 function automaticPaymentIds(card: CardInstance): string[] {
@@ -693,6 +697,11 @@ function hasStealthView(player: PlayerView, unit: UnitInstance): boolean {
   return unit.cardId === 'funeral_inviter' && player.discard.length >= 4
 }
 
+function hasGuardView(unit: UnitInstance): boolean {
+  const definition = CARDS[unit.cardId]
+  return definition.type === 'unit' && definition.keywords?.includes('guard') === true
+}
+
 function hasAssassinationView(player: PlayerView, unit: UnitInstance): boolean {
   const definition = CARDS[unit.cardId]
   if (definition.type !== 'unit') return false
@@ -724,6 +733,7 @@ function attackingUnitValueView(
     + (unit.cardId === 'living_smoke' ? 2 : 0)
     + (unit.cardId === 'spark_chasing_lizard' ? 3 : 0)
     + (unit.cardId === 'cliff_hunter' && targetKind === 'unit' ? 2 : 0)
+    + (unit.cardId === 'blue_black_hound' ? 2 : 0)
 }
 
 function healthValueView(player: PlayerView, unit: UnitInstance): number {
@@ -798,11 +808,7 @@ function playDraftNeedsUnitTarget(card: CardInstance): boolean {
 
 function playDraftNeedsEffectMana(card: CardInstance): boolean {
   if (!game || !playDraft) return false
-  const self = game.players[game.viewer]
   if (card.cardId === 'grave_digging' || card.cardId === 'rising_earth') return true
-  if (card.cardId === 'lava_gardener' && selectedPaidAttributes().has('earth')) {
-    return self.mana.some((mana) => mana.exhausted || playDraft!.manaIds.includes(mana.instanceId))
-  }
   return false
 }
 
@@ -811,15 +817,16 @@ function canAttackUnitView(
   attacker: UnitInstance,
   defenderPlayer: PlayerView,
   defender: UnitInstance,
-  ignoreSkyKnight = false,
+  ignoreGuard = false,
 ): boolean {
   if (hasStealthView(defenderPlayer, defender)) return false
   if (defender.cardId === 'scale_diver' && attackingUnitValueView(attackerPlayer, attacker, 'unit') >= 3) return false
   if (defender.cardId === 'little_judge' && CARDS[attacker.cardId].cost <= 1) return false
-  if (!ignoreSkyKnight && defender.cardId !== 'sky_white_horse_knight') {
-    const sky = defenderPlayer.field.some((unit) => unit.cardId === 'sky_white_horse_knight'
+  if (!ignoreGuard && !(hasGuardView(defender) && !defender.exhausted)) {
+    const guard = defenderPlayer.field.some((unit) => hasGuardView(unit)
+      && !unit.exhausted
       && canAttackUnitView(attackerPlayer, attacker, defenderPlayer, unit, true))
-    if (sky) return false
+    if (guard) return false
   }
   return true
 }
@@ -829,13 +836,10 @@ function canSelectedAttackerDirectAttack(opponentPlayer: PlayerView): boolean {
   const self = game.players[game.viewer]
   const attacker = self.field.find((unit) => unit.instanceId === selectedAttackerId)
   if (!attacker || !canUnitAttackView(self, attacker, 'player')) return false
-  if (
-    opponentPlayer.field.some((unit) => unit.cardId === 'cathedral_guard' && !unit.exhausted)
-    && CARDS[attacker.cardId].cost <= 1
-  ) return false
-  const attackableSky = opponentPlayer.field.some((unit) => unit.cardId === 'sky_white_horse_knight'
+  const attackableGuard = opponentPlayer.field.some((unit) => hasGuardView(unit)
+    && !unit.exhausted
     && canAttackUnitView(self, attacker, opponentPlayer, unit, true))
-  if (attackableSky) return false
+  if (attackableGuard) return false
   const attackableEnemy = opponentPlayer.field.some(
     (unit) => canAttackUnitView(self, attacker, opponentPlayer, unit),
   )
@@ -1046,10 +1050,7 @@ function renderMana(
       && !definition.evolutionAttribute
       && meetsSummonConditionView(player, mana.cardId)
       && !selectedAsCost
-    const canSelectForGardener = draftCard?.cardId === 'lava_gardener'
-      && selectedPaidAttributes().has('earth')
-      && Boolean(mana)
-    const canSelectAsEffect = canSelectForGrave || canSelectForRising || canSelectForGardener || selectedAsEffect
+    const canSelectAsEffect = canSelectForGrave || canSelectForRising || selectedAsEffect
     const manaSelectionAction = isSelf && playDraft
       ? canSelectAsEffect ? 'select-effect-mana' : null
       : null
@@ -1286,12 +1287,12 @@ function renderHand(player: PlayerView, isSelf: boolean): string {
       ))
       const playReason = actionBlockReason
         || (readyMana < effectiveCost(card) ? `준비된 마나가 ${effectiveCost(card)}개 필요합니다.` : '')
-        || (player.burningProcessionActive && definition.cost > 2 ? '불타는 행렬 효과로 비용 2 이하 카드만 사용할 수 있습니다.' : '')
+        || (player.burningProcessionActive && (definition.cost > 2 || !definition.attributes.includes('fire')) ? '불타는 행렬 효과로 비용 2 이하인 불 카드만 사용할 수 있습니다.' : '')
         || (definition.type === 'unit' && !definition.evolutionAttribute && player.field.length >= currentFieldLimit() ? '전장에 빈 슬롯이 없습니다.' : '')
         || (!hasLegalPlayTarget(card, player, enemy) ? '현재 선택할 수 있는 유효한 대상이나 조건이 없습니다.' : '')
       const playDisabled = !canAct
         || readyMana < effectiveCost(card)
-        || (player.burningProcessionActive && definition.cost > 2)
+        || (player.burningProcessionActive && (definition.cost > 2 || !definition.attributes.includes('fire')))
         || (
           definition.type === 'unit'
           && !definition.evolutionAttribute
@@ -1346,6 +1347,7 @@ function getUnitStatusBadges(
   if (hasWindfuryView(player, unit)) badges.push({ label: '질풍', keyword: 'windfury' })
   if (hasFlyingView(player, unit)) badges.push({ label: '비행', keyword: 'flying' })
   if (hasStealthView(player, unit)) badges.push({ label: '잠행', keyword: 'stealth' })
+  if (hasGuardView(unit)) badges.push({ label: unit.exhausted ? '수호 비활성' : '수호', tone: unit.exhausted ? 'inactive' : 'active', keyword: 'guard' })
   if (definition.keywords?.includes('last_words')) badges.push({ label: '유언', keyword: 'last-words' })
   if (unit.cardId === 'nameless_shadow') {
     const discardCount = Math.min(3, player.discard.length)
@@ -1402,10 +1404,6 @@ function renderField(player: PlayerView, isSelf: boolean): string {
       && roomPhase === 'playing'
       && currentGame.status === 'playing'
       && !awaitingServer
-      && !(
-        opponentPlayer.field.some((guard) => guard.cardId === 'cathedral_guard' && !guard.exhausted)
-        && definition.cost <= 1
-      )
       && (
         canUnitAttackView(player, unit, 'player')
         || (
@@ -1430,10 +1428,6 @@ function renderField(player: PlayerView, isSelf: boolean): string {
       && normalAttackMode
       && selectedAttacker !== undefined
       && canUnitAttackView(currentGame.players[currentGame.viewer], selectedAttacker, 'unit')
-      && !(
-        player.field.some((guard) => guard.cardId === 'cathedral_guard' && !guard.exhausted)
-        && CARDS[selectedAttacker.cardId].cost <= 1
-      )
       && canAttackUnitView(currentGame.players[currentGame.viewer], selectedAttacker, player, unit)
       && roomPhase === 'playing'
       && !awaitingServer
@@ -3246,7 +3240,7 @@ function bindPlayDraftEvents(): void {
       const manaId = cardElement.dataset.manaId
       const card = selectedPlayCard()
       if (!manaId || !card) return
-      if (playDraft.effectManaId === manaId && card.cardId !== 'lava_gardener') return
+      if (playDraft.effectManaId === manaId) return
       const cost = effectiveCost(card)
       const next = toggleString(playDraft.manaIds, manaId, cost)
       if (next.length === playDraft.manaIds.length && !playDraft.manaIds.includes(manaId)) {
@@ -3266,14 +3260,7 @@ function bindPlayDraftEvents(): void {
       if (!playDraft) return
       const manaId = cardElement.dataset.manaId
       if (!manaId) return
-      const draftCard = selectedPlayCard()
-      if (playDraft.manaIds.includes(manaId) && draftCard?.cardId !== 'lava_gardener') return
-      if (playDraft.effectManaId === manaId && playDraft.manaIds.includes(manaId)) {
-        playDraft.effectManaId = undefined
-        playDraft.manaIds = playDraft.manaIds.filter((id) => id !== manaId)
-        render()
-        return
-      }
+      if (playDraft.manaIds.includes(manaId)) return
       playDraft.effectManaId = playDraft.effectManaId === manaId ? undefined : manaId
       render()
     })

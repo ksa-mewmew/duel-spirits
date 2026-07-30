@@ -157,7 +157,7 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     },
   ),
   earth_guardian: u(
-    'earth_guardian', '대지의 수호자', 6, 4, 4, ['earth'],
+    'earth_guardian', '대지의 수호자', 6, 3, 5, ['earth'],
     '진화 - 땅 몬스터. 이 몬스터가 진화해서 소환되었을 때, 자신의 마나에서 비용 2 이하인 몬스터를 최대 2장까지 빈 전장에 소환할 수 있다. 그 몬스터들의 출현은 발동하지 않는다.',
     {
       evolutionAttribute: 'earth',
@@ -174,7 +174,7 @@ export const EVOLUTION_BEGINS_001_CARDS = {
     },
   ),
   grave_merchant: u(
-    'grave_merchant', '무덤 안의 상인', 2, 2, 2, ['dark'],
+    'grave_merchant', '무덤 안의 상인', 2, 2, 3, ['dark'],
     '출현 - 자신의 묘지에서 비용 1 이하인 몬스터 하나를 손으로 가져온다.',
     {
       flavorText: '싸게 팝니다! 저는 주웠지만.',
@@ -259,9 +259,9 @@ export const EVOLUTION_BEGINS_001_CARDS = {
   ),
   sky_white_horse_knight: u(
     'sky_white_horse_knight', '천공의 백마기사', 4, 3, 4, ['light'],
-    '진화 - 빛 몬스터. 비행. 출현 - 자신의 다른 소진된 몬스터 하나를 준비할 수 있다. 상대는 가능하다면 이 몬스터부터 공격해야 한다.',
+    '진화 - 빛 몬스터. 비행. 수호. 출현 - 자신의 다른 소진된 몬스터 하나를 준비할 수 있다.',
     {
-      keywords: ['flying'],
+      keywords: ['flying', 'guard'],
       evolutionAttribute: 'light',
       flavorText: '기어코 바다는 하늘의 아래가 되었다.',
     },
@@ -279,7 +279,7 @@ export const EVOLUTION_BEGINS_001_CARDS = {
   // 레인보우
   lava_gardener: u(
     'lava_gardener', '용암 정원사', 3, 2, 3, ['fire', 'earth'],
-    '출현 - 불 공명 - 상대 몬스터 하나에게 피해 1을 준다. 출현 - 땅 공명 - 자신의 소진된 마나 하나를 준비한다.',
+    '땅 공명 - 이 카드의 비용은 1 감소한다. 출현 - 불 공명 - 상대 몬스터 하나에게 피해 1을 준다.',
     {
       flavorText: '용암은 따뜻하죠.',
     },

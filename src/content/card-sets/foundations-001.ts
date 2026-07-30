@@ -40,7 +40,7 @@ export const FOUNDATIONS_001_CARDS = {
     }),
   burning_procession: s(
     'burning_procession', '불타는 행렬', 4, ['fire'],
-    '이번 전투 동안 자신의 턴 시작 시 카드를 2장 대신 3장 뽑는다. 이번 전투 동안 자신은 원래 비용이 2 이하인 카드만 사용할 수 있다.',
+    '이번 전투 동안 자신의 턴 시작 시 카드를 2장 대신 3장 뽑는다. 이번 전투 동안 자신은 원래 비용이 2 이하인 불 카드만 사용할 수 있다.',
     {
       flavorText: '땅의 군세는 하나둘 불꽃의 포로가 되었다.',
     },
@@ -177,10 +177,10 @@ export const FOUNDATIONS_001_CARDS = {
     },
   ),
   blue_black_hound: u(
-    'blue_black_hound', '검푸른 들개', 2, 4, 1, ['dark'],
-    '돌진. 이 몬스터는 직접 공격할 수 없다.',
+    'blue_black_hound', '검푸른 들개', 2, 1, 2, ['dark'],
+    '잠행. 공격할 때, 이 몬스터의 공격력은 +2를 얻는다.',
     {
-      keywords: ['charge'],
+      keywords: ['stealth'],
       flavorText: '길들인 자가 있다고 전해진다.',
     },
   ),
@@ -192,7 +192,7 @@ export const FOUNDATIONS_001_CARDS = {
     },
   ),
   demon_finger: u(
-    'demon_finger', '악마의 손가락', 4, 4, 4, ['dark'],
+    'demon_finger', '악마의 손가락', 4, 3, 4, ['dark'],
     '유언 - 상대는 손에서 카드 1장을 선택해 묘지로 보낸다.',
     {
       keywords: ['last_words'],
@@ -226,8 +226,9 @@ export const FOUNDATIONS_001_CARDS = {
   ),
   cathedral_guard: u(
     'cathedral_guard', '성당 경비병', 2, 1, 4, ['light'],
-    '이 몬스터가 준비된 상태라면, 상대는 비용 1 이하 몬스터로 공격할 수 없다.',
+    '수호.',
     {
+      keywords: ['guard'],
       flavorText: '초대받은 자만 입장할 수 있습니다.',
     },
   ),
@@ -246,7 +247,7 @@ export const FOUNDATIONS_001_CARDS = {
     },
   ),
   devotion: s(
-    'devotion', '헌신', 4, ['light'],
+    'devotion', '헌신', 3, ['light'],
     '자신의 라이프가 2장 이하일 때만 사용할 수 있다. 카드 1장을 뽑는다. 이 카드를 자신의 라이프 영역에 뒷면으로 놓는다.',
     {
       flavorText: '아직 남았습니다.',

@@ -229,7 +229,7 @@ function hasKeyword(
   game: GameState,
   owner: PlayerId,
   unit: UnitInstance,
-  keyword: 'rush' | 'charge' | 'windfury' | 'flying' | 'stealth' | 'assassination',
+  keyword: 'rush' | 'charge' | 'windfury' | 'flying' | 'stealth' | 'assassination' | 'guard',
 ): boolean {
   const definition = unitDefinition(unit)
   if (definition.keywords?.includes(keyword)) return true
@@ -315,6 +315,7 @@ function combatAttackValue(
     + (unit.cardId === 'living_smoke' ? 2 : 0)
     + (unit.cardId === 'spark_chasing_lizard' && role === 'attacker' ? 3 : 0)
     + (unit.cardId === 'cliff_hunter' && role === 'attacker' && targetKind === 'unit' ? 2 : 0)
+    + (unit.cardId === 'blue_black_hound' && role === 'attacker' ? 2 : 0)
 }
 
 function healthValue(game: GameState, owner: PlayerId, unit: UnitInstance): number {
@@ -713,7 +714,11 @@ function effectiveCost(
     card.cardId === 'coffin_warrior'
     && (player.darkCardsDiscardedThisTurn ?? 0) >= 2
   ) return 0
-  return Math.max(0, definition.cost - (card.costReduction ?? 0))
+  const resonanceReduction = card.cardId === 'lava_gardener'
+    && player.mana.some((mana) => hasAttribute(mana, 'earth'))
+    ? 1
+    : 0
+  return Math.max(0, definition.cost - (card.costReduction ?? 0) - resonanceReduction)
 }
 
 export function getOpenFieldSlots(
@@ -994,13 +999,6 @@ function resolveArrival(
       }
       break
 
-    case 'blue_black_hound':
-      if (paidAttributes.has('dark')) {
-        unit.temporaryCharge = true
-        unit.exhausted = false
-      }
-      break
-
     case 'wave_reader': {
       if (paidAttributes.has('water')) {
         const top = player.deck[0]
@@ -1207,14 +1205,6 @@ function resolveArrival(
         if (!target) throw new GameRuleError('피해를 줄 상대 몬스터를 선택해야 합니다.')
         target.damage += 1
         cleanupDead(game, random)
-      }
-      if (paidAttributes.has('earth')) {
-        const exhaustedMana = player.mana.filter((mana) => mana.exhausted)
-        if (exhaustedMana.length > 0) {
-          const target = exhaustedMana.find((mana) => mana.instanceId === selection?.effectManaId)
-          if (!target) throw new GameRuleError('준비할 소진 마나를 선택해야 합니다.')
-          target.exhausted = false
-        }
       }
       break
     }
@@ -1616,8 +1606,11 @@ function playCard(
 
   const card = player.hand[index]!
   const definition = CARDS[card.cardId]
-  if (player.burningProcessionActive && definition.cost > 2) {
-    throw new GameRuleError('불타는 행렬 효과로 원래 비용이 2 이하인 카드만 사용할 수 있습니다.')
+  if (
+    player.burningProcessionActive
+    && (definition.cost > 2 || !definition.attributes.includes('fire'))
+  ) {
+    throw new GameRuleError('불타는 행렬 효과로 원래 비용이 2 이하인 불 카드만 사용할 수 있습니다.')
   }
 
   if (
@@ -1725,7 +1718,6 @@ function assertCanAttack(
 
 function cannotDirectAttack(unit: UnitInstance): boolean {
   return [
-    'blue_black_hound',
     'iron_horn_boar',
     'weakened_giant',
   ].includes(unit.cardId)
@@ -1736,19 +1728,20 @@ function canTargetUnit(
   actor: PlayerId,
   attacker: UnitInstance,
   defender: UnitInstance,
-  ignoreSkyKnight = false,
+  ignoreGuard = false,
 ): boolean {
   const enemyId = opponent(actor)
   if (hasKeyword(game, enemyId, defender, 'stealth')) return false
   if (defender.cardId === 'scale_diver' && combatAttackValue(game, actor, attacker, 'attacker', 'unit') >= 3) return false
   if (defender.cardId === 'little_judge' && unitDefinition(attacker).cost <= 1) return false
 
-  if (!ignoreSkyKnight && defender.cardId !== 'sky_white_horse_knight') {
-    const hasAttackableSkyKnight = game.players[enemyId].field.some(
-      (unit) => unit.cardId === 'sky_white_horse_knight'
+  if (!ignoreGuard && !(hasKeyword(game, enemyId, defender, 'guard') && !defender.exhausted)) {
+    const hasAttackableGuard = game.players[enemyId].field.some(
+      (unit) => hasKeyword(game, enemyId, unit, 'guard')
+        && !unit.exhausted
         && canTargetUnit(game, actor, attacker, unit, true),
     )
-    if (hasAttackableSkyKnight) return false
+    if (hasAttackableGuard) return false
   }
   return true
 }
@@ -1785,12 +1778,6 @@ function attackUnit(
   }
 
   assertCanAttack(game, actor, attacker, 'unit')
-  if (
-    enemy.field.some((unit) => unit.cardId === 'cathedral_guard' && !unit.exhausted)
-    && unitDefinition(attacker).cost <= 1
-  ) {
-    throw new GameRuleError('준비된 성당 경비병 때문에 비용 1 이하 몬스터는 공격할 수 없습니다.')
-  }
   if (!canTargetUnit(game, actor, attacker, defender)) {
     if (defender.cardId === 'scale_diver') {
       throw new GameRuleError('비늘 잠수부는 공격력 3 이상인 몬스터에게 공격받지 않습니다.')
@@ -1798,8 +1785,8 @@ function attackUnit(
     if (defender.cardId === 'little_judge') {
       throw new GameRuleError('작은 심판관은 비용 1 이하 몬스터에게 공격받지 않습니다.')
     }
-    if (enemy.field.some((unit) => unit.cardId === 'sky_white_horse_knight' && canTargetUnit(game, actor, attacker, unit, true))) {
-      throw new GameRuleError('가능하다면 천공의 백마기사부터 공격해야 합니다.')
+    if (enemy.field.some((unit) => hasKeyword(game, enemyId, unit, 'guard') && !unit.exhausted && canTargetUnit(game, actor, attacker, unit, true))) {
+      throw new GameRuleError('준비된 수호 몬스터가 있다면 공격 가능한 수호 몬스터 중 하나를 먼저 공격해야 합니다.')
     }
     throw new GameRuleError('이 몬스터는 공격 대상으로 선택할 수 없습니다.')
   }
@@ -1895,19 +1882,14 @@ function attackPlayer(
   if (cannotDirectAttack(attacker)) {
     throw new GameRuleError('이 몬스터는 직접 공격할 수 없습니다.')
   }
-  if (
-    enemy.field.some((unit) => unit.cardId === 'cathedral_guard' && !unit.exhausted)
-    && unitDefinition(attacker).cost <= 1
-  ) {
-    throw new GameRuleError('준비된 성당 경비병 때문에 비용 1 이하 몬스터는 공격할 수 없습니다.')
-  }
 
-  const hasAttackableSkyKnight = enemy.field.some(
-    (unit) => unit.cardId === 'sky_white_horse_knight'
+  const hasAttackableGuard = enemy.field.some(
+    (unit) => hasKeyword(game, enemyId, unit, 'guard')
+      && !unit.exhausted
       && canTargetUnit(game, actor, attacker, unit, true),
   )
-  if (hasAttackableSkyKnight) {
-    throw new GameRuleError('가능하다면 천공의 백마기사부터 공격해야 합니다.')
+  if (hasAttackableGuard) {
+    throw new GameRuleError('준비된 수호 몬스터가 있다면 공격 가능한 수호 몬스터 중 하나를 먼저 공격해야 합니다.')
   }
 
   const hasAttackableUnit = enemy.field.some((unit) => canTargetUnit(game, actor, attacker, unit))

@@ -21,7 +21,11 @@ function effectiveCost(card: CardInstance, view: GameView, actor: PlayerId): num
     card.cardId === 'coffin_warrior'
     && view.players[actor].darkCardsDiscardedThisTurn >= 2
   ) return 0
-  return Math.max(0, CARDS[card.cardId].cost - (card.costReduction ?? 0))
+  const resonanceReduction = card.cardId === 'lava_gardener'
+    && view.players[actor].mana.some((mana) => CARDS[mana.cardId].attributes.includes('earth'))
+    ? 1
+    : 0
+  return Math.max(0, CARDS[card.cardId].cost - (card.costReduction ?? 0) - resonanceReduction)
 }
 
 function enumeratePayments(
@@ -341,7 +345,7 @@ function rawTurnActions(
       actor,
       cost,
       Math.min(limits.maxPaymentVariantsPerCard, perCardBudget),
-      card.cardId === 'rising_earth' || card.cardId === 'lava_gardener',
+      card.cardId === 'rising_earth',
     )
     const selections = playSelections(
       state,

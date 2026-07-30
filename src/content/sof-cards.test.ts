@@ -26,10 +26,10 @@ const SOF_BALANCE = {
   cliff_hunter: ['절벽의 사냥꾼', 'unit', 3, 1, 4, ['earth'], null],
   rising_earth: ['솟아나는 대지', 'spell', 5, null, null, ['earth'], null],
   walking_hill: ['걸어 다니는 언덕', 'unit', 4, 5, 5, ['earth'], 'earth'],
-  earth_guardian: ['대지의 수호자', 'unit', 6, 4, 4, ['earth'], 'earth'],
+  earth_guardian: ['대지의 수호자', 'unit', 6, 3, 5, ['earth'], 'earth'],
 
   poisoned_skeleton: ['독이 발린 해골', 'unit', 2, 1, 1, ['dark'], null],
-  grave_merchant: ['무덤 안의 상인', 'unit', 2, 2, 2, ['dark'], null],
+  grave_merchant: ['무덤 안의 상인', 'unit', 2, 2, 3, ['dark'], null],
   weakened_giant: ['쇠약한 거인', 'unit', 2, 3, 3, ['dark'], null],
   funeral_inviter: ['장례식의 초대자', 'unit', 3, 2, 2, ['dark'], null],
   mass_burial: ['집단 매장', 'spell', 3, null, null, ['dark'], null],
