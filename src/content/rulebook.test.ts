@@ -9,16 +9,17 @@ describe('종합 규칙 문서', () => {
     const document = createRulebookDocument(getFormat('open-v1'))
 
     expect(document.rulesVersion).toBe(RULES_VERSION)
-    expect(document.formatSummary).toContain('덱 20장')
+    expect(document.formatSummary).toContain('덱 30장')
     expect(document.formatSummary).toContain('시작 라이프 4장')
     expect(document.formatSummary).toContain('시작 손 4장')
     expect(document.formatSummary).toContain('후공 첫 턴 드로우 1장')
-    expect(document.formatSummary).toContain('이후 턴 시작 드로우 2장')
-    expect(document.formatSummary).toContain('시작 덱 12장')
+    expect(document.formatSummary).toContain('이후 턴 시작 드로우 1장')
+    expect(document.formatSummary).toContain('시작 덱 22장')
     expect(document.formatSummary).toContain('전장 4슬롯')
     expect(JSON.stringify(document)).toContain('같은 카드는 최대 3장')
     expect(JSON.stringify(document)).toContain('후공의 첫 턴에는 카드 1장을 뽑습니다')
-    expect(JSON.stringify(document)).toContain('그 이후에는 턴마다 카드 2장을')
+    expect(JSON.stringify(document)).toContain('그 이후에는 턴마다 카드 1장을')
+    expect(JSON.stringify(document)).toContain('덱이 비어 있으면 즉시 패배')
   })
 
   test('목차 id와 핵심 키워드가 빠짐없이 존재한다', () => {

@@ -23,7 +23,7 @@ afterEach(() => {
 })
 
 describe('견본 덱 저장 동기화', () => {
-  test('기존 일식 견본 덱을 성령의 계율로 교체하고 사용자 덱은 보존한다', () => {
+  test('기존 견본 덱을 예정된 성령으로 교체하고 사용자 덱은 보존한다', () => {
     const source = SAMPLE_DECK_LIST[0]!
     window.localStorage.setItem('card-duel:decks:v1', JSON.stringify([
       {
@@ -52,14 +52,14 @@ describe('견본 덱 저장 동기화', () => {
     window.localStorage.setItem('card-duel:active-deck:v1', 'sample-eclipse-omen')
 
     const decks = loadDecks()
-    const spiritDeck = SAMPLE_DECK_LIST.find((deck) => deck.id === 'spirit-discipline')!
+    const spiritDeck = SAMPLE_DECK_LIST.find((deck) => deck.id === 'destined-spirit')!
 
     expect(decks.some((deck) => deck.id === 'sample-eclipse-omen')).toBe(false)
-    expect(decks.find((deck) => deck.id === 'sample-spirit-discipline')).toMatchObject({
-      name: '성령의 계율',
+    expect(decks.find((deck) => deck.id === 'sample-destined-spirit')).toMatchObject({
+      name: '예정된 성령',
       cardIds: [...spiritDeck.cardIds],
     })
     expect(decks.some((deck) => deck.id === 'my-deck')).toBe(true)
-    expect(getActiveDeckId()).toBe('sample-spirit-discipline')
+    expect(getActiveDeckId()).toBe('sample-destined-spirit')
   })
 })

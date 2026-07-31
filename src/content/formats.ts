@@ -4,7 +4,7 @@ import type { GameFormat, GameFormatId } from './schema'
 
 export const DEFAULT_FORMAT_ID: GameFormatId = 'open-v1'
 export const DRAFT_POOL_SIZE = 60
-export const DRAFT_DECK_SIZE = 20
+export const DRAFT_DECK_SIZE = 30
 
 export const GAME_FORMATS: Record<GameFormatId, GameFormat<CardId>> = {
   'campaign-prologue-v1': {
@@ -15,7 +15,7 @@ export const GAME_FORMATS: Record<GameFormatId, GameFormat<CardId>> = {
     kind: 'campaign',
     mode: 'campaign',
     deckSource: 'campaign',
-    deckSize: 20,
+    deckSize: 30,
     maxCopiesPerCard: 3,
     startingLife: 4,
     startingHand: 4,
@@ -36,7 +36,7 @@ export const GAME_FORMATS: Record<GameFormatId, GameFormat<CardId>> = {
     kind: 'set-constructed',
     mode: 'pvp',
     deckSource: 'constructed',
-    deckSize: 20,
+    deckSize: 30,
     maxCopiesPerCard: 3,
     startingLife: 4,
     startingHand: 4,
@@ -59,7 +59,7 @@ export const GAME_FORMATS: Record<GameFormatId, GameFormat<CardId>> = {
     kind: 'open',
     mode: 'pvp',
     deckSource: 'constructed',
-    deckSize: 20,
+    deckSize: 30,
     maxCopiesPerCard: 3,
     startingLife: 4,
     startingHand: 4,

@@ -17,22 +17,24 @@ describe('덱 검증', () => {
     })
   })
 
-  test('20장이 아니면 거부한다', () => {
-    const result = validateDeck(DEFAULT_DECK.slice(0, 19))
+  test('30장이 아니면 거부한다', () => {
+    const result = validateDeck(DEFAULT_DECK.slice(0, 29))
 
     expect(result.valid).toBe(false)
     expect(result.errors).toContain(
-      '덱에는 정확히 20장이 필요합니다.',
+      '덱에는 정확히 30장이 필요합니다.',
     )
   })
 
   test('동일 카드는 세 장까지 넣을 수 있고 네 장부터 거부한다', () => {
     const validDeck = [...DEFAULT_DECK]
-    validDeck[2] = 'living_flame'
+    validDeck[0] = 'pegasus_rider'
     expect(validateDeck(validDeck).valid).toBe(true)
 
     const invalidDeck = [...validDeck]
-    invalidDeck[3] = 'living_flame'
+    invalidDeck[1] = 'pegasus_rider'
+    invalidDeck[2] = 'pegasus_rider'
+    invalidDeck[3] = 'pegasus_rider'
     const result = validateDeck(invalidDeck)
 
     expect(result.valid).toBe(false)
@@ -46,12 +48,12 @@ describe('덱 통계', () => {
   test('속성 분포와 평균 비용을 계산한다', () => {
     const distribution = getAttributeDistribution(DEFAULT_DECK)
 
-    expect(distribution.fire).toBe(10)
+    expect(distribution.fire).toBe(27)
     expect(distribution.water).toBe(0)
-    expect(distribution.earth).toBe(0)
+    expect(distribution.earth).toBe(3)
     expect(distribution.dark).toBe(0)
-    expect(distribution.light).toBe(8)
-    expect(distribution.multi).toBe(2)
+    expect(distribution.light).toBe(0)
+    expect(distribution.multi).toBe(0)
     expect(Object.values(distribution).reduce((sum, count) => sum + count, 0)).toBe(DEFAULT_DECK.length)
     expect(getAverageCost(DEFAULT_DECK)).toBeGreaterThan(0)
   })

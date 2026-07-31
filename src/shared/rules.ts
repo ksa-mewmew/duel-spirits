@@ -19,7 +19,7 @@ export { DECK_SIZE } from './decks'
 
 export const LIFE_SIZE = 4
 export const STARTING_HAND_SIZE = 4
-export const DRAW_DECK_SIZE = 12
+export const DRAW_DECK_SIZE = 22
 export const FIELD_LIMIT = 4
 
 export type RandomSource = () => number
@@ -461,7 +461,7 @@ function triggerUnitLastWords(
 
   // 유언은 전장에서 묘지로 보내진 직후 발동합니다.
   if (unit.cardId === 'last_ember') {
-    draw(game.players[owner], random)
+    draw(game, game.players[owner], random)
   }
   if (unit.cardId === 'demon_finger' || unit.cardId === 'funeral_inviter') {
     const chooser = opponent(owner)
@@ -655,16 +655,17 @@ export function collectDeadUnitsInResolutionOrder(game: GameState): Array<{
     .sort((left, right) => left.battlefieldEntrySeq - right.battlefieldEntrySeq)
 }
 
-function draw(player: PlayerState, random: RandomSource): void {
-  let card = player.deck.shift()
-
-  if (!card && player.discard.length > 0) {
-    player.deck = shuffle(player.discard, random)
-    player.discard = []
-    card = player.deck.shift()
+function draw(game: GameState, player: PlayerState, _random: RandomSource): void {
+  if (game.status !== 'playing') return
+  const card = player.deck.shift()
+  if (card) {
+    player.hand.push(card)
+    return
   }
 
-  if (card) player.hand.push(card)
+  game.status = 'finished'
+  game.winner = player === game.players.P1 ? 'P2' : 'P1'
+  game.pendingChoices = []
 }
 
 function placeCardInMana(
@@ -1014,7 +1015,7 @@ function resolveArrival(
     }
 
     case 'ripple_spirit':
-      draw(player, random)
+      draw(game, player, random)
       break
 
     case 'surging_wave': {
@@ -1269,7 +1270,7 @@ function resolveArrival(
           data: { drawAfter: hasWater && hasDark },
         })
       } else if (hasWater && hasDark) {
-        draw(player, random)
+        draw(game, player, random)
       }
       break
     }
@@ -1384,12 +1385,12 @@ function resolveSpell(
     }
 
     case 'high_tide':
-      draw(player, random)
-      draw(player, random)
+      draw(game, player, random)
+      draw(game, player, random)
       break
 
     case 'tsunami':
-      if (paidAttributes.has('water')) draw(player, random)
+      if (paidAttributes.has('water')) draw(game, player, random)
       if (paidAttributes.has('earth')) {
         const top = player.deck.shift()
         if (top) placeCardInMana(game, actor, top, true, random, 'non-hand')
@@ -1462,7 +1463,7 @@ function resolveSpell(
       if (player.life.length > 2) {
         throw new GameRuleError('라이프가 2장 이하일 때만 사용할 수 있습니다.')
       }
-      draw(player, random)
+      draw(game, player, random)
       placeInLife(game, actor, card)
       return
 
@@ -2052,7 +2053,7 @@ function resolveChoice(
           if (!['draw', 'skip'].includes(choice)) throw new GameRuleError('카드를 뽑을지 선택해야 합니다.')
           shift()
           if (choice === 'draw') {
-            draw(sourcePlayer, random)
+            draw(game, sourcePlayer, random)
             if (sourcePlayer.hand.length > 0) {
               game.pendingChoices.unshift({
                 type: 'SOF_CHOICE', effect: 'WAVE_FIN_BOTTOM',
@@ -2442,7 +2443,7 @@ function resolveChoice(
           }
           const drawAfter = Boolean(pending.data?.drawAfter)
           shift()
-          if (drawAfter) draw(sourcePlayer, random)
+          if (drawAfter) draw(game, sourcePlayer, random)
           return game
         }
 
@@ -2466,7 +2467,7 @@ function resolveChoice(
               data: { drawAfter: Boolean(pending.data?.drawAfter) },
             })
           } else if (pending.data?.drawAfter) {
-            draw(sourcePlayer, random)
+            draw(game, sourcePlayer, random)
           }
           return game
         }
@@ -2770,11 +2771,11 @@ function endTurn(
   nextPlayer.manaPlacedThisTurn = false
   nextPlayer.attacksThisTurn = 0
   const normalTurnDrawCount = nextPlayer.burningProcessionActive
-    ? 3
+    ? 2
     : getFormat(game.matchConfig.formatId).turnDrawCount
   const turnDrawCount = game.turnNumber === 2 ? 1 : normalTurnDrawCount
   for (let drawIndex = 0; drawIndex < turnDrawCount; drawIndex += 1) {
-    draw(nextPlayer, random)
+    draw(game, nextPlayer, random)
   }
   return game
 }

@@ -15,16 +15,16 @@ import { createGame, applyAction } from './rules'
 import { createMatchConfig } from './match-config'
 
 const setDeck = [
-  'living_flame', 'living_flame',
-  'living_smoke', 'living_smoke',
-  'ash_hound', 'ash_hound',
-  'pegasus_rider', 'pegasus_rider',
-  'cathedral_guard', 'cathedral_guard',
-  'wave_reader', 'wave_reader',
-  'ripple_spirit', 'ripple_spirit',
-  'battle_campfire', 'battle_campfire',
-  'temple_prospect', 'temple_prospect',
-  'moth_swarm', 'moth_swarm',
+  'living_flame', 'living_flame', 'living_flame',
+  'living_smoke', 'living_smoke', 'living_smoke',
+  'ash_hound', 'ash_hound', 'ash_hound',
+  'pegasus_rider', 'pegasus_rider', 'pegasus_rider',
+  'cathedral_guard', 'cathedral_guard', 'cathedral_guard',
+  'wave_reader', 'wave_reader', 'wave_reader',
+  'ripple_spirit', 'ripple_spirit', 'ripple_spirit',
+  'battle_campfire', 'battle_campfire', 'battle_campfire',
+  'temple_prospect', 'temple_prospect', 'temple_prospect',
+  'moth_swarm', 'moth_swarm', 'moth_swarm',
 ] as const
 
 describe('콘텐츠와 포맷', () => {
@@ -79,7 +79,7 @@ describe('콘텐츠와 포맷', () => {
 
     expect(validateDeck(setDeck, foundationsSelection).valid).toBe(true)
     expect(getFormatCardPool(foundationsSelection)).toContain('battle_campfire')
-    expect(validateDeck(DEFAULT_DECK, foundationsSelection).valid).toBe(true)
+    expect(validateDeck(DEFAULT_DECK, foundationsSelection).valid).toBe(false)
 
     expect(getFormatCardPool(evolutionSelection)).toHaveLength(40)
     expect(getFormatCardPool(evolutionSelection).every(
@@ -93,9 +93,9 @@ describe('콘텐츠와 포맷', () => {
     expect(Object.keys(CARD_SETS)).toEqual(['foundations-001', 'evolution-begins-001'])
   })
 
-  test('모든 포맷의 턴 시작 드로우는 2장이다', () => {
+  test('모든 포맷의 턴 시작 드로우는 1장이다', () => {
     for (const format of Object.values(GAME_FORMATS)) {
-      expect(format.turnDrawCount).toBe(2)
+      expect(format.turnDrawCount).toBe(1)
     }
   })
 
@@ -119,11 +119,11 @@ describe('콘텐츠와 포맷', () => {
     ])
   })
 
-  test('드래프트는 60장 풀에서 20장 덱을 만든다', () => {
+  test('드래프트는 60장 풀에서 30장 덱을 만든다', () => {
     const format = GAME_FORMATS['draft-v1']
     const pool = createDraftPool('pool-size-seed', 'draft-v1', 1)
 
-    expect(format.draft).toMatchObject({ poolSize: 60, deckSize: 20 })
+    expect(format.draft).toMatchObject({ poolSize: 60, deckSize: 30 })
     expect(pool.cardIds).toHaveLength(60)
     expect(Math.max(...new Map(
       pool.cardIds.map((cardId) => [
@@ -155,14 +155,14 @@ describe('콘텐츠와 포맷', () => {
       if (nextCount > 3) return false
       counts.set(cardId, nextCount)
       return true
-    }).slice(0, 20)
+    }).slice(0, 30)
     const selection = {
       formatId: 'draft-v1' as const,
       selectedSetIds: [],
       draftPool: pool,
     }
 
-    expect(deck).toHaveLength(20)
+    expect(deck).toHaveLength(30)
     expect(validateDeck(deck, selection).valid).toBe(true)
 
     const unavailable = Object.keys(CARDS).find(

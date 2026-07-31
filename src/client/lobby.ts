@@ -125,8 +125,8 @@ export function renderLobby(appElement: HTMLDivElement): void {
     <section class="lobby-hero" aria-labelledby="game-title">
       <p class="eyebrow">PRIVATE CARD DUEL</p>
       <h1 id="game-title">Duel<br>Spirits</h1>
-      <p class="lobby-hero__subtitle">20장의 덱과 다섯 속성으로 만드는 비공개 1대1 카드 대전. 초대 링크 하나로 친구와 서버에 접속합니다.</p>
-      <div class="lobby-hero__keywords" aria-label="게임 특징"><span>20장 덱</span><span>숨겨진 라이프</span><span>서버 권위 대전</span></div>
+      <p class="lobby-hero__subtitle">30장의 덱과 다섯 속성으로 만드는 비공개 1대1 카드 대전. 초대 링크 하나로 친구와 서버에 접속합니다.</p>
+      <div class="lobby-hero__keywords" aria-label="게임 특징"><span>30장 덱</span><span>숨겨진 라이프</span><span>서버 권위 대전</span></div>
     </section>
 
     <section class="panel lobby-command" aria-label="대전 시작">

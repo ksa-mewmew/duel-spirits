@@ -5,17 +5,17 @@ import { SAMPLE_DECK_LIST } from './sample-decks'
 import { validateDeck } from '../shared/decks'
 
 describe('sample decks', () => {
-  it('provides four valid 20-card sample decks', () => {
+  it('provides four valid 30-card plan sample decks', () => {
     expect(SAMPLE_DECK_LIST).toHaveLength(4)
     expect(SAMPLE_DECK_LIST.map((deck) => deck.name)).toEqual([
-      '잿더미의 산맥',
-      '일어서는 대지',
-      '성령의 계율',
-      '소용돌이치는 파도',
+      '행렬 점화',
+      '마나 사다리',
+      '묘지 순환',
+      '예정된 성령',
     ])
 
     for (const deck of SAMPLE_DECK_LIST) {
-      expect(deck.cardIds).toHaveLength(20)
+      expect(deck.cardIds).toHaveLength(30)
       expect(validateDeck(deck.cardIds, {
         formatId: deck.formatId,
         selectedSetIds: [],

@@ -174,7 +174,7 @@ export interface DeckGenerationConfig {
   maxAttemptsPerDeck: number
   /** 초기 집단 중 아키타입·역할·매수 골격을 따르는 비율입니다. */
   humanDeckRatio: number
-  /** 20장 덱에서 보통 8~11종처럼 일관성 있는 카드 종류 수를 유도합니다. */
+  /** 30장 덱에서 일관성 있는 카드 종류 수를 유도합니다. */
   minDistinctCards: number
   maxDistinctCards: number
   /** 인간형 원형에서 상황 대응용 1장 카드의 최대 종류 수입니다. */

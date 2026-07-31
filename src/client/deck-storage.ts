@@ -15,7 +15,11 @@ const ACTIVE_DECK_KEY = 'card-duel:active-deck:v1'
 const LEGACY_DEFAULT_DECK_ID = 'default-deck'
 const SAMPLE_DECK_ID_PREFIX = 'sample-'
 const LEGACY_SAMPLE_DECK_REPLACEMENTS: Record<string, string> = {
-  'sample-eclipse-omen': 'sample-spirit-discipline',
+  'sample-eclipse-omen': 'sample-destined-spirit',
+  'sample-ash-mountains': 'sample-procession-ignition',
+  'sample-rising-earth': 'sample-mana-ladder',
+  'sample-spirit-discipline': 'sample-destined-spirit',
+  'sample-swirling-waves': 'sample-graveyard-cycle',
 }
 
 function createInitialDecks(createdAt = Date.now()): SavedDeck[] {

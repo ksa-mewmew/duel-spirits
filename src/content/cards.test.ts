@@ -75,7 +75,7 @@ describe('카드군 1 개정 원고', () => {
     expect(CARDS.last_ember.rulesText).toContain('고립 - 이 몬스터는 돌진')
     expect(CARDS.last_ember.rulesText).not.toContain('공격력 +')
     expect(CARDS.tree_fairy.rulesText).toContain('손에서 마나에 카드를 한 장')
-    expect(CARDS.burning_procession.rulesText).toContain('2장 대신 3장')
+    expect(CARDS.burning_procession.rulesText).toContain('1장 대신 2장')
     expect(CARDS.burning_procession.rulesText).toContain('원래 비용이 2 이하')
     expect(CARDS.surging_wave.rulesText).toContain('비용 2 이하의 물 몬스터')
     expect(CARDS.grave_digging.rulesText).toContain('카드 2장을 손으로')
@@ -86,8 +86,8 @@ describe('카드군 1 개정 원고', () => {
     expect(CARDS.coffin_warrior.rulesText).toContain('비용 없이')
   })
 
-  test('기본 덱은 20장이며 같은 이름은 최대 3장이다', () => {
-    expect(DEFAULT_DECK).toHaveLength(20)
+  test('기본 덱은 30장이며 같은 이름은 최대 3장이다', () => {
+    expect(DEFAULT_DECK).toHaveLength(30)
     const counts = new Map<string, number>()
     for (const cardId of DEFAULT_DECK) counts.set(cardId, (counts.get(cardId) ?? 0) + 1)
     expect(Math.max(...counts.values())).toBeLessThanOrEqual(3)

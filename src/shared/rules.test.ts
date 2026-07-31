@@ -17,8 +17,8 @@ function createIdSource(): () => string {
   return () => `test-${nextId++}`
 }
 
-describe('4 · 4 · 12 게임 시작', () => {
-  test('각 플레이어에게 라이프 4, 손 4, 덱 12를 배분한다', () => {
+describe('4 · 4 · 22 게임 시작', () => {
+  test('각 플레이어에게 라이프 4, 손 4, 덱 22를 배분한다', () => {
     const game = createGame({
       random: () => 0.5,
       idSource: createIdSource(),
@@ -116,7 +116,7 @@ describe('기본 행동', () => {
     expect(countPlayerCards(next.players.P1)).toBe(DECK_SIZE)
   })
 
-  test('후공은 첫 턴에 한 장을 뽑고 이후 턴에는 두 장을 뽑는다', () => {
+  test('후공은 첫 턴과 이후 턴에 한 장을 뽑는다', () => {
     const game = createGame({
       random: () => 0.5,
       idSource: createIdSource(),
@@ -125,15 +125,15 @@ describe('기본 행동', () => {
 
     expect(next.currentPlayer).toBe('P2')
     expect(next.players.P2.hand).toHaveLength(5)
-    expect(next.players.P2.deck).toHaveLength(11)
+    expect(next.players.P2.deck).toHaveLength(21)
 
     const following = applyAction(next, 'P2', { type: 'END_TURN' })
     expect(following.currentPlayer).toBe('P1')
-    expect(following.players.P1.hand).toHaveLength(6)
-    expect(following.players.P1.deck).toHaveLength(10)
+    expect(following.players.P1.hand).toHaveLength(5)
+    expect(following.players.P1.deck).toHaveLength(21)
   })
 
-  test('후공 첫 턴 드로우 때 덱이 비면 묘지를 섞어 한 장을 뽑는다', () => {
+  test('후공 첫 턴 드로우 때 덱이 비면 묘지와 관계없이 패배한다', () => {
     const game = createGame({
       random: () => 0.5,
       idSource: createIdSource(),
@@ -144,15 +144,11 @@ describe('기본 행동', () => {
       { instanceId: 'recycled-draw-a', cardId: 'wave_reader' },
       { instanceId: 'recycled-draw-b', cardId: 'living_flame' },
     ]
-    const handSizeBefore = game.players.P2.hand.length
-
     const next = applyAction(game, 'P1', { type: 'END_TURN' })
 
-    expect(next.players.P2.hand).toHaveLength(handSizeBefore + 1)
-    expect(['recycled-draw-a', 'recycled-draw-b'])
-      .toContain(next.players.P2.hand.at(-1)?.instanceId)
-    expect(next.players.P2.deck).toHaveLength(1)
-    expect(next.players.P2.discard).toHaveLength(0)
+    expect(next.status).toBe('finished')
+    expect(next.winner).toBe('P1')
+    expect(next.players.P2.discard).toHaveLength(2)
   })
 })
 

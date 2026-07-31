@@ -164,16 +164,16 @@ for (const cardId of CARD_IDS) {
 export const ALL_CARD_IDS = [...CARD_IDS]
 
 export const DEFAULT_DECK: CardId[] = [
-  'living_flame', 'living_flame',
-  'living_smoke', 'living_smoke',
-  'last_ember', 'last_ember',
-  'ash_hound', 'ash_hound',
-  'moth_swarm', 'moth_swarm',
-  'pegasus_rider', 'pegasus_rider',
-  'temple_prospect', 'temple_prospect',
-  'cathedral_guard', 'cathedral_guard',
-  'battle_campfire', 'battle_campfire',
-  'holy_mirror_wall', 'holy_mirror_wall',
+  'volcano_mouse', 'volcano_mouse', 'volcano_mouse',
+  'living_flame', 'living_flame', 'living_flame',
+  'spark_chasing_lizard', 'spark_chasing_lizard', 'spark_chasing_lizard',
+  'living_smoke', 'living_smoke', 'living_smoke',
+  'last_ember', 'last_ember', 'last_ember',
+  'ash_hound', 'ash_hound', 'ash_hound',
+  'unexploded_bomb_mouse', 'unexploded_bomb_mouse', 'unexploded_bomb_mouse',
+  'iron_horn_boar', 'iron_horn_boar', 'iron_horn_boar',
+  'tree_fairy', 'tree_fairy', 'tree_fairy',
+  'burning_procession', 'burning_procession', 'burning_procession',
 ]
 
 export const getCard = (id: CardId) => CARDS[id]

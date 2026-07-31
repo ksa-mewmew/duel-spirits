@@ -400,18 +400,17 @@ describe('카드군 1 최신 능력', () => {
     expect(next.players.P1.mana).toContainEqual(expect.objectContaining({ instanceId: 'to-hand', exhausted: true }))
   })
 
-  test('불타는 행렬이 활성화된 플레이어는 이후 턴 시작에 카드 3장을 뽑는다', () => {
+  test('불타는 행렬이 활성화된 플레이어는 이후 턴 시작에 카드 2장을 뽑는다', () => {
     const game = createTestGame()
     game.turnNumber = 2
     game.players.P2.burningProcessionActive = true
     game.players.P2.deck = [
       { instanceId: 'draw-1', cardId: 'living_flame' },
       { instanceId: 'draw-2', cardId: 'tree_fairy' },
-      { instanceId: 'draw-3', cardId: 'corpse_cat' },
     ]
     const next = applyAction(game, 'P1', { type: 'END_TURN' })
     expect(next.players.P2.hand.map((card) => card.instanceId)).toEqual(
-      expect.arrayContaining(['draw-1', 'draw-2', 'draw-3']),
+      expect.arrayContaining(['draw-1', 'draw-2']),
     )
   })
 })

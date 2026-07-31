@@ -5,7 +5,7 @@ export const SET_IDS = [
 
 export type SetId = typeof SET_IDS[number]
 
-export const DEFAULT_TURN_DRAW_COUNT = 2
+export const DEFAULT_TURN_DRAW_COUNT = 1
 
 export const FORMAT_IDS = [
   'campaign-prologue-v1',
